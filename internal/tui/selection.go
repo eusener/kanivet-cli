@@ -221,6 +221,9 @@ func (s *Selection) CycleVersion(itemID string, delta int) {
 	s.versions[itemID] = l[i]
 }
 
+// SetStatuses troca os status detectados (ex.: depois da verificação de atualizações) sem mexer nas marcas.
+func (s *Selection) SetStatuses(st map[string]detect.ItemStatus) { s.st = st }
+
 func (s *Selection) MarkUpdate(id string) { s.updates[id] = true }
 func (s *Selection) ToggleUpdateAll()     { s.updateAll = !s.updateAll }
 

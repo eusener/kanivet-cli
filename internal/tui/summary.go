@@ -314,7 +314,7 @@ func (m Model) updateSummary(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if onRow && row.failed {
 			return m.openLog(m.runRep.Failed[row.idx]), nil
 		}
-		m.screen = ScreenDashboard
+		return m.enterDashboard()
 	case key.Matches(km, m.keys.Diff):
 		if onRow && !row.failed {
 			c := m.runRep.Conflicts[row.idx]

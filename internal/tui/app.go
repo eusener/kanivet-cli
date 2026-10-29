@@ -61,6 +61,7 @@ type Model struct {
 	plan        *plan.Plan // plano confirmado na revisão
 	exec        execState
 	sum         summaryState
+	dash        dashState
 	prog        *programRef // ligado ao *tea.Program pelo SetProgram
 
 	// resultado do run, para o resumo
@@ -82,11 +83,14 @@ func New(s *app.Session, env map[string]string, start Screen) Model {
 
 // Init dispara a detecção e o spinner.
 func (m Model) Init() tea.Cmd {
+	return tea.Batch(m.spin.Tick, m.detectCmd())
+}
+
+func (m Model) detectCmd() tea.Cmd {
 	s := m.s
-	detectCmd := func() tea.Msg {
+	return func() tea.Msg {
 		return detectMsg{statuses: s.Statuses(context.Background(), plan.Selection{})}
 	}
-	return tea.Batch(m.spin.Tick, detectCmd)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -110,14 +114,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			mode = ModeDashboard
 		}
 		m.sel = NewSelection(m.s.Cat, m.s.P, msg.statuses, mode)
+		if mode == ModeDashboard {
+			return m.initDashboard()
+		}
 		return m, nil
 	case spinner.TickMsg:
-		if !m.detecting && !(m.screen == ScreenExecute && m.exec.running) {
+		if !m.detecting && !m.dash.checking && !(m.screen == ScreenExecute && m.exec.running) {
 			return m, nil
 		}
 		var c tea.Cmd
 		m.spin, c = m.spin.Update(msg)
 		return m, c
+	case updatesMsg:
+		return m.onUpdates(msg), nil
 	case planMsg:
 		return m.onPlan(msg), nil
 	case eventMsg:
@@ -177,7 +186,7 @@ func (m Model) updateKey(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.showHelp = false // a tecla que fecha a ajuda é consumida
 		return m, nil
 	}
-	typing := m.screen == ScreenCategories && m.list.Filtering()
+	typing := (m.screen == ScreenCategories && m.list.Filtering()) || (m.screen == ScreenDashboard && m.sel != nil && m.dashList().Filtering())
 	if !typing {
 		switch {
 		case key.Matches(km, m.keys.Help):
@@ -204,6 +213,8 @@ func (m Model) updateKey(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.updateReview(km)
 	case ScreenSummary:
 		return m.updateSummary(km)
+	case ScreenDashboard:
+		return m.updateDashboard(km)
 	}
 	return m, nil
 }
@@ -222,6 +233,8 @@ func (m Model) View() string {
 	case m.screen == ScreenExecute:
 		status = m.progressLine()
 	case m.screen == ScreenSummary: // o resumo (Task 10) não mostra pendências
+	case m.screen == ScreenDashboard:
+		status = m.dashStatus()
 	case m.sel != nil:
 		n, c := m.pending()
 		status = m.th.Accent.Render(i18n.T("tui.pending", n, c))
@@ -243,7 +256,10 @@ func (m Model) pending() (install, configs int) {
 	if m.sel == nil {
 		return 0, 0
 	}
-	install, _, _ = m.sel.Pending()
+	install, update, remove := m.sel.Pending()
+	if m.screen == ScreenDashboard { // no dashboard tudo que a revisão mostraria conta
+		return install + update + remove, 0
+	}
 	return install, m.sel.ConfigsOn()
 }
 
@@ -261,6 +277,8 @@ func (m Model) title() string {
 		return i18n.T("tui.step.execute")
 	case ScreenSummary:
 		return i18n.T("tui.step.summary")
+	case ScreenDashboard:
+		return i18n.T("tui.step.dashboard")
 	}
 	return "kanivet-cli"
 }
@@ -286,6 +304,8 @@ func (m Model) bodyLines(height int) []string {
 		return m.executeLines(height)
 	case ScreenSummary:
 		return m.summaryLines(height)
+	case ScreenDashboard:
+		return m.dashLines(height)
 	}
 	return nil
 }
@@ -307,6 +327,8 @@ func (m Model) bindings() []key.Binding {
 		return []key.Binding{m.keys.Up, m.keys.Down, m.keys.Follow, m.keys.Interrupt}
 	case ScreenSummary:
 		return m.summaryBindings()
+	case ScreenDashboard:
+		return m.dashBindings()
 	}
 	return []key.Binding{m.keys.Back, m.keys.Quit}
 }

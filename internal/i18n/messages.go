@@ -2,6 +2,15 @@ package i18n
 
 var messages = map[Lang]map[string]string{
 	En: {
+		"tui.step.dashboard":         "Dashboard",
+		"tui.dash.pending":           "%d to install · %d to update · %d to remove",
+		"tui.dash.profile":           "Profile: %s",
+		"tui.dash.verified":          "checked %s ago",
+		"tui.dash.checking":          "checking for updates...",
+		"tui.dash.check_off":         "update check off",
+		"tui.dash.detecting":         "detecting...",
+		"tui.dash.not_outdated":      "This item has no update to apply.",
+		"tui.dash.profile_title":     "Apply a profile (adds items, never removes)",
 		"tui.key.force":              "force overwrite",
 		"tui.summary.key_log":        "open log",
 		"tui.summary.key_dashboard":  "dashboard",
@@ -173,6 +182,15 @@ var messages = map[Lang]map[string]string{
 		"reason.distro":              "requires one of: %s",
 	},
 	PtBR: {
+		"tui.step.dashboard":         "Painel",
+		"tui.dash.pending":           "%d a instalar · %d a atualizar · %d a remover",
+		"tui.dash.profile":           "Perfil: %s",
+		"tui.dash.verified":          "verificado há %s",
+		"tui.dash.checking":          "verificando atualizações...",
+		"tui.dash.check_off":         "verificação de atualizações desligada",
+		"tui.dash.detecting":         "detectando...",
+		"tui.dash.not_outdated":      "Este item não tem atualização a aplicar.",
+		"tui.dash.profile_title":     "Aplicar um perfil (só adiciona itens, nunca remove)",
 		"tui.key.force":              "forçar sobrescrita",
 		"tui.summary.key_log":        "abrir log",
 		"tui.summary.key_dashboard":  "painel",
