@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/eusener/kanivet-cli/internal/catalog"
 	"github.com/eusener/kanivet-cli/internal/detect"
 	"github.com/eusener/kanivet-cli/internal/i18n"
@@ -218,4 +219,61 @@ func TestUnknownShownWithHint(t *testing.T) {
 	if !strings.Contains(v, "[?] unknown") || !strings.Contains(v, i18n.T("tui.unknown_hint")) {
 		t.Errorf("unknown not explained:\n%s", v)
 	}
+}
+
+func TestDetailKeepsConfigsAndNoteAt80x24(t *testing.T) {
+	c := &catalog.Catalog{
+		Categories: []catalog.Category{{ID: "c"}},
+		Items:      map[string]*catalog.Item{},
+	}
+	long := strings.Repeat("palavra longa de descricao ", 8)
+	c.Items["multi"] = &catalog.Item{
+		ID: "multi", Category: "c",
+		Name:        i18n.Text{i18n.En: "Multi"},
+		Description: i18n.Text{i18n.En: long},
+		Notes:       i18n.Text{i18n.En: long},
+		Configs: []catalog.ConfigSpec{
+			{ID: "a", Description: i18n.Text{i18n.En: "config alpha"}},
+			{ID: "b", Description: i18n.Text{i18n.En: "config beta"}},
+			{ID: "d", Description: i18n.Text{i18n.En: "config gamma"}},
+			{ID: "e", Description: i18n.Text{i18n.En: "config delta"}},
+		},
+	}
+	st := map[string]detect.ItemStatus{"multi": {ID: "multi", Status: detect.StatusUnknown}}
+	sel := NewSelection(c, linuxSystemd, st, ModeWizard)
+	l := NewItemList(sel, NewTheme(nil, false), DefaultKeys(), []string{"c"})
+
+	// Rows 18 = 24 - header/footer; detail gets ~7.
+	h := 18
+	checkWidth := func(v string) {
+		t.Helper()
+		for i, ln := range strings.Split(v, "\n") {
+			if w := lipgloss.Width(ln); w > 80 {
+				t.Errorf("line %d has width %d > 80: %q", i, w, ln)
+			}
+		}
+	}
+	// Move the config cursor to the last config: it must stay visible.
+	l = press(l, "c", "c", "c", "c") // wraps back to index 0 after 4 presses
+	l = press(l, "c", "c", "c")      // index 3
+	v := l.View(80, h)
+	checkWidth(v)
+	if !strings.Contains(v, "> [ ] config delta") {
+		t.Errorf("active config hidden:\n%s", v)
+	}
+	if got := strings.Count(v, "\n") + 1; got != h {
+		t.Errorf("height = %d", got)
+	}
+	// Refused toggle note stays visible: use an unsupported item.
+	st["multi"] = detect.ItemStatus{ID: "multi", Status: detect.StatusUnsupported, Reason: "motivo da recusa"}
+	l = press(l, "esc", "space")
+	v = l.View(80, h)
+	checkWidth(v)
+	if !strings.Contains(v, "motivo da recusa") {
+		t.Errorf("note hidden:\n%s", v)
+	}
+	// Full 80x24 for the real catalog too.
+	l2, _ := newList(t, nil, ModeWizard, "shell", "replacements", "languages")
+	checkWidth(l2.View(80, 24))
+	checkWidth(press(l2, "/", "e").View(80, 24))
 }

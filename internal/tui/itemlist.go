@@ -372,18 +372,46 @@ func (l ItemList) detail(width, rows int) []string {
 	if len(l.sel.lines(id)) > 1 {
 		b = append(b, i18n.T("tui.detail.version")+": ‹ "+l.sel.Version(id)+" ›")
 	}
+	wrap := func(ls []string) []string {
+		if len(ls) == 0 {
+			return nil
+		}
+		return strings.Split(lipgloss.NewStyle().Width(width).Render(strings.Join(ls, "\n")), "\n")
+	}
+	var cfg []string
+	active := 0 // primeira linha (já quebrada) da config sob o cursor
 	for i, cf := range it.Configs {
 		mark := "  "
 		if l.panel && i == l.cfgIdx {
 			mark = "> "
 		}
-		b = append(b, mark+l.th.Check(l.sel.ConfigOn(cf.ID), false)+" "+cf.Description.Get())
+		if i == l.cfgIdx {
+			active = len(wrap(cfg))
+		}
+		cfg = append(cfg, mark+l.th.Check(l.sel.ConfigOn(cf.ID), false)+" "+cf.Description.Get())
 	}
+	head, cfgL := wrap(b), wrap(cfg)
+	var note []string
 	if l.note != "" {
-		b = append(b, l.th.Warn.Render(l.note))
+		note = wrap([]string{l.th.Warn.Render(l.note)})
 	}
-	wrapped := lipgloss.NewStyle().Width(width).Render(strings.Join(b, "\n"))
-	lines := strings.Split(wrapped, "\n")
+	// Prioridade: nota de recusa e configs ficam visíveis; o cabeçalho é cortado primeiro.
+	avail := max(rows-len(note), 1)
+	if len(cfgL) > avail-1 && avail > 1 {
+		size := avail - 1 // mantém ao menos o título
+		start := min(max(active-size+1, 0), len(cfgL)-size)
+		if active < size {
+			start = 0
+		}
+		cfgL = cfgL[start : start+size]
+	} else if avail == 1 {
+		cfgL = nil
+	}
+	room := max(avail-len(cfgL), 0)
+	if len(head) > room {
+		head = head[:room]
+	}
+	lines := append(append(head, cfgL...), note...)
 	if len(lines) > rows {
 		lines = lines[:rows]
 	}
