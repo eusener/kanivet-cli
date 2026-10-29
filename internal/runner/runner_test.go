@@ -66,3 +66,32 @@ func TestCmdStringPrefersDisplay(t *testing.T) {
 		t.Fatal("Shown must prefer Display")
 	}
 }
+
+// C1: comandos que leem o terminal precisam ficar no grupo de processos em primeiro plano.
+func TestStdinCommandsStayInForegroundGroup(t *testing.T) {
+	if procAttr(Cmd{Stdin: true}).Setpgid {
+		t.Fatal("Stdin commands must not get a new process group (SIGTTIN would stop them)")
+	}
+	if !procAttr(Cmd{}).Setpgid {
+		t.Fatal("non-interactive commands keep their own group")
+	}
+}
+
+func TestNonInteractiveSudoIsNonBlocking(t *testing.T) {
+	if got := execArgv(Cmd{Argv: []string{"apt-get", "install", "-y", "x"}, Sudo: true}); strings.Join(got, " ") != "sudo -n apt-get install -y x" {
+		t.Fatalf("argv %v", got)
+	}
+	if got := execArgv(Cmd{Argv: []string{"sudo", "-v"}, Stdin: true}); strings.Join(got, " ") != "sudo -v" {
+		t.Fatalf("argv %v", got)
+	}
+}
+
+// I8: no cancelamento, o processo recebe SIGTERM antes do SIGKILL.
+func TestCancelSendsTermFirst(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(200*time.Millisecond, cancel)
+	r := ExecRunner{Grace: 2 * time.Second}.Run(ctx, Cmd{Shell: `trap 'echo got-term; exit 0' TERM; while :; do sleep 0.05; done`}, io.Discard)
+	if !strings.Contains(r.Output, "got-term") {
+		t.Fatalf("TERM trap did not run: %+v", r)
+	}
+}

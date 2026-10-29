@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -58,6 +59,8 @@ const sudoKeepAlive = 60 * time.Second
 
 type run struct {
 	e      *Executor
+	pl     *plan.Plan
+	det    *detect.Detector // com Owner protegido pelo mutex do run
 	o      Options
 	mu     sync.Mutex
 	rep    Report
@@ -70,7 +73,10 @@ func (e *Executor) Execute(ctx context.Context, pl *plan.Plan, o Options) (Repor
 	if o.Concurrency <= 0 {
 		o.Concurrency = 4
 	}
-	r := &run{e: e, o: o, bad: map[string]bool{}, locks: map[string]*sync.Mutex{}, sudoOK: true}
+	r := &run{e: e, pl: pl, o: o, bad: map[string]bool{}, locks: map[string]*sync.Mutex{}, sudoOK: true}
+	det := *e.Det
+	det.Owner = lockedOwner{r}
+	r.det = &det
 	stopSudo := r.startSudo(ctx, pl)
 	defer stopSudo()
 
@@ -136,6 +142,15 @@ func (r *run) startSudo(ctx context.Context, pl *plan.Plan) func() {
 		}
 	}()
 	return func() { close(done) }
+}
+
+// lockedOwner consulta o estado sob o mutex do run (o estado é escrito em paralelo).
+type lockedOwner struct{ r *run }
+
+func (o lockedOwner) Owned(id string) bool {
+	o.r.mu.Lock()
+	defer o.r.mu.Unlock()
+	return o.r.e.St.Owned(id)
 }
 
 func (r *run) journal(id string) state.StepStatus {
@@ -219,7 +234,7 @@ func (r *run) step(ctx context.Context, s plan.Step) {
 
 	switch s.Kind {
 	case plan.KindInstall:
-		if it := r.e.Cat.Items[s.ItemID]; it != nil && r.e.Det.DetectItem(ctx, it).Status.Present() {
+		if it := r.e.Cat.Items[s.ItemID]; it != nil && satisfied(r.det.DetectItem(ctx, it).Status) {
 			if prev == state.StepRunning { // começamos esta instalação antes de uma interrupção
 				r.own(s)
 			}
@@ -244,7 +259,11 @@ func (r *run) step(ctx context.Context, s plan.Step) {
 		r.mu.Lock()
 		delete(r.e.St.Items, s.ItemID)
 		for _, f := range s.Files {
-			if err := r.e.Ap.Remove(f.Target); err != nil {
+			remove := r.e.Ap.Remove
+			if f.Dir {
+				remove = r.e.Ap.RemoveDir
+			}
+			if err := remove(f.Target); err != nil {
 				io.WriteString(out, err.Error()+"\n")
 			}
 		}
@@ -349,7 +368,7 @@ func (r *run) writeShell(ctx context.Context) error {
 		r.mu.Lock()
 		owned := r.e.St.Owned(id)
 		r.mu.Unlock()
-		if owned || r.e.Det.DetectItem(ctx, it).Status.Present() {
+		if owned || r.det.DetectItem(ctx, it).Status.Present() {
 			items = append(items, it)
 		}
 	}
@@ -359,8 +378,32 @@ func (r *run) writeShell(ctx context.Context) error {
 			return err
 		}
 	}
-	_, err := configs.EnsureRcBlock(r.e.Rc, r.e.P.Shell)
-	return err
+	rcs := map[string]string{r.e.Rc: r.e.P.Shell}
+	for _, s := range r.pl.Steps {
+		if s.Kind == plan.KindChsh { // o shell novo precisa carregar o init dele
+			rcs[filepath.Join(r.e.P.Home, ".zshrc")] = "zsh"
+		}
+	}
+	for rc, sh := range rcs {
+		if data, _ := os.ReadFile(rc); strings.Contains(string(data), configs.RcMarkerStart) {
+			continue
+		}
+		r.mu.Lock()
+		err := r.e.Ap.BackupFile(rc)
+		r.mu.Unlock()
+		if err != nil {
+			return err
+		}
+		if _, err := configs.EnsureRcBlock(rc, sh); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// satisfied: o item já existe numa versão aceitável (externo velho demais não conta).
+func satisfied(s detect.Status) bool {
+	return s.Present() && s != detect.StatusExternalOutdated
 }
 
 // lineWriter manda o output para o log e, linha a linha, para os eventos.

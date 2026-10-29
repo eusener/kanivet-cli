@@ -22,6 +22,7 @@ type AppliedConfig struct {
 	Target string    `json:"target"`
 	Backup string    `json:"backup,omitempty"` // "" = o arquivo não existia
 	SHA256 string    `json:"sha256"`
+	Dir    bool      `json:"dir,omitempty"` // diretório movido inteiro para o backup
 	At     time.Time `json:"at"`
 }
 

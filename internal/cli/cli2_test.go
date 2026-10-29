@@ -9,6 +9,7 @@ import (
 
 	"github.com/eusener/kanivet-cli/internal/plan"
 	"github.com/eusener/kanivet-cli/internal/platform"
+	"github.com/eusener/kanivet-cli/internal/runner"
 	"github.com/eusener/kanivet-cli/internal/state"
 )
 
@@ -203,6 +204,27 @@ func TestPlanMultilineCommandCompact(t *testing.T) {
 		t.Fatalf("exit %d", code)
 	}
 	if strings.Contains(h.out.String(), "\n  echo a") || !strings.Contains(h.out.String(), "$ if true; then …") {
+		t.Fatalf("plan output:\n%s", h.out)
+	}
+}
+
+// I4: um run inacabado não sequestra outros comandos nem é retomado às cegas com -y.
+func TestUnfinishedRunNotResumedImplicitly(t *testing.T) {
+	h := newHarness(t)
+	pl := &plan.Plan{Steps: []plan.Step{{ID: "install:lerd", ItemID: "lerd", Kind: plan.KindInstall, Cmds: []runner.Cmd{{Shell: "echo lerd"}}}}}
+	data, _ := pl.MarshalJSON()
+	j, _ := state.NewJournal(h.env.StateDir, h.env.Now(), data)
+	_ = j.Set("install:lerd", state.StepPending)
+	h.own("fzf")
+	if code := h.run("uninstall", "fzf", "--yes"); code != 0 || h.ran("echo lerd") || !h.ran("mise uninstall --all aqua:junegunn/fzf") {
+		t.Fatalf("uninstall exit %d calls %v", code, h.fake.Strings())
+	}
+}
+
+// I5: o rc aparece no plano.
+func TestPlanShowsRcFile(t *testing.T) {
+	h := newHarness(t)
+	if code := h.run("plan", "fzf"); code != 0 || !strings.Contains(h.out.String(), filepath.Join(h.env.P.Home, ".zshrc")) {
 		t.Fatalf("plan output:\n%s", h.out)
 	}
 }

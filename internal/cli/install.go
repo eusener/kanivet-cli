@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -123,7 +124,7 @@ func planCmd(e *Env) *cobra.Command {
 			if err != nil {
 				return exit(1, err.Error())
 			}
-			printPlan(e.Stdout, pl, e.expandTarget)
+			printPlan(e.Stdout, pl, e.expandTarget, e.rcPath())
 			return nil
 		},
 	}
@@ -131,7 +132,7 @@ func planCmd(e *Env) *cobra.Command {
 	return cmd
 }
 
-type runFlags struct{ yes, dryRun, forceConfigs bool }
+type runFlags struct{ yes, dryRun, forceConfigs, resume bool }
 
 func (r *runFlags) bind(cmd *cobra.Command) {
 	cmd.Flags().BoolVarP(&r.yes, "yes", "y", false, i18n.T("flag.yes"))
@@ -153,16 +154,18 @@ func installCmd(e *Env) *cobra.Command {
 			return e.apply(r, func(st *state.State) (*plan.Plan, error) {
 				pl, _, err := e.buildPlan(context.Background(), st, sel)
 				return pl, err
-			}, sel.Profile)
+			}, sel.Profile, true)
 		},
 	}
 	f.bind(cmd)
 	r.bind(cmd)
+	cmd.Flags().BoolVar(&r.resume, "resume", false, i18n.T("flag.resume"))
 	return cmd
 }
 
 // apply é o fluxo comum de install/update/uninstall: retomar ou planejar, mostrar, confirmar, executar, resumir.
-func (e *Env) apply(r runFlags, build func(*state.State) (*plan.Plan, error), profile string) error {
+// Só o install retoma, e só com --resume ou confirmação interativa depois de mostrar o que falta.
+func (e *Env) apply(r runFlags, build func(*state.State) (*plan.Plan, error), profile string, allowResume bool) error {
 	if !r.yes && !r.dryRun && !e.IsTTY {
 		return exit(2, i18n.T("err.non_interactive"))
 	}
@@ -172,22 +175,31 @@ func (e *Env) apply(r runFlags, build func(*state.State) (*plan.Plan, error), pr
 	}
 	var pl *plan.Plan
 	var j *state.Journal
-	if !r.dryRun {
-		if unfinished, data, err := state.LatestUnfinished(e.StateDir); err == nil && unfinished != nil {
-			if r.yes || e.confirm(i18n.T("prompt.resume", unfinished.RunID)) {
-				if pl, err = plan.Decode(data); err != nil {
-					return err
-				}
-				j = unfinished
+	if unfinished, data, err := state.LatestUnfinished(e.StateDir); err == nil && unfinished != nil && !r.dryRun {
+		pending, err := plan.Decode(data)
+		if err != nil {
+			return err
+		}
+		pending = pendingSteps(pending, unfinished)
+		switch {
+		case !allowResume:
+			fmt.Fprintln(e.Stdout, i18n.T("msg.unfinished_hint", unfinished.RunID))
+		case r.resume || (!r.yes && e.IsTTY):
+			fmt.Fprintln(e.Stdout, i18n.T("msg.pending", unfinished.RunID))
+			printPlan(e.Stdout, pending, e.expandTarget, e.rcPath())
+			if r.resume || e.confirm(i18n.T("prompt.resume", unfinished.RunID)) {
+				pl, j = pending, unfinished
 				fmt.Fprintln(e.Stdout, i18n.T("msg.resuming", unfinished.RunID))
 			}
+		default:
+			fmt.Fprintln(e.Stdout, i18n.T("msg.unfinished_hint", unfinished.RunID))
 		}
 	}
 	if pl == nil {
 		if pl, err = build(st); err != nil {
 			return exit(1, err.Error())
 		}
-		printPlan(e.Stdout, pl, e.expandTarget)
+		printPlan(e.Stdout, pl, e.expandTarget, e.rcPath())
 		if r.dryRun || len(pl.Steps) == 0 {
 			return nil
 		}
@@ -236,7 +248,7 @@ func (e *Env) execute(st *state.State, j *state.Journal, pl *plan.Plan, r runFla
 		Ap:       &configs.Applier{St: st, BackupDir: filepath.Join(e.StateDir, "backups", j.RunID), Vars: vars, Files: e.Cat.Files},
 		ShellDir: e.shellDir(), Rc: e.rcPath(),
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer stop()
 
 	events := make(chan executor.Event, 64)
@@ -298,4 +310,15 @@ func (e *Env) expandTarget(target string) string {
 		return out
 	}
 	return target
+}
+
+// pendingSteps devolve o plano salvo sem os passos já concluídos.
+func pendingSteps(pl *plan.Plan, j *state.Journal) *plan.Plan {
+	out := &plan.Plan{Skipped: pl.Skipped, Warnings: pl.Warnings}
+	for _, s := range pl.Steps {
+		if j.Get(s.ID) != state.StepDone {
+			out.Steps = append(out.Steps, s)
+		}
+	}
+	return out
 }

@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -278,5 +279,103 @@ func TestShellStepRunsDespiteFailedDependency(t *testing.T) {
 	}
 	if data, _ := os.ReadFile(filepath.Join(e.ex.ShellDir, "init.zsh")); !strings.Contains(string(data), "alias ls='eza'") {
 		t.Fatalf("init.zsh %q", data)
+	}
+}
+
+// I2: detecção concorrente e registro de dono não podem disputar o mapa do estado.
+func TestConcurrentInstallsNoRace(t *testing.T) {
+	var items []*catalog.Item
+	var steps []plan.Step
+	for i := 0; i < 48; i++ {
+		id := fmt.Sprintf("tool%02d", i)
+		items = append(items, item(id))
+		steps = append(steps, install(id, "install "+id))
+	}
+	e := newEnv(t, items...)
+	for i := 0; i < 48; i += 2 {
+		e.present[fmt.Sprintf("tool%02d", i)] = true
+	}
+	e.ex.Det.Owner = e.ex.St
+	if _, err := e.ex.Execute(context.Background(), &plan.Plan{Steps: steps}, Options{Concurrency: 16}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// I3: externo velho demais é reinstalado, não "já presente".
+func TestInstallRunsOverOutdatedExternal(t *testing.T) {
+	node := item("node")
+	node.MinVersion = "18"
+	node.Detect.VersionRegex = `([\d.]+)`
+	e := newEnv(t, node)
+	e.present["node"] = true // responde "1.0"
+	_, _ = e.ex.Execute(context.Background(), &plan.Plan{Steps: []plan.Step{install("node", "install node")}}, Options{})
+	found := false
+	for _, c := range e.fake.Strings() {
+		found = found || c == "install node"
+	}
+	if !found {
+		t.Fatalf("outdated external must be installed: %v", e.fake.Strings())
+	}
+}
+
+// I5: o rc ganha backup antes do bloco ser adicionado.
+func TestShellStepBacksUpRc(t *testing.T) {
+	e := newEnv(t, item("eza"))
+	_ = os.WriteFile(e.ex.Rc, []byte("# meu zshrc\n"), 0o644)
+	if _, err := e.ex.Execute(context.Background(), &plan.Plan{Steps: []plan.Step{{ID: plan.ShellStepID, Kind: plan.KindShell}}}, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(e.ex.Ap.BackupDir, strings.TrimPrefix(e.ex.Rc, "/")))
+	if err != nil || string(b) != "# meu zshrc\n" {
+		t.Fatalf("rc backup %q %v", b, err)
+	}
+}
+
+// I6: com chsh para zsh, o ~/.zshrc também recebe o bloco.
+func TestChshAlsoWritesZshrc(t *testing.T) {
+	e := newEnv(t, item("zsh"))
+	e.ex.P.Shell = "bash"
+	e.ex.Rc = filepath.Join(e.home, ".bashrc")
+	pl := &plan.Plan{Steps: []plan.Step{
+		{ID: "chsh:zsh", ItemID: "zsh", Kind: plan.KindChsh, Cmds: []runner.Cmd{{Shell: "chsh"}}},
+		{ID: plan.ShellStepID, Kind: plan.KindShell},
+	}}
+	_, _ = e.ex.Execute(context.Background(), pl, Options{})
+	for _, rc := range []string{".bashrc", ".zshrc"} {
+		b, _ := os.ReadFile(filepath.Join(e.home, rc))
+		if !strings.Contains(string(b), configs.RcMarkerStart) {
+			t.Fatalf("%s without block: %q", rc, b)
+		}
+	}
+	if b, _ := os.ReadFile(filepath.Join(e.home, ".zshrc")); !strings.Contains(string(b), "init.zsh") {
+		t.Fatalf(".zshrc must load init.zsh: %q", b)
+	}
+}
+
+// I9: desinstalar uma distro Neovim guarda a config atual e devolve a original.
+func TestUninstallDirConfigRestoresOriginal(t *testing.T) {
+	e := newEnv(t, item("lazyvim"))
+	nvim := filepath.Join(e.home, ".config", "nvim")
+	_ = os.MkdirAll(nvim, 0o755)
+	_ = os.WriteFile(filepath.Join(nvim, "init.lua"), []byte("-- original\n"), 0o644)
+	fc := plan.FileChange{Target: "~/.config/nvim", ItemID: "lazyvim", Dir: true}
+	inst := install("lazyvim", "mkdir -p "+nvim)
+	inst.DependsOn = []string{"config:nvim-backup"}
+	_, _ = e.ex.Execute(context.Background(), &plan.Plan{Steps: []plan.Step{
+		{ID: "config:nvim-backup", ItemID: "lazyvim", Kind: plan.KindConfig, Files: []plan.FileChange{fc}}, inst}}, Options{})
+	_ = os.MkdirAll(nvim, 0o755)
+	_ = os.WriteFile(filepath.Join(nvim, "init.lua"), []byte("-- lazyvim custom\n"), 0o644)
+
+	j2, _ := state.NewJournal(e.home, now.Add(time.Hour), []byte(`{}`))
+	e.ex.J = j2
+	e.ex.Ap.BackupDir = filepath.Join(e.home, "backups", j2.RunID)
+	rm := fc
+	rm.Remove = true
+	_, _ = e.ex.Execute(context.Background(), &plan.Plan{Steps: []plan.Step{{ID: "uninstall:lazyvim", ItemID: "lazyvim", Kind: plan.KindUninstall, Files: []plan.FileChange{rm}}}}, Options{})
+	if b, _ := os.ReadFile(filepath.Join(nvim, "init.lua")); string(b) != "-- original\n" {
+		t.Fatalf("original config not restored: %q", b)
+	}
+	if b, _ := os.ReadFile(filepath.Join(e.ex.Ap.BackupDir, strings.TrimPrefix(nvim, "/"), "init.lua")); string(b) != "-- lazyvim custom\n" {
+		t.Fatalf("customized config must be backed up: %q", b)
 	}
 }

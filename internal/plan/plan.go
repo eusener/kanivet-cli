@@ -240,8 +240,10 @@ func (b *builder) closure(desired []string) []string {
 		if parent != "" {
 			b.notes[id] = i18n.T("note.dependency_of", parent)
 		}
-		for _, dep := range b.depsOf(id) {
-			visit(dep, id)
+		if b.willInstall(id) {
+			for _, dep := range b.depsOf(id) {
+				visit(dep, id)
+			}
 		}
 		out = append(out, id)
 	}
@@ -297,6 +299,21 @@ func isDirConfig(cfg catalog.ConfigSpec) bool {
 	return len(cfg.Files) > 0
 }
 
+// willInstall diz se o item vai ganhar um passo de instalação (e portanto precisa das dependências).
+func (b *builder) willInstall(id string) bool {
+	it := b.c.Items[id]
+	switch b.status(id) {
+	case detect.StatusAbsent, detect.StatusExternalOutdated:
+	default:
+		return false
+	}
+	if it.ZshOnly && b.p.Shell != "zsh" && !b.sel.SwitchToZsh {
+		return false
+	}
+	_, _, err := backend.Choose(it, b.p)
+	return err == nil
+}
+
 func (b *builder) skip(id, reason string) {
 	b.skipped[id] = true
 	b.plan.Skipped = append(b.plan.Skipped, Skip{ItemID: id, Reason: reason})
@@ -339,7 +356,7 @@ func (b *builder) addInstall(id string) {
 		cmds = append(cmds, runner.Cmd{Shell: post})
 	}
 	st := Step{ID: "install:" + id, ItemID: id, Kind: KindInstall, Cmds: cmds, Note: b.notes[id],
-		NeedsSudo: it.NeedsSudo || anySudo(cmds), Backend: be.Name(), Package: m.Package}
+		NeedsSudo: it.NeedsSudo || m.NeedsSudo || anySudo(cmds), Backend: be.Name(), Package: m.Package}
 	for _, dep := range b.depsOf(id) {
 		if b.inPlan[dep] {
 			st.DependsOn = append(st.DependsOn, "install:"+dep)
@@ -460,14 +477,29 @@ func (b *builder) addUninstalls() {
 		if err != nil {
 			continue
 		}
+		var dirFiles []FileChange
+		for _, cfg := range it.Configs {
+			if isDirConfig(cfg) {
+				for _, f := range cfg.Files {
+					dirFiles = append(dirFiles, FileChange{Target: f.Target, ItemID: id, Dir: true, Remove: true})
+				}
+			}
+		}
 		cmds := be.Uninstall(m, b.p)
-		if len(cmds) == 0 {
+		if len(dirFiles) > 0 {
+			cmds = nil // o diretório vai para o backup e o original volta; nada de rm -rf
+		}
+		if len(cmds) == 0 && len(dirFiles) == 0 {
 			b.plan.Warnings = append(b.plan.Warnings, i18n.T("warn.manual_uninstall", id))
 			continue
 		}
 		st := Step{ID: "uninstall:" + id, ItemID: id, Kind: KindUninstall, Cmds: cmds, NeedsSudo: anySudo(cmds),
 			Backend: be.Name(), Package: m.Package}
+		st.Files = append(st.Files, dirFiles...)
 		for _, cfg := range it.Configs {
+			if isDirConfig(cfg) {
+				continue
+			}
 			for _, f := range cfg.Files {
 				st.Files = append(st.Files, FileChange{Target: f.Target, ItemID: id, Remove: true})
 			}

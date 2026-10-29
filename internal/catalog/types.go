@@ -69,17 +69,19 @@ type Detect struct {
 }
 
 type Method struct {
-	Backend string   `yaml:"backend"`
-	Package string   `yaml:"package"`
-	Version string   `yaml:"version"` // linha padrão ("22", "stable")
-	When    *When    `yaml:"when"`
-	URL     string   `yaml:"url"`
-	Inline  string   `yaml:"inline"` // script: comando local, sem download
-	SHA256  string   `yaml:"sha256"`
-	Args    []string `yaml:"args"`
-	Repo    string   `yaml:"repo"`
-	Ref     string   `yaml:"ref"`
-	Dest    string   `yaml:"dest"`
+	Backend string `yaml:"backend"`
+	Package string `yaml:"package"`
+	Version string `yaml:"version"` // linha padrão ("22", "stable")
+	When    *When  `yaml:"when"`
+	URL     string `yaml:"url"`
+	Inline  string `yaml:"inline"` // script: comando local, sem download
+	// NeedsSudo vale só para este método (ex.: VS Code pede sudo no Linux, não no macOS).
+	NeedsSudo bool     `yaml:"needs_sudo"`
+	SHA256    string   `yaml:"sha256"`
+	Args      []string `yaml:"args"`
+	Repo      string   `yaml:"repo"`
+	Ref       string   `yaml:"ref"`
+	Dest      string   `yaml:"dest"`
 }
 
 type When struct {

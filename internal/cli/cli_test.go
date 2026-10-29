@@ -157,7 +157,7 @@ func TestInstallResumePrompt(t *testing.T) {
 	j, _ := state.NewJournal(h.env.StateDir, h.env.Now(), data)
 	_ = j.Set("install:fzf", state.StepDone)
 	_ = j.Set("install:lerd", state.StepPending)
-	if code := h.run("install", "--yes"); code != 0 {
+	if code := h.run("install", "--resume", "--yes"); code != 0 {
 		t.Fatalf("exit %d: %s %s", code, h.out, h.errOut)
 	}
 	if h.ran("echo fzf") || !h.ran("echo lerd") {

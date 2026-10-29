@@ -233,3 +233,29 @@ func TestRenderExtras(t *testing.T) {
 		t.Fatalf("%q %v", out, err)
 	}
 }
+
+// I9b/c: restore devolve um diretório movido inteiro (inclusive symlink), sem mesclar.
+func TestRestoreRunRestoresMovedDirWhole(t *testing.T) {
+	a, home := setup(t)
+	real := filepath.Join(home, "dotfiles", "nvim")
+	_ = os.MkdirAll(real, 0o755)
+	_ = os.WriteFile(filepath.Join(real, "init.lua"), []byte("-- stow\n"), 0o644)
+	nvim := filepath.Join(home, ".config", "nvim")
+	_ = os.MkdirAll(filepath.Dir(nvim), 0o755)
+	_ = os.Symlink(real, nvim)
+	if err := a.ApplyDir(plan.FileChange{Target: "~/.config/nvim", Dir: true}); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.MkdirAll(nvim, 0o755)
+	_ = os.WriteFile(filepath.Join(nvim, "new.lua"), []byte("x"), 0o644)
+	if _, err := RestoreRun(a.BackupDir); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Lstat(nvim)
+	if err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("symlink must be restored as-is: %v %v", fi, err)
+	}
+	if _, err := os.Stat(filepath.Join(real, "new.lua")); err == nil {
+		t.Fatal("restore must not merge into the original")
+	}
+}

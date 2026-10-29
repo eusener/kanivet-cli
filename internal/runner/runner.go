@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 type Cmd struct {
@@ -56,23 +57,50 @@ type Runner interface {
 	Run(ctx context.Context, c Cmd, out io.Writer) Result
 }
 
-type ExecRunner struct{}
+// DefaultGrace é quanto o processo tem para encerrar depois do SIGTERM, antes do SIGKILL.
+const DefaultGrace = 10 * time.Second
 
-func (ExecRunner) Run(ctx context.Context, c Cmd, out io.Writer) Result {
+type ExecRunner struct {
+	Grace time.Duration
+}
+
+// execArgv monta o argv real. Comandos com sudo que não leem o terminal usam
+// "sudo -n": se a credencial expirou, falham na hora em vez de travar num prompt invisível.
+func execArgv(c Cmd) []string {
 	argv := c.Argv
 	if c.Shell != "" {
 		argv = []string{"sh", "-c", c.Shell}
 	}
 	if c.Sudo {
-		argv = append([]string{"sudo"}, argv...)
+		prefix := []string{"sudo", "-n"}
+		if c.Stdin {
+			prefix = []string{"sudo"}
+		}
+		argv = append(prefix, argv...)
 	}
+	return argv
+}
+
+// procAttr: comandos interativos ficam no grupo em primeiro plano do terminal
+// (um grupo novo leva SIGTTIN ao ler o tty e fica parado para sempre).
+func procAttr(c Cmd) *syscall.SysProcAttr {
+	return &syscall.SysProcAttr{Setpgid: !c.Stdin}
+}
+
+func (r ExecRunner) Run(ctx context.Context, c Cmd, out io.Writer) Result {
+	argv := execArgv(c)
 	if len(argv) == 0 {
 		return Result{ExitCode: -1, Err: errors.New("empty command")}
+	}
+	grace := r.Grace
+	if grace == 0 {
+		grace = DefaultGrace
 	}
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Dir = c.Dir
 	cmd.Env = append(os.Environ(), c.Env...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = procAttr(c)
+	cmd.WaitDelay = 2 * time.Second // não espera para sempre por netos que seguram o pipe
 	if c.Stdin {
 		cmd.Stdin = os.Stdin
 	}
@@ -89,8 +117,14 @@ func (ExecRunner) Run(ctx context.Context, c Cmd, out io.Writer) Result {
 	select {
 	case err = <-done:
 	case <-ctx.Done():
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		<-done
+		// Encerramento gentil primeiro: apt/dpkg e brew precisam terminar de forma limpa.
+		signalGroup(cmd, !c.Stdin, syscall.SIGTERM)
+		select {
+		case <-done:
+		case <-time.After(grace):
+			signalGroup(cmd, !c.Stdin, syscall.SIGKILL)
+			<-done
+		}
 		return Result{ExitCode: -1, Output: buf.String(), Err: ctx.Err()}
 	}
 	res := Result{Output: buf.String()}
@@ -102,6 +136,14 @@ func (ExecRunner) Run(ctx context.Context, c Cmd, out io.Writer) Result {
 		res.ExitCode, res.Err = -1, err
 	}
 	return res
+}
+
+func signalGroup(cmd *exec.Cmd, group bool, sig syscall.Signal) {
+	if group {
+		_ = syscall.Kill(-cmd.Process.Pid, sig)
+		return
+	}
+	_ = cmd.Process.Signal(sig)
 }
 
 type lockedWriter struct {

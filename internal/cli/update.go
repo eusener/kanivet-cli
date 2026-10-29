@@ -20,7 +20,7 @@ func updateCmd(e *Env) *cobra.Command {
 			return e.apply(r, func(st *state.State) (*plan.Plan, error) {
 				pl, _, err := e.buildPlan(context.Background(), st, sel)
 				return pl, err
-			}, "")
+			}, "", false)
 		},
 	}
 	r.bind(cmd)
@@ -43,7 +43,7 @@ func uninstallCmd(e *Env) *cobra.Command {
 					pl, _, err = e.buildPlan(context.Background(), st, sel)
 				}
 				return pl, err
-			}, "")
+			}, "", false)
 		},
 	}
 	r.bind(cmd)

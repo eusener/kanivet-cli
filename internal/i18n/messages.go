@@ -2,6 +2,10 @@ package i18n
 
 var messages = map[Lang]map[string]string{
 	En: {
+		"flag.resume":               "resume the interrupted run",
+		"msg.pending":               "Run %s was interrupted. Still to do:",
+		"msg.unfinished_hint":       "Run %s was interrupted; resume it with: kanivet-cli install --resume",
+		"plan.rc_block":             "adds the kanivet-cli block",
 		"plan.backup":               "backup",
 		"reason.command":            "requires %s",
 		"cli.update":                "Update items installed by kanivet-cli",
@@ -85,6 +89,10 @@ var messages = map[Lang]map[string]string{
 		"reason.distro":             "requires one of: %s",
 	},
 	PtBR: {
+		"flag.resume":               "retoma a execução interrompida",
+		"msg.pending":               "A execução %s foi interrompida. Ainda falta:",
+		"msg.unfinished_hint":       "A execução %s foi interrompida; retome com: kanivet-cli install --resume",
+		"plan.rc_block":             "adiciona o bloco do kanivet-cli",
 		"plan.backup":               "backup",
 		"reason.command":            "requer %s",
 		"cli.update":                "Atualiza os itens instalados pelo kanivet-cli",

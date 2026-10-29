@@ -22,7 +22,7 @@ func (e *Env) icon(s state.StepStatus) string {
 
 // printPlan mostra o plano agrupado: sudo, instalar, configurar, atualizar, remover, pular, avisos.
 // expand resolve o destino real de um arquivo (variáveis e ~).
-func printPlan(w io.Writer, pl *plan.Plan, expand func(string) string) {
+func printPlan(w io.Writer, pl *plan.Plan, expand func(string) string, rc string) {
 	groups := []struct {
 		title string
 		match func(plan.Step) bool
@@ -69,6 +69,11 @@ func printPlan(w io.Writer, pl *plan.Plan, expand func(string) string) {
 			}
 			if s.Kind == plan.KindShell {
 				lines = append(lines, "      → ~/.config/kanivet-cli/shell/init.{zsh,bash}")
+				line := "      → " + rc + "  (" + i18n.T("plan.rc_block") + ")"
+				if _, err := os.Stat(rc); err == nil {
+					line += " (" + i18n.T("plan.backup") + ")"
+				}
+				lines = append(lines, line)
 			}
 		}
 		if len(lines) > 0 {

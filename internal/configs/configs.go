@@ -174,20 +174,73 @@ func (a *Applier) record(item, target, backup string, content []byte) {
 	a.St.Configs[target] = state.AppliedConfig{Item: item, Target: target, Backup: backup, SHA256: sha(content), At: time.Now().UTC()}
 }
 
-// ApplyDir move um diretório existente para o backup do run (antes de uma instalação que o recria).
+// movedDirsFile lista, dentro de backups/<run>, os diretórios movidos inteiros.
+const movedDirsFile = ".moved-dirs"
+
+// moveToBackup move target (diretório ou symlink) para backups/<run> e o registra no manifesto.
+func (a *Applier) moveToBackup(target string) (string, error) {
+	if _, err := os.Lstat(target); errors.Is(err, fs.ErrNotExist) {
+		return "", nil
+	}
+	dest := filepath.Join(a.BackupDir, strings.TrimPrefix(target, "/"))
+	if err := os.MkdirAll(filepath.Dir(dest), 0o700); err != nil {
+		return "", err
+	}
+	if err := os.Rename(target, dest); err != nil {
+		return "", err
+	}
+	f, err := os.OpenFile(filepath.Join(a.BackupDir, movedDirsFile), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return dest, err
+	}
+	defer f.Close()
+	_, err = fmt.Fprintln(f, target)
+	return dest, err
+}
+
+// ApplyDir move um diretório existente para o backup do run (antes de uma instalação que o recria)
+// e guarda onde ficou o original, para a desinstalação devolvê-lo.
 func (a *Applier) ApplyDir(fc plan.FileChange) error {
 	target, err := a.ExpandTarget(fc.Target)
 	if err != nil {
 		return err
 	}
-	if _, err := os.Lstat(target); errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	dest := filepath.Join(a.BackupDir, strings.TrimPrefix(target, "/"))
-	if err := os.MkdirAll(filepath.Dir(dest), 0o700); err != nil {
+	dest, err := a.moveToBackup(target)
+	if err != nil {
 		return err
 	}
-	return os.Rename(target, dest)
+	if prev, ok := a.St.Configs[target]; ok && prev.Dir {
+		dest = prev.Backup // mantém o original de antes do kanivet-cli
+	}
+	a.St.Configs[target] = state.AppliedConfig{Item: fc.ItemID, Target: target, Backup: dest, Dir: true, At: time.Now().UTC()}
+	return nil
+}
+
+// RemoveDir guarda o diretório atual no backup do run e devolve o original, se havia um.
+func (a *Applier) RemoveDir(target string) error {
+	target, err := a.ExpandTarget(target)
+	if err != nil {
+		return err
+	}
+	if _, err := a.moveToBackup(target); err != nil {
+		return err
+	}
+	rec, ok := a.St.Configs[target]
+	if ok && rec.Backup != "" {
+		if _, err := os.Lstat(rec.Backup); err == nil {
+			if err := os.Rename(rec.Backup, target); err != nil {
+				return err
+			}
+		}
+	}
+	delete(a.St.Configs, target)
+	return nil
+}
+
+// BackupFile copia um arquivo para backups/<run> antes de alterá-lo (ex.: o rc do shell).
+func (a *Applier) BackupFile(target string) error {
+	_, err := a.backup(target)
+	return err
 }
 
 // Remove desfaz uma config: restaura o backup original ou apaga o arquivo se ele não existia.
@@ -237,12 +290,38 @@ func EnsureRcBlock(rc, shell string) (bool, error) {
 	return true, state.WriteFileAtomic(real, content, permOf(real, 0o644))
 }
 
-// RestoreRun copia de volta todos os arquivos de backups/<run>.
+// RestoreRun copia de volta todos os arquivos de backups/<run>. Diretórios movidos inteiros
+// voltam inteiros (o atual é renomeado para <alvo>.before-restore), sem mesclar.
 func RestoreRun(backupRunDir string) ([]string, error) {
 	var restored []string
+	moved := map[string]bool{}
+	if data, err := os.ReadFile(filepath.Join(backupRunDir, movedDirsFile)); err == nil {
+		for _, target := range strings.Fields(string(data)) {
+			src := filepath.Join(backupRunDir, strings.TrimPrefix(target, "/"))
+			moved[src] = true
+			if _, err := os.Lstat(src); err != nil {
+				continue // já restaurado ou devolvido por uma desinstalação
+			}
+			if _, err := os.Lstat(target); err == nil {
+				if err := os.Rename(target, target+".before-restore"); err != nil {
+					return restored, err
+				}
+			}
+			if err := os.Rename(src, target); err != nil {
+				return restored, err
+			}
+			restored = append(restored, target)
+		}
+	}
 	err := filepath.WalkDir(backupRunDir, func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+		if err != nil {
 			return err
+		}
+		if moved[p] {
+			return fs.SkipDir
+		}
+		if d.IsDir() || d.Name() == movedDirsFile || d.Type()&fs.ModeSymlink != 0 {
+			return nil
 		}
 		rel, _ := filepath.Rel(backupRunDir, p)
 		target := "/" + filepath.ToSlash(rel)

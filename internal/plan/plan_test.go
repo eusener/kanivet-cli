@@ -323,3 +323,54 @@ func TestDirConfigRunsBeforeInstall(t *testing.T) {
 		t.Fatal("dir backup only when the install will run")
 	}
 }
+
+// I7: dependências de itens pulados ou já presentes não são instaladas.
+func TestDepsOfSkippedOrPresentNotInstalled(t *testing.T) {
+	c := testCatalog()
+	st := absent(c)
+	st["herdr-plugins"] = detect.ItemStatus{ID: "herdr-plugins", Status: detect.StatusUnsupported, Reason: "no graphical session"}
+	p, _ := Build(c, linux, st, Selection{Add: []string{"herdr-plugins"}})
+	if has(p, "install:go") || has(p, "install:mise") {
+		t.Fatalf("deps of a skipped item: %v", ids(p))
+	}
+	st["herdr-plugins"] = detect.ItemStatus{ID: "herdr-plugins", Status: detect.StatusExternal}
+	p, _ = Build(c, linux, st, Selection{Add: []string{"herdr-plugins"}})
+	if has(p, "install:go") {
+		t.Fatalf("deps of a present item: %v", ids(p))
+	}
+}
+
+// I10: sudo por método (cask no macOS não pede sudo).
+func TestMethodLevelSudo(t *testing.T) {
+	c := testCatalog()
+	c.Items["vscode"] = mk("vscode", "cli")
+	c.Items["vscode"].Install = []catalog.Method{
+		{Backend: "brew", Package: "cask:visual-studio-code", When: &catalog.When{OS: platform.MacOS}},
+		{Backend: "script", Inline: "sudo apt-get install -y code", NeedsSudo: true},
+	}
+	mac := linux
+	mac.OS = platform.MacOS
+	p, _ := Build(c, mac, absent(c), Selection{Add: []string{"vscode"}})
+	if step(t, p, "install:vscode").NeedsSudo {
+		t.Fatal("brew cask must not need sudo")
+	}
+	p, _ = Build(c, linux, absent(c), Selection{Add: []string{"vscode"}})
+	if !step(t, p, "install:vscode").NeedsSudo {
+		t.Fatal("linux method needs sudo")
+	}
+}
+
+// I9a: desinstalar item com diretório gerenciado não roda rm -rf; move para o backup.
+func TestUninstallDirItemUsesFilesNotRm(t *testing.T) {
+	c := testCatalog()
+	c.Items["lazyvim"] = mk("lazyvim", "cli")
+	c.Items["lazyvim"].Install = []catalog.Method{{Backend: "git", Repo: "https://github.com/LazyVim/starter", Dest: "~/.config/nvim"}}
+	c.Items["lazyvim"].Configs = []catalog.ConfigSpec{{ID: "nvim-backup", Default: true, Files: []catalog.ConfigFile{{Target: "~/.config/nvim", Dir: true}}}}
+	st := absent(c)
+	st["lazyvim"] = detect.ItemStatus{ID: "lazyvim", Status: detect.StatusInstalled}
+	p, _ := Build(c, linux, st, Selection{Uninstall: []string{"lazyvim"}})
+	s := step(t, p, "uninstall:lazyvim")
+	if len(s.Cmds) != 0 || len(s.Files) != 1 || !s.Files[0].Dir || !s.Files[0].Remove {
+		t.Fatalf("uninstall step %+v", s)
+	}
+}
