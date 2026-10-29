@@ -79,7 +79,7 @@ func pendingSteps(pl *plan.Plan, j *state.Journal) *plan.Plan {
 type RunOptions struct {
 	ForceConfigs bool
 	Events       chan<- executor.Event
-	// RunInteractive roda um comando com o terminal cedido (sudo, prompts). Declarado agora; a Task 2 liga no executor.
+	// RunInteractive roda um comando com o terminal cedido (sudo, prompts).
 	RunInteractive func(context.Context, runner.Cmd) runner.Result
 	Profile        string // gravado no estado antes de executar, se não vazio
 }
@@ -105,7 +105,7 @@ func (s *Session) Run(ctx context.Context, pl *plan.Plan, j *state.Journal, o Ru
 		Ap:       &configs.Applier{St: s.St, BackupDir: filepath.Join(s.StateDir, "backups", j.RunID), Vars: vars, Files: s.Cat.Files},
 		ShellDir: s.ShellDir(), Rc: s.RcPath(),
 	}
-	rep, err := ex.Execute(ctx, pl, executor.Options{ForceConfigs: o.ForceConfigs, Events: o.Events})
+	rep, err := ex.Execute(ctx, pl, executor.Options{ForceConfigs: o.ForceConfigs, Events: o.Events, RunInteractive: o.RunInteractive})
 	return rep, j, err
 }
 

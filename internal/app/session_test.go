@@ -154,3 +154,25 @@ func TestExtrasFor(t *testing.T) {
 		t.Fatalf("extras %v", got)
 	}
 }
+
+func TestSessionRunPassesInteractiveHook(t *testing.T) {
+	f := newFixture(t)
+	pl := &plan.Plan{Steps: []plan.Step{{ID: "install:x", ItemID: "x", Kind: plan.KindInstall, NeedsSudo: true,
+		Cmds: []runner.Cmd{{Shell: "true"}}}}}
+	var calls []string
+	hook := func(_ context.Context, c runner.Cmd) runner.Result {
+		calls = append(calls, c.Shown())
+		return runner.Result{}
+	}
+	if _, _, err := f.s.Run(context.Background(), pl, nil, RunOptions{RunInteractive: hook}); err != nil {
+		t.Fatal(err)
+	}
+	if len(calls) != 1 || calls[0] != "sudo -v" {
+		t.Fatalf("hook calls: %v", calls)
+	}
+	for _, c := range f.fake.Strings() {
+		if c == "sudo -v" {
+			t.Fatal("sudo -v reached the runner")
+		}
+	}
+}
