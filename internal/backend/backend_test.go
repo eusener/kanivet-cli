@@ -154,7 +154,7 @@ func TestHerdrPlugin(t *testing.T) {
 	b := get(t, "herdr-plugin")
 	m := catalog.Method{Backend: "herdr-plugin", Args: []string{"herdr-bar=jeffarese/herdr-bar@a88c7b0"}}
 	eq(t, "install", b.Install(m, "", mac),
-		"herdr plugin install jeffarese/herdr-bar --yes --ref a88c7b0", "herdr plugin enable herdr-bar")
+		"herdr plugin install jeffarese/herdr-bar --yes --ref a88c7b0", "herdr plugin enable 'herdr-bar' >/dev/null 2>&1 || true")
 	eq(t, "update", b.Update(m, mac), "herdr plugin install jeffarese/herdr-bar --yes")
 	eq(t, "uninstall", b.Uninstall(m, mac), "herdr plugin uninstall herdr-bar")
 }

@@ -35,7 +35,10 @@ func (herdrPlugin) Install(m catalog.Method, _ string, _ platform.Platform) []ru
 		if s.ref != "" {
 			install = append(install, "--ref", s.ref)
 		}
-		cmds = append(cmds, argv("herdr", install...), argv("herdr", "herdr", "plugin", "enable", s.id))
+		// Plugins instalados já vêm ativados; o enable fala com o servidor do herdr,
+		// que pode não estar rodando (máquina nova, CI). Por isso é só uma garantia.
+		enable := runner.Cmd{Shell: "herdr plugin enable " + q(s.id) + " >/dev/null 2>&1 || true", Lock: "herdr"}
+		cmds = append(cmds, argv("herdr", install...), enable)
 	}
 	return cmds
 }
