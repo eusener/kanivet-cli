@@ -52,7 +52,8 @@ func NewRoot(e *Env) *cobra.Command {
 	root.SetOut(e.Stdout)
 	root.SetErr(e.Stderr)
 	root.SetIn(e.Stdin)
-	root.AddCommand(listCmd(e), profilesCmd(e), statusCmd(e), planCmd(e), installCmd(e))
+	root.AddCommand(listCmd(e), profilesCmd(e), statusCmd(e), planCmd(e), installCmd(e),
+		updateCmd(e), uninstallCmd(e), restoreCmd(e), catalogCmd(e), doctorCmd(e))
 	return root
 }
 

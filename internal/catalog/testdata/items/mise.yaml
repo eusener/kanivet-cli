@@ -1,0 +1,9 @@
+id: mise
+category: shell
+name: mise
+description: Polyglot version manager
+platforms: [macos, linux]
+detect: {command: mise --version, version_regex: '([\d.]+)'}
+install:
+  - backend: script
+    url: https://mise.run
