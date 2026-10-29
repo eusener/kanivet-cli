@@ -154,7 +154,7 @@ func (a *Applier) Apply(fc plan.FileChange, force bool) (*Conflict, error) {
 		return nil, nil
 	}
 	if applied && exists && sha(current) != prev.SHA256 && !force {
-		return &Conflict{Target: target, Diff: diff(string(current), string(content))}, nil
+		return &Conflict{Target: target, Diff: Diff(string(current), string(content))}, nil
 	}
 	backup, err := a.backup(target)
 	if err != nil {
@@ -334,8 +334,8 @@ func RestoreRun(backupRunDir string) ([]string, error) {
 	return restored, err
 }
 
-// diff é um diff simples (atual vs. novo), suficiente para o usuário decidir.
-func diff(current, next string) string {
+// Diff é um diff simples (atual vs. novo), suficiente para o usuário decidir.
+func Diff(current, next string) string {
 	var b strings.Builder
 	b.WriteString("--- current\n+++ kanivet-cli\n")
 	for _, l := range strings.SplitAfter(current, "\n") {

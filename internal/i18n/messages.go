@@ -2,6 +2,13 @@ package i18n
 
 var messages = map[Lang]map[string]string{
 	En: {
+		"tui.review.counts":         "%d install · %d update · %d remove · %d configure · %d skip",
+		"tui.sudo_banner":           "Some steps need sudo. Your password will be asked once.",
+		"tui.review.loading":        "Building the plan...",
+		"tui.review.error":          "The plan cannot run:",
+		"tui.review.diff_title":     "Diff for %s",
+		"tui.execute.placeholder":   "Execution (coming soon). Nothing was run.",
+		"tui.step.review":           "Review the plan",
 		"tui.too_small":             "Terminal too small: %dx%d (minimum %dx%d). Resize to continue.",
 		"tui.step":                  "Step %d/5 · %s",
 		"tui.step.page":             "Step 3/5 · %s (%d/%d)",
@@ -22,7 +29,6 @@ var messages = map[Lang]map[string]string{
 		"tui.welcome.no_systemd":    "no systemd: lerd unavailable",
 		"tui.welcome.no_graphical":  "no graphical session: terminal will be left out",
 		"tui.profile.preview":       "Items in this profile",
-		"tui.review.placeholder":    "Review (coming soon). esc to go back.",
 		"tui.help.title":            "Shortcuts",
 		"tui.unknown_hint":          "detection did not answer; the item will be treated as present",
 		"tui.status.absent":         "not installed",
@@ -142,6 +148,13 @@ var messages = map[Lang]map[string]string{
 		"reason.distro":             "requires one of: %s",
 	},
 	PtBR: {
+		"tui.review.counts":         "%d instalar · %d atualizar · %d remover · %d configurar · %d pular",
+		"tui.sudo_banner":           "Alguns passos precisam de sudo. A senha será pedida uma vez.",
+		"tui.review.loading":        "Montando o plano...",
+		"tui.review.error":          "O plano não pode rodar:",
+		"tui.review.diff_title":     "Diferenças de %s",
+		"tui.execute.placeholder":   "Execução (em breve). Nada foi executado.",
+		"tui.step.review":           "Revisar o plano",
 		"tui.too_small":             "Terminal pequeno demais: %dx%d (mínimo %dx%d). Aumente para continuar.",
 		"tui.step":                  "Passo %d/5 · %s",
 		"tui.step.page":             "Passo 3/5 · %s (%d/%d)",
@@ -162,7 +175,6 @@ var messages = map[Lang]map[string]string{
 		"tui.welcome.no_systemd":    "sem systemd: lerd indisponível",
 		"tui.welcome.no_graphical":  "sem sessão gráfica: terminal ficará de fora",
 		"tui.profile.preview":       "Itens deste perfil",
-		"tui.review.placeholder":    "Revisão (em breve). esc para voltar.",
 		"tui.help.title":            "Atalhos",
 		"tui.unknown_hint":          "a detecção não respondeu; o item será tratado como presente",
 		"tui.status.absent":         "não instalado",

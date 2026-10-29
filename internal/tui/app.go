@@ -55,6 +55,8 @@ type Model struct {
 	list        ItemList
 	showHelp    bool
 	confirmQuit bool
+	review      reviewState
+	plan        *plan.Plan // plano confirmado na revisão, para a execução (Task 9)
 }
 
 // New cria o modelo. start diz a tela inicial (o wizard começa em ScreenWelcome).
@@ -81,6 +83,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
 		m.help.Width = msg.Width
+		if m.screen == ScreenReview {
+			m = m.layoutReview()
+		}
 		return m, nil
 	case detectMsg:
 		m.detecting = false
@@ -99,6 +104,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var c tea.Cmd
 		m.spin, c = m.spin.Update(msg)
 		return m, c
+	case planMsg:
+		return m.onPlan(msg), nil
+	case tea.MouseMsg:
+		if m.screen == ScreenReview {
+			var c tea.Cmd
+			if m.review.diffOpen {
+				m.review.diff, c = m.review.diff.Update(msg)
+			} else {
+				m.review.vp, c = m.review.vp.Update(msg)
+			}
+			return m, c
+		}
+		return m, nil
 	case tea.KeyMsg:
 		return m.updateKey(msg)
 	}
@@ -144,11 +162,7 @@ func (m Model) updateKey(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case ScreenCategories:
 		return m.updateCategories(km)
 	case ScreenReview:
-		if key.Matches(km, m.keys.Back) {
-			m.screen = ScreenCategories
-			m.page = len(categoryPages) - 1
-			m.list = m.newList()
-		}
+		return m.updateReview(km)
 	}
 	return m, nil
 }
@@ -193,6 +207,8 @@ func (m Model) title() string {
 		return i18n.T("tui.step", 2, i18n.T("tui.step.profile"))
 	case ScreenCategories:
 		return i18n.T("tui.step.page", pageTitle(m.page), m.page+1, len(categoryPages))
+	case ScreenReview:
+		return i18n.T("tui.step.review")
 	}
 	return "kanivet-cli"
 }
@@ -213,7 +229,9 @@ func (m Model) bodyLines(height int) []string {
 	case ScreenCategories:
 		return strings.Split(m.list.View(m.w, height), "\n")
 	case ScreenReview:
-		return []string{i18n.T("tui.review.placeholder")}
+		return m.reviewLines(height)
+	case ScreenExecute:
+		return []string{i18n.T("tui.execute.placeholder")}
 	}
 	return nil
 }
@@ -229,6 +247,8 @@ func (m Model) bindings() []key.Binding {
 		return []key.Binding{m.keys.Up, m.keys.Down, enter, m.keys.Help, m.keys.Quit}
 	case ScreenCategories:
 		return []key.Binding{m.keys.Up, m.keys.Down, m.keys.Toggle, m.keys.Left, m.keys.Search, enter, m.keys.Back, m.keys.Help, m.keys.Quit}
+	case ScreenReview:
+		return m.reviewBindings()
 	}
 	return []key.Binding{m.keys.Back, m.keys.Quit}
 }

@@ -54,8 +54,7 @@ func (m Model) updateCategories(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(km, m.keys.Enter):
 		if m.page == len(categoryPages)-1 {
-			m.screen = ScreenReview
-			return m, nil
+			return m.beginReview(ScreenCategories)
 		}
 		m.page++
 		m.list = m.newList()
