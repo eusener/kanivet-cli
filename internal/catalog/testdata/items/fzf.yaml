@@ -1,0 +1,26 @@
+id: fzf
+category: shell
+name: fzf
+description: {en: Fuzzy finder, pt-BR: Busca fuzzy}
+platforms: [macos, linux]
+min_version: "0.48"
+detect:
+  command: fzf --version
+  version_regex: '([\d.]+)'
+install:
+  - backend: brew
+    package: fzf
+    when: {os: macos}
+  - backend: mise
+    package: aqua:junegunn/fzf
+configs:
+  - id: fzf-defaults
+    description: Defaults
+    default: true
+    files:
+      - template: configs/fzf/fzfrc
+        target: "{{.XDG_CONFIG}}/fzf/fzfrc"
+shell:
+  init_order: 55
+  init:
+    any: 'eval "$(fzf --{{shell}})"'
