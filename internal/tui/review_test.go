@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/catalog"
 	"github.com/eusener/kanivet-cli/internal/i18n"
@@ -200,5 +201,102 @@ func TestReviewScrollsWithPageKeys(t *testing.T) {
 	m = send(m, tea.KeyMsg{Type: tea.KeyPgUp}, tea.KeyMsg{Type: tea.KeyPgUp})
 	if m.review.cursor != 0 {
 		t.Fatalf("pgup não voltou (cursor=%d)", m.review.cursor)
+	}
+}
+
+func longHomeSession(t *testing.T) *app.Session {
+	t.Helper()
+	s := testSession(t)
+	s.P.Home = filepath.Join(t.TempDir(), strings.Repeat("longdir", 8))
+	return s
+}
+
+func TestReviewMarkersSurviveLongPaths80Cols(t *testing.T) {
+	for _, lang := range []i18n.Lang{i18n.En, i18n.PtBR} {
+		s := longHomeSession(t)
+		for _, f := range []string{".config/fzf/fzfrc", ".zshrc"} {
+			p := filepath.Join(s.P.Home, f)
+			os.MkdirAll(filepath.Dir(p), 0o755)
+			os.WriteFile(p, []byte("x\n"), 0o644)
+		}
+		m := reviewWith(t, s, plan.Selection{Add: []string{"fzf"}})
+		i18n.SetLang(lang)
+		m.th = NewTheme(map[string]string{"NO_COLOR": "1"}, false)
+		m.review.rows = buildRows(m.review.groups)
+		m = send(m, size(80, 24))
+		m.review.rows = buildRows(m.review.groups)
+		for i := 0; i < len(m.review.rows); i++ {
+			m = m.layoutReview()
+			m = send(m, tea.KeyMsg{Type: tea.KeyDown})
+			for _, line := range strings.Split(m.View(), "\n") {
+				if strings.Contains(line, "→") && strings.Contains(line, "…") && !strings.Contains(line, "("+i18n.T("plan.backup")+")") {
+					t.Fatalf("%v: (backup) cortado: %q", lang, line)
+				}
+			}
+		}
+		out := m.renderRows(m.review)
+		if n := strings.Count(out, "("+i18n.T("plan.backup")+")"); n != 2 {
+			t.Errorf("%v: (backup) x%d, want 2:\n%s", lang, n, out)
+		}
+		if !strings.Contains(out, "("+i18n.T("plan.rc_block")+")") {
+			t.Errorf("%v: marca do rc cortada", lang)
+		}
+		i18n.SetLang(i18n.En)
+	}
+}
+
+func TestReviewRemoveMarkerSurvivesLongPath(t *testing.T) {
+	m := reviewWith(t, testSession(t), plan.Selection{})
+	long := "/" + strings.Repeat("abcdefghij/", 12)
+	m.review.rows = buildRows([]app.Group{{Kind: app.GroupUninstall, Title: "x", Lines: []app.Line{{StepID: "u", Text: "u", Files: []app.FileLine{{Path: long, Remove: true, Exists: true}}}}}})
+	m.w = 80
+	for _, l := range strings.Split(m.renderRows(m.review), "\n") {
+		if strings.Contains(l, "/abcdefghij") && (!strings.Contains(l, "✗") || lipgloss.Width(l) > 80) {
+			t.Errorf("linha de remoção: %q", l)
+		}
+	}
+}
+
+func TestReviewDiffNoteOnRcAndGenericRows(t *testing.T) {
+	s := testSession(t)
+	m := reviewWith(t, s, plan.Selection{Add: []string{"fzf"}})
+	d := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}}
+	for _, c := range []struct {
+		match func(reviewRow) bool
+		want  string
+	}{
+		{func(r reviewRow) bool { return r.rc }, i18n.T("tui.review.no_diff_rc")},
+		{func(r reviewRow) bool { return r.style == rowTitle }, i18n.T("tui.review.no_diff")},
+	} {
+		for i, r := range m.review.rows {
+			if c.match(r) {
+				m.review.cursor = i
+				break
+			}
+		}
+		m = send(m.layoutReview(), d)
+		if m.review.diffOpen || !strings.Contains(m.View(), c.want[:30]) {
+			t.Fatalf("sem nota %q:\n%s", c.want, m.View())
+		}
+		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
+		if m.review.note != "" {
+			t.Error("nota deveria sumir na próxima tecla")
+		}
+	}
+}
+
+func TestReviewDiffReadErrorIsNotFakeDiff(t *testing.T) {
+	s := testSession(t)
+	cfg := filepath.Join(s.P.Home, ".config", "fzf", "fzfrc")
+	os.MkdirAll(cfg, 0o755) // diretório: ReadFile falha com erro que não é ErrNotExist
+	m := reviewWith(t, s, plan.Selection{Add: []string{"fzf"}})
+	for i, r := range m.review.rows {
+		if r.stepID == "config:fzf-defaults" && r.file {
+			m.review.cursor = i
+		}
+	}
+	m = send(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	if m.review.diffOpen || !strings.Contains(m.View(), "Cannot read") {
+		t.Fatalf("esperava nota de erro:\n%s", m.View())
 	}
 }

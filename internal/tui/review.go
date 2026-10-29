@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"os"
 	"strings"
 
@@ -37,6 +38,9 @@ type reviewRow struct {
 	text         string
 	style        rowStyle
 	stepID, path string
+	// linhas de arquivo: marcador à frente, caminho (encurtável) e marcas depois
+	lead, post string
+	file, rc   bool
 }
 
 type reviewState struct {
@@ -52,6 +56,7 @@ type reviewState struct {
 	diffOpen bool
 	diff     viewport.Model
 	diffPath string
+	note     string // aviso curto (ex.: sem diff para a linha)
 }
 
 // rowKey devolve o id do passo da linha (vazio nas linhas sem passo).
@@ -90,23 +95,38 @@ func (m Model) onPlan(msg planMsg) Model {
 	return m.layoutReview()
 }
 
-func fileText(f app.FileLine) string {
+// fileParts separa o marcador, o caminho e as marcas finais ((backup), rc) de um arquivo.
+func fileParts(f app.FileLine) (lead, post string) {
 	if f.Rc {
-		line := "→ " + f.Path + "  (" + i18n.T("plan.rc_block") + ")"
+		post = "  (" + i18n.T("plan.rc_block") + ")"
 		if f.Exists {
-			line += " (" + i18n.T("plan.backup") + ")"
+			post += " (" + i18n.T("plan.backup") + ")"
 		}
-		return line
+		return "→ ", post
 	}
-	verb := "→"
+	lead = "→ "
 	if f.Remove {
-		verb = "✗"
+		lead = "✗ "
 	}
-	line := verb + " " + f.Path
 	if f.Exists && !f.Remove {
-		line += "  (" + i18n.T("plan.backup") + ")"
+		post = "  (" + i18n.T("plan.backup") + ")"
 	}
-	return line
+	return lead, post
+}
+
+// shorten corta o meio do caminho para caber em max colunas.
+func shorten(path string, max int) string {
+	r := []rune(path)
+	if len(r) <= max {
+		return path
+	}
+	if max < 5 {
+		max = 5
+	}
+	keep := max - 1
+	tail := keep / 2
+	head := keep - tail
+	return string(r[:head]) + "…" + string(r[len(r)-tail:])
 }
 
 func buildRows(groups []app.Group) []reviewRow {
@@ -126,7 +146,8 @@ func buildRows(groups []app.Group) []reviewRow {
 				rows = append(rows, reviewRow{text: "      $ " + c, style: rowSubtle, stepID: l.StepID})
 			}
 			for _, f := range l.Files {
-				rows = append(rows, reviewRow{text: "      " + fileText(f), stepID: l.StepID, path: f.Path})
+				lead, post := fileParts(f)
+				rows = append(rows, reviewRow{stepID: l.StepID, path: f.Path, lead: lead, post: post, file: true, rc: f.Rc})
 			}
 		}
 	}
@@ -179,6 +200,9 @@ func (m Model) reviewHeader() []string {
 	if r.hasSudo() {
 		h = append(h, m.th.Warn.Render(i18n.T("tui.sudo_banner")))
 	}
+	if r.note != "" {
+		return append(h, m.th.Warn.Render(r.note))
+	}
 	return append(h, "")
 }
 
@@ -214,6 +238,11 @@ func (m Model) renderRows(r reviewState) string {
 			prefix = m.th.Selected.Render("> ")
 		}
 		st := lipgloss.NewStyle()
+		if row.file {
+			// as marcas (backup/rc/remover) nunca são cortadas: o caminho é que encolhe
+			fixed := lipgloss.Width(prefix) + 6 + lipgloss.Width(row.lead) + lipgloss.Width(row.post)
+			row.text = "      " + row.lead + shorten(row.path, m.w-fixed) + row.post
+		}
 		switch row.style {
 		case rowTitle:
 			st = m.th.Title
@@ -257,6 +286,7 @@ func (m Model) reviewLines(height int) []string {
 
 func (m Model) updateReview(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 	r := m.review
+	m.review.note = ""
 	if r.diffOpen {
 		if key.Matches(km, m.keys.Back) {
 			m.review.diffOpen = false
@@ -343,6 +373,12 @@ func (m Model) openDiff() Model {
 		}
 	}
 	if fc == nil {
+		if row.rc {
+			r.note = i18n.T("tui.review.no_diff_rc")
+		} else {
+			r.note = i18n.T("tui.review.no_diff")
+		}
+		m.review = r
 		return m
 	}
 	target := m.s.ExpandTarget(fc.Target)
@@ -352,7 +388,12 @@ func (m Model) openDiff() Model {
 	if next, err := configs.Render(m.s.Cat.Files, fc.Template, vars); err != nil {
 		text = err.Error()
 	} else {
-		cur, _ := os.ReadFile(target)
+		cur, rerr := os.ReadFile(target)
+		if rerr != nil && !errors.Is(rerr, fs.ErrNotExist) {
+			r.note = i18n.T("tui.review.diff_read_error", target, rerr.Error())
+			m.review = r
+			return m
+		}
 		text = configs.Diff(string(cur), string(next))
 	}
 	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
