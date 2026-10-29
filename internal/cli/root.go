@@ -12,8 +12,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/catalog"
-	"github.com/eusener/kanivet-cli/internal/detect"
 	"github.com/eusener/kanivet-cli/internal/i18n"
 	"github.com/eusener/kanivet-cli/internal/platform"
 	"github.com/eusener/kanivet-cli/internal/runner"
@@ -108,22 +108,13 @@ func Execute() int {
 	return Run(e, os.Args[1:])
 }
 
-func (e *Env) statePath() string { return filepath.Join(e.StateDir, "state.json") }
-
-func (e *Env) loadState() (*state.State, error) { return state.Load(e.statePath()) }
-
-func (e *Env) detector(st *state.State) *detect.Detector {
-	return &detect.Detector{R: e.R, P: e.P, Owner: st}
+// session monta a sessão do motor sem carregar o estado.
+func (e *Env) session() app.Session {
+	return app.Session{R: e.R, P: e.P, Cat: e.Cat, StateDir: e.StateDir, Getenv: e.Getenv, Now: e.Now}
 }
 
-func (e *Env) rcPath() string {
-	if e.P.Shell == "zsh" {
-		return filepath.Join(e.P.Home, ".zshrc")
-	}
-	return filepath.Join(e.P.Home, ".bashrc")
-}
-
-func (e *Env) shellDir() string { return filepath.Join(e.P.Home, ".config", "kanivet-cli", "shell") }
+// open monta a sessão e carrega o estado.
+func (e *Env) open() (*app.Session, error) { return app.Open(e.session()) }
 
 // plain diz se a saída deve evitar cores e ícones.
 func (e *Env) plain() bool {
