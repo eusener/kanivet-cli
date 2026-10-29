@@ -85,6 +85,7 @@ type Method struct {
 type When struct {
 	OS         platform.OS `yaml:"os"`
 	PkgManager string      `yaml:"pkg_manager"`
+	Arch       string      `yaml:"arch"` // "amd64" | "arm64"
 }
 
 type ConfigSpec struct {

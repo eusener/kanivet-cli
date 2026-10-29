@@ -57,7 +57,7 @@ func whenMatches(w *catalog.When, p platform.Platform) bool {
 	if w == nil {
 		return true
 	}
-	if w.OS != "" && w.OS != p.OS {
+	if (w.OS != "" && w.OS != p.OS) || (w.Arch != "" && w.Arch != p.Arch) {
 		return false
 	}
 	return w.PkgManager == "" || w.PkgManager == p.PkgManager

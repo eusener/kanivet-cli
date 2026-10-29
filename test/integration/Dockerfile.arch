@@ -1,0 +1,6 @@
+FROM archlinux:latest
+RUN pacman -Syu --noconfirm bash ca-certificates curl git gzip jq sudo tar unzip xz && pacman -Scc --noconfirm
+RUN useradd -m -s /bin/bash dev && echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev
+USER dev
+WORKDIR /home/dev
+ENV LANG=C.UTF-8

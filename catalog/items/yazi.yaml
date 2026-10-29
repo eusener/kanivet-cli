@@ -12,7 +12,7 @@ install:
     package: yazi
     when: {os: macos}
   - backend: mise
-    package: aqua:sxyazi/yazi
+    package: github:sxyazi/yazi[matching=musl]
 shell:
   init:
     any: |

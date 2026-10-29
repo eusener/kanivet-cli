@@ -264,3 +264,19 @@ func TestDryRunExecutesNothing(t *testing.T) {
 		t.Fatal("dry run must emit the command as an event line")
 	}
 }
+
+func TestShellStepRunsDespiteFailedDependency(t *testing.T) {
+	eza := item("eza")
+	eza.Shell = catalog.ShellSpec{Aliases: map[string]string{"ls": "eza"}}
+	e := newEnv(t, eza, item("procs"))
+	e.fake.Responses = map[string]runner.Result{"install procs": {ExitCode: 1}}
+	pl := &plan.Plan{Steps: []plan.Step{install("eza", "install eza"), install("procs", "install procs"),
+		{ID: plan.ShellStepID, Kind: plan.KindShell, DependsOn: []string{"install:eza", "install:procs"}}}}
+	rep, _ := e.ex.Execute(context.Background(), pl, Options{})
+	if e.ex.J.Get(plan.ShellStepID) != state.StepDone || len(rep.Failed) != 1 {
+		t.Fatalf("shell step must still run: %+v %v", rep, e.ex.J.Steps)
+	}
+	if data, _ := os.ReadFile(filepath.Join(e.ex.ShellDir, "init.zsh")); !strings.Contains(string(data), "alias ls='eza'") {
+		t.Fatalf("init.zsh %q", data)
+	}
+}

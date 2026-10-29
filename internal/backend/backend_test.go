@@ -204,3 +204,18 @@ func TestMiseLatestParses(t *testing.T) {
 func TestScriptInline(t *testing.T) {
 	eq(t, "inline", get(t, "script").Install(catalog.Method{Inline: "herdr plugin action invoke x"}, "", ubuntu), "herdr plugin action invoke x")
 }
+
+func TestChooseRespectsArch(t *testing.T) {
+	it := &catalog.Item{ID: "procs", Install: []catalog.Method{
+		{Backend: "mise", Package: "aqua:dalance/procs", When: &catalog.When{OS: platform.Linux, Arch: "amd64"}},
+		{Backend: "system", Package: "procs"},
+	}}
+	arm := ubuntu
+	arm.Arch = "arm64"
+	if _, b, err := Choose(it, arm); err != nil || b.Name() != "system" {
+		t.Fatalf("arm64: %v %v", b, err)
+	}
+	if _, b, err := Choose(it, ubuntu); err != nil || b.Name() != "mise" {
+		t.Fatalf("amd64: %v %v", b, err)
+	}
+}

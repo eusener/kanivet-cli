@@ -1,0 +1,6 @@
+FROM fedora:41
+RUN dnf install -y bash ca-certificates curl findutils git gzip jq procps-ng sudo tar unzip xz && dnf clean all
+RUN useradd -m -s /bin/bash dev && echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev
+USER dev
+WORKDIR /home/dev
+ENV LANG=C.UTF-8

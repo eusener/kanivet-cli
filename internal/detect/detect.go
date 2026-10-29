@@ -159,6 +159,11 @@ func Unsupported(it *catalog.Item, p platform.Platform) string {
 	if p.OS == platform.MacOS && r.MinMacOS != "" && version.Compare(p.DistroVersion, r.MinMacOS) < 0 {
 		return i18n.T("reason.macos", r.MinMacOS)
 	}
+	if len(it.Install) > 0 {
+		if _, _, err := backend.Choose(it, p); err != nil {
+			return err.Error()
+		}
+	}
 	if p.OS == platform.Linux {
 		if r.Systemd && !p.Systemd {
 			return i18n.T("reason.systemd")

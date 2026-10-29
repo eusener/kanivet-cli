@@ -182,7 +182,8 @@ func (r *run) step(ctx context.Context, s plan.Step) {
 		blocked = blocked || r.bad[d]
 	}
 	r.mu.Unlock()
-	if blocked {
+	// O shell init só inclui o que está presente: uma falha não pode deixar o dev sem nenhum init.
+	if blocked && s.Kind != plan.KindShell {
 		r.finish(s, state.StepSkipped, i18n.T("note.dependency_failed"), nil)
 		return
 	}

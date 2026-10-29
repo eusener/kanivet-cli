@@ -176,3 +176,12 @@ func TestUnsupportedMacOSArch(t *testing.T) {
 		t.Fatalf("linux: %+v", s)
 	}
 }
+
+func TestUnsupportedWhenNoMethod(t *testing.T) {
+	it := item("procs")
+	it.Install = []catalog.Method{{Backend: "system", Package: "dnf=procs,pacman=procs"}}
+	d := &Detector{R: respond(nil), P: linux, Owner: owner{}} // linux de teste usa apt
+	if s := d.Detect(context.Background(), cat(it), nil)["procs"]; s.Status != StatusUnsupported || !strings.Contains(s.Reason, "linux") {
+		t.Fatalf("got %+v", s)
+	}
+}

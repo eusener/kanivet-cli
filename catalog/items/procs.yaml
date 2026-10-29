@@ -13,3 +13,6 @@ install:
     when: {os: macos}
   - backend: mise
     package: aqua:dalance/procs
+    when: {os: linux, arch: amd64}
+  - backend: system
+    package: dnf=procs,pacman=procs

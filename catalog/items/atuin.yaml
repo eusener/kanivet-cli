@@ -12,7 +12,7 @@ install:
     package: atuin
     when: {os: macos}
   - backend: mise
-    package: aqua:atuinsh/atuin
+    package: github:atuinsh/atuin[matching=musl]
 shell:
   init_order: 60
   init:
