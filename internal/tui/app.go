@@ -116,23 +116,24 @@ func (m Model) updateKey(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.confirmQuit = false
 		return m, nil
 	}
+	if m.showHelp {
+		m.showHelp = false // a tecla que fecha a ajuda é consumida
+		return m, nil
+	}
 	typing := m.screen == ScreenCategories && m.list.Filtering()
 	if !typing {
 		switch {
 		case key.Matches(km, m.keys.Help):
-			m.showHelp = !m.showHelp
+			m.showHelp = true
 			return m, nil
 		case key.Matches(km, m.keys.Quit):
-			if m.sel != nil {
-				if n, u, r := m.sel.Pending(); n+u+r > 0 {
-					m.confirmQuit = true
-					return m, nil
-				}
+			if n, c := m.pending(); n+c > 0 {
+				m.confirmQuit = true
+				return m, nil
 			}
 			return m, tea.Quit
 		}
 	}
-	m.showHelp = false
 	switch m.screen {
 	case ScreenWelcome:
 		if key.Matches(km, m.keys.Enter) && !m.detecting {
@@ -163,8 +164,8 @@ func (m Model) View() string {
 	}
 	status := ""
 	if m.sel != nil {
-		n, u, _ := m.sel.Pending()
-		status = m.th.Accent.Render(i18n.T("tui.pending", n, u))
+		n, c := m.pending()
+		status = m.th.Accent.Render(i18n.T("tui.pending", n, c))
 	}
 	foot := m.help.ShortHelpView(m.bindings())
 	if m.confirmQuit {
@@ -173,6 +174,15 @@ func (m Model) View() string {
 	lines := append([]string{m.th.Title.Render(m.title())}, body[:m.h-3]...)
 	lines = append(lines, status, lipgloss.NewStyle().MaxWidth(m.w).Render(foot))
 	return strings.Join(lines, "\n")
+}
+
+// pending devolve o que a barra mostra (itens a instalar, configs ligadas); o aviso ao sair usa o mesmo critério.
+func (m Model) pending() (install, configs int) {
+	if m.sel == nil {
+		return 0, 0
+	}
+	install, _, _ = m.sel.Pending()
+	return install, m.sel.ConfigsOn()
 }
 
 func (m Model) title() string {

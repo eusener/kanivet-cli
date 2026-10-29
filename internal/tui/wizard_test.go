@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -201,10 +202,46 @@ func TestTooSmall(t *testing.T) {
 	}
 }
 
-func TestFooterShowsPending(t *testing.T) {
+func TestFooterCountsAndQuitAgree(t *testing.T) {
 	m := detected(t, newModel(t, linuxSystemd))
 	m = send(m, enter(), enter())
-	if !strings.Contains(m.View(), "to install · 0 to configure") && !strings.Contains(m.View(), "to install") {
-		t.Errorf("rodapé:\n%s", m.View())
+	n, _, _ := m.sel.Pending()
+	c := m.sel.ConfigsOn()
+	if n == 0 || c == 0 {
+		t.Fatalf("esperava pendências, n=%d c=%d", n, c)
+	}
+	want := fmt.Sprintf("%d to install · %d configs", n, c)
+	if !strings.Contains(m.View(), want) {
+		t.Errorf("faltou %q em:\n%s", want, m.View())
+	}
+	m = send(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	if !m.confirmQuit || !strings.Contains(m.View(), "Quit with pending changes") {
+		t.Error("q com pendências deveria pedir confirmação")
+	}
+	// sem pendências (sem seleção), a barra mostra zeros e q sai direto
+	e := detected(t, newModel(t, linuxSystemd))
+	e = send(e, enter())
+	if a, b := e.pending(); a != 0 || b != 0 {
+		t.Fatalf("pending = %d,%d", a, b)
+	}
+	_, cmd := e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	if cmd == nil || cmd() != tea.Quit() {
+		t.Error("q sem pendências deveria sair")
+	}
+}
+
+func TestKeyClosingHelpIsConsumed(t *testing.T) {
+	m := detected(t, newModel(t, linuxSystemd))
+	m = send(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("?")})
+	if !m.showHelp {
+		t.Fatal("ajuda deveria abrir")
+	}
+	m = send(m, enter())
+	if m.showHelp || m.screen != ScreenWelcome {
+		t.Fatalf("enter deveria só fechar a ajuda: help=%v screen=%v", m.showHelp, m.screen)
+	}
+	m = send(m, enter())
+	if m.screen != ScreenProfile {
+		t.Fatalf("screen = %v", m.screen)
 	}
 }

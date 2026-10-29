@@ -138,3 +138,19 @@ func TestConfigToggle(t *testing.T) {
 		t.Errorf("configs %v", got)
 	}
 }
+
+func TestConfigsOnCountsMarkedItemsConfigs(t *testing.T) {
+	s := newSel(t, linuxSystemd, nil, ModeWizard)
+	if s.ConfigsOn() != 0 {
+		t.Fatal("sem marcados deveria ser 0")
+	}
+	s.Toggle("kitty")
+	on := s.ConfigsOn()
+	if on == 0 {
+		t.Fatal("kitty tem config padrão ligada")
+	}
+	s.ToggleConfig("kitty-config")
+	if s.ConfigsOn() != on-1 {
+		t.Errorf("desligar config deveria reduzir: %d -> %d", on, s.ConfigsOn())
+	}
+}

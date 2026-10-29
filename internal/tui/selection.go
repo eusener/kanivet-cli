@@ -303,3 +303,18 @@ func (s *Selection) ToPlan() plan.Selection {
 	}
 	return out
 }
+
+// ConfigsOn conta as configs ligadas dos itens marcados (os que serão instalados ou já estão presentes).
+func (s *Selection) ConfigsOn() int {
+	n := 0
+	for id := range s.marked {
+		if it := s.c.Items[id]; it != nil {
+			for _, cf := range it.Configs {
+				if s.ConfigOn(cf.ID) {
+					n++
+				}
+			}
+		}
+	}
+	return n
+}
