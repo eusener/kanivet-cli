@@ -227,3 +227,8 @@ func contains(list []string, s string) bool {
 	}
 	return false
 }
+
+// DetectItem detecta um único item (sem avaliar ProvidedBy).
+func (d *Detector) DetectItem(ctx context.Context, it *catalog.Item) ItemStatus {
+	return d.detectOne(ctx, it)
+}
