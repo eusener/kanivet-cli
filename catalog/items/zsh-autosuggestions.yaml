@@ -1,0 +1,21 @@
+id: zsh-autosuggestions
+category: shell
+name: zsh-autosuggestions
+description: {en: "Fish-like suggestions from history", pt-BR: "Sugestões do histórico, estilo fish"}
+homepage: https://github.com/zsh-users/zsh-autosuggestions
+platforms: [macos, linux]
+zsh_only: true
+detect:
+  command: "for f in \"/opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh\" \"/usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh\" \"$HOME/.local/share/kanivet-cli/zsh/zsh-autosuggestions/zsh-autosuggestions.zsh\"; do [ -f \"$f\" ] && exit 0; done; exit 1"
+install:
+  - backend: brew
+    package: zsh-autosuggestions
+    when: {os: macos}
+  - backend: git
+    repo: https://github.com/zsh-users/zsh-autosuggestions
+    dest: ~/.local/share/kanivet-cli/zsh/zsh-autosuggestions
+shell:
+  guard: zsh
+  init_order: 80
+  init:
+    zsh: "for f in \"/opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh\" \"/usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh\" \"$HOME/.local/share/kanivet-cli/zsh/zsh-autosuggestions/zsh-autosuggestions.zsh\"; do [ -f \"$f\" ] && { source \"$f\"; break; }; done"

@@ -1,0 +1,15 @@
+id: node
+category: languages
+name: Node.js
+description: {en: "JavaScript runtime (LTS)", pt-BR: "Runtime JavaScript (LTS)"}
+homepage: https://nodejs.org
+platforms: [macos, linux]
+min_version: "18"
+depends_on: [mise]
+detect:
+  command: node --version
+  version_regex: 'v([\d.]+)'
+install:
+  - backend: mise
+    package: node
+    version: "22"

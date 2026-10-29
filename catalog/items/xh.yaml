@@ -1,0 +1,15 @@
+id: xh
+category: data-apis
+name: "xh"
+description: {en: "Friendly HTTP client (curl/httpie)", pt-BR: "Cliente HTTP amigável (curl/httpie)"}
+homepage: https://github.com/ducaale/xh
+platforms: [macos, linux]
+detect:
+  command: "xh --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: xh
+    when: {os: macos}
+  - backend: mise
+    package: aqua:ducaale/xh

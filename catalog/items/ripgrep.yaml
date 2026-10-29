@@ -1,0 +1,15 @@
+id: ripgrep
+category: replacements
+name: "ripgrep"
+description: {en: "Extremely fast recursive grep", pt-BR: "grep recursivo extremamente rápido"}
+homepage: https://github.com/BurntSushi/ripgrep
+platforms: [macos, linux]
+detect:
+  command: "rg --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: ripgrep
+    when: {os: macos}
+  - backend: mise
+    package: aqua:BurntSushi/ripgrep

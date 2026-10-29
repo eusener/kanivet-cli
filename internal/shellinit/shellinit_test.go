@@ -87,3 +87,11 @@ func TestGeneratedParses(t *testing.T) {
 		}
 	}
 }
+
+func TestGuardOverride(t *testing.T) {
+	it := &catalog.Item{ID: "zsh-autosuggestions", Detect: catalog.Detect{Command: "for f in a b; do :; done"},
+		Shell: catalog.ShellSpec{Guard: "zsh", Init: map[string]string{"zsh": "source x"}}}
+	if out := Generate([]*catalog.Item{it}, "zsh"); !strings.Contains(out, "if command -v zsh >/dev/null 2>&1; then") {
+		t.Fatalf("guard override not used:\n%s", out)
+	}
+}

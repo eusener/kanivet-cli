@@ -1,0 +1,14 @@
+id: zsh
+category: shell
+name: zsh
+description: {en: "Z shell", pt-BR: "Z shell"}
+platforms: [macos, linux]
+detect:
+  command: zsh --version
+  version_regex: 'zsh ([\d.]+)'
+install:
+  - backend: brew
+    package: zsh
+    when: {os: macos}
+  - backend: system
+    package: zsh

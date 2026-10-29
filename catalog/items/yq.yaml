@@ -1,0 +1,15 @@
+id: yq
+category: data-apis
+name: "yq"
+description: {en: "jq for YAML, TOML and XML", pt-BR: "jq para YAML, TOML e XML"}
+homepage: https://github.com/mikefarah/yq
+platforms: [macos, linux]
+detect:
+  command: "yq --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: yq
+    when: {os: macos}
+  - backend: mise
+    package: aqua:mikefarah/yq

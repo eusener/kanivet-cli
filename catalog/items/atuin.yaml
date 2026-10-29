@@ -1,0 +1,19 @@
+id: atuin
+category: shell
+name: "atuin"
+description: {en: "Searchable shell history on ctrl+r", pt-BR: "Histórico do shell pesquisável no ctrl+r"}
+homepage: https://github.com/atuinsh/atuin
+platforms: [macos, linux]
+detect:
+  command: "atuin --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: atuin
+    when: {os: macos}
+  - backend: mise
+    package: aqua:atuinsh/atuin
+shell:
+  init_order: 60
+  init:
+    any: 'eval "$(atuin init {{shell}} --disable-up-arrow)"'

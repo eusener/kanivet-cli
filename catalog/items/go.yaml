@@ -1,0 +1,15 @@
+id: go
+category: languages
+name: Go
+description: {en: "Go programming language", pt-BR: "Linguagem de programação Go"}
+homepage: https://go.dev
+platforms: [macos, linux]
+min_version: "1.24"
+depends_on: [mise]
+detect:
+  command: go version
+  version_regex: 'go([\d.]+)'
+install:
+  - backend: mise
+    package: go
+    version: "1.25"

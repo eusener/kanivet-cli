@@ -53,7 +53,7 @@ func Lint(c *Catalog, backends []string) []error {
 			if !known[m.Backend] {
 				add(it.ID, field, "unknown backend %q", m.Backend)
 			}
-			if m.Backend == "script" && !strings.HasPrefix(m.URL, "https://") {
+			if m.Backend == "script" && m.Inline == "" && !strings.HasPrefix(m.URL, "https://") {
 				add(it.ID, field, "url must be https:// (got %q)", m.URL)
 			}
 		}

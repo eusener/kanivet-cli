@@ -1,0 +1,12 @@
+id: herdr-icon-font
+category: terminal
+name: herdr agent icons
+description: {en: "Icon font for AI agents, from the herdr-radar plugin", pt-BR: "Fonte de ícones dos agentes de IA, do plugin herdr-radar"}
+platforms: [macos, linux]
+requires: {graphical: true}
+depends_on: [herdr-plugins]
+detect:
+  command: 'ls "$HOME/Library/Fonts" "$HOME/.local/share/fonts" 2>/dev/null | grep -qi "herdr"'
+install:
+  - backend: script
+    inline: herdr plugin action invoke hhdebb.herdr-radar.install-font

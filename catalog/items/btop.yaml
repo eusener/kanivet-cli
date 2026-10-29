@@ -1,0 +1,18 @@
+id: btop
+category: replacements
+name: "btop"
+description: {en: "Resource monitor (top/htop)", pt-BR: "Monitor de recursos (top/htop)"}
+homepage: https://github.com/aristocratos/btop
+platforms: [macos, linux]
+detect:
+  command: "btop --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: btop
+    when: {os: macos}
+  - backend: mise
+    package: aqua:aristocratos/btop
+shell:
+  aliases:
+    top: btop

@@ -1,0 +1,28 @@
+id: yazi
+category: navigation
+name: "yazi"
+description: {en: "Blazing fast terminal file manager (y)", pt-BR: "Gerenciador de arquivos do terminal muito rápido (y)"}
+homepage: https://github.com/sxyazi/yazi
+platforms: [macos, linux]
+detect:
+  command: "yazi --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: yazi
+    when: {os: macos}
+  - backend: mise
+    package: aqua:sxyazi/yazi
+shell:
+  init:
+    any: |
+      y() {
+        local tmp cwd
+        tmp="$(mktemp -t yazi-cwd.XXXXXX)"
+        yazi "$@" --cwd-file="$tmp"
+        cwd="$(command cat -- "$tmp")"
+        if [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+          builtin cd -- "$cwd"
+        fi
+        rm -f -- "$tmp"
+      }

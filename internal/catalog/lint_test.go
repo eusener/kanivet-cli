@@ -109,3 +109,11 @@ func TestLintValidCatalog(t *testing.T) {
 		t.Fatalf("unexpected lint errors: %v", errs)
 	}
 }
+
+func TestLintScriptInline(t *testing.T) {
+	a := validItem("a")
+	a.Install = []Method{{Backend: "script", Inline: "herdr plugin action invoke x"}}
+	for _, e := range Lint(baseCatalog(a), testBackends) {
+		t.Fatalf("inline script must be valid: %v", e)
+	}
+}

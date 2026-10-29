@@ -1,0 +1,15 @@
+id: jj
+category: git
+name: "jj"
+description: {en: "Jujutsu: git-compatible VCS with a simpler model", pt-BR: "Jujutsu: VCS compatível com git e modelo mais simples"}
+homepage: https://github.com/jj-vcs/jj
+platforms: [macos, linux]
+detect:
+  command: "jj --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: jj
+    when: {os: macos}
+  - backend: mise
+    package: aqua:jj-vcs/jj

@@ -1,0 +1,15 @@
+id: duf
+category: replacements
+name: "duf"
+description: {en: "Readable free disk space (df)", pt-BR: "Espaço livre em disco legível (df)"}
+homepage: https://github.com/muesli/duf
+platforms: [macos, linux]
+detect:
+  command: "duf --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: duf
+    when: {os: macos}
+  - backend: mise
+    package: aqua:muesli/duf

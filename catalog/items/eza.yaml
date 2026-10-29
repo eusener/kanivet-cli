@@ -1,0 +1,20 @@
+id: eza
+category: replacements
+name: "eza"
+description: {en: "Modern ls with icons, git status and tree view", pt-BR: "ls moderno com ícones, status do git e árvore"}
+homepage: https://github.com/eza-community/eza
+platforms: [macos, linux]
+detect:
+  command: "eza --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: eza
+    when: {os: macos}
+  - backend: mise
+    package: aqua:eza-community/eza
+shell:
+  aliases:
+    ls: eza --icons=auto --group-directories-first
+    ll: eza -lah --git --icons=auto --group-directories-first
+    lt: eza --tree --level=2 --icons=auto --git-ignore

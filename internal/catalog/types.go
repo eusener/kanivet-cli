@@ -72,6 +72,7 @@ type Method struct {
 	Version string   `yaml:"version"` // linha padrão ("22", "stable")
 	When    *When    `yaml:"when"`
 	URL     string   `yaml:"url"`
+	Inline  string   `yaml:"inline"` // script: comando local, sem download
 	SHA256  string   `yaml:"sha256"`
 	Args    []string `yaml:"args"`
 	Repo    string   `yaml:"repo"`
@@ -97,6 +98,7 @@ type ConfigFile struct {
 }
 
 type ShellSpec struct {
+	Guard     string            `yaml:"guard"` // binário que protege o init (padrão: 1ª palavra do detect)
 	Aliases   map[string]string `yaml:"aliases"`
 	Init      map[string]string `yaml:"init"` // "zsh" | "bash" | "any" (aceita {{shell}})
 	InitOrder int               `yaml:"init_order"`

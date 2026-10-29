@@ -1,0 +1,18 @@
+id: lazygit
+category: git
+name: "lazygit"
+description: {en: "Git TUI: line staging, interactive rebase, conflicts", pt-BR: "TUI de git: staging por linha, rebase interativo, conflitos"}
+homepage: https://github.com/jesseduffield/lazygit
+platforms: [macos, linux]
+detect:
+  command: "lazygit --version"
+  version_regex: "version=([\\d.]+)"
+install:
+  - backend: brew
+    package: lazygit
+    when: {os: macos}
+  - backend: mise
+    package: aqua:jesseduffield/lazygit
+shell:
+  aliases:
+    lg: lazygit

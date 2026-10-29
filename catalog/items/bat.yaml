@@ -1,0 +1,21 @@
+id: bat
+category: replacements
+name: "bat"
+description: {en: "cat with syntax highlighting and git integration", pt-BR: "cat com destaque de sintaxe e integração com git"}
+homepage: https://github.com/sharkdp/bat
+platforms: [macos, linux]
+detect:
+  command: "bat --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: bat
+    when: {os: macos}
+  - backend: mise
+    package: aqua:sharkdp/bat
+env:
+  MANPAGER: "sh -c 'col -bx | bat -l man -p'"
+  MANROFFOPT: "-c"
+shell:
+  aliases:
+    cat: bat --paging=never

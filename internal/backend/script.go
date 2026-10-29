@@ -17,6 +17,9 @@ func init() { register(script{}) }
 func (script) Name() string { return "script" }
 
 func (script) Install(m catalog.Method, _ string, _ platform.Platform) []runner.Cmd {
+	if m.Inline != "" {
+		return []runner.Cmd{{Shell: m.Inline}}
+	}
 	var b strings.Builder
 	b.WriteString(`T=$(mktemp) && curl -fsSL ` + q(m.URL) + ` -o "$T"`)
 	if m.SHA256 != "" {

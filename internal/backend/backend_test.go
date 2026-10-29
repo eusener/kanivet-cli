@@ -200,3 +200,7 @@ func TestMiseLatestParses(t *testing.T) {
 		t.Fatalf("latest: %v", got)
 	}
 }
+
+func TestScriptInline(t *testing.T) {
+	eq(t, "inline", get(t, "script").Install(catalog.Method{Inline: "herdr plugin action invoke x"}, "", ubuntu), "herdr plugin action invoke x")
+}

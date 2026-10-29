@@ -1,0 +1,15 @@
+id: hyperfine
+category: data-apis
+name: "hyperfine"
+description: {en: "Command-line benchmarking", pt-BR: "Benchmark de comandos"}
+homepage: https://github.com/sharkdp/hyperfine
+platforms: [macos, linux]
+detect:
+  command: "hyperfine --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: hyperfine
+    when: {os: macos}
+  - backend: mise
+    package: aqua:sharkdp/hyperfine

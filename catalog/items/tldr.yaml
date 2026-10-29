@@ -1,0 +1,15 @@
+id: tldr
+category: data-apis
+name: "tldr"
+description: {en: "Practical examples instead of long man pages", pt-BR: "Exemplos práticos no lugar de man pages longas"}
+homepage: https://github.com/tldr-pages/tlrc
+platforms: [macos, linux]
+detect:
+  command: "tldr --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: tlrc
+    when: {os: macos}
+  - backend: mise
+    package: aqua:tldr-pages/tlrc

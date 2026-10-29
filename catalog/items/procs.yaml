@@ -1,0 +1,15 @@
+id: procs
+category: replacements
+name: "procs"
+description: {en: "Readable process list (ps)", pt-BR: "Lista de processos legível (ps)"}
+homepage: https://github.com/dalance/procs
+platforms: [macos, linux]
+detect:
+  command: "procs --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: procs
+    when: {os: macos}
+  - backend: mise
+    package: aqua:dalance/procs

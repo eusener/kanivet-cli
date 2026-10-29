@@ -98,6 +98,9 @@ func initFor(it *catalog.Item, shell string) []string {
 }
 
 func guardBinary(it *catalog.Item) string {
+	if it.Shell.Guard != "" {
+		return it.Shell.Guard
+	}
 	if f := strings.Fields(it.Detect.Command); len(f) > 0 {
 		return f[0]
 	}

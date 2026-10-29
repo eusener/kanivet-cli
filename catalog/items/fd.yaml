@@ -1,0 +1,15 @@
+id: fd
+category: replacements
+name: "fd"
+description: {en: "Simple, fast find that respects .gitignore", pt-BR: "find simples e rápido que respeita o .gitignore"}
+homepage: https://github.com/sharkdp/fd
+platforms: [macos, linux]
+detect:
+  command: "fd --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: fd
+    when: {os: macos}
+  - backend: mise
+    package: aqua:sharkdp/fd

@@ -1,0 +1,21 @@
+id: zsh-syntax-highlighting
+category: shell
+name: zsh-syntax-highlighting
+description: {en: "Syntax highlighting while you type", pt-BR: "Destaque de sintaxe enquanto você digita"}
+homepage: https://github.com/zsh-users/zsh-syntax-highlighting
+platforms: [macos, linux]
+zsh_only: true
+detect:
+  command: "for f in \"/opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\" \"/usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\" \"$HOME/.local/share/kanivet-cli/zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\"; do [ -f \"$f\" ] && exit 0; done; exit 1"
+install:
+  - backend: brew
+    package: zsh-syntax-highlighting
+    when: {os: macos}
+  - backend: git
+    repo: https://github.com/zsh-users/zsh-syntax-highlighting
+    dest: ~/.local/share/kanivet-cli/zsh/zsh-syntax-highlighting
+shell:
+  guard: zsh
+  init_order: 100
+  init:
+    zsh: "for f in \"/opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\" \"/usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\" \"$HOME/.local/share/kanivet-cli/zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\"; do [ -f \"$f\" ] && { source \"$f\"; break; }; done"
