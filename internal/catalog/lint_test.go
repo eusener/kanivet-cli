@@ -117,3 +117,10 @@ func TestLintScriptInline(t *testing.T) {
 		t.Fatalf("inline script must be valid: %v", e)
 	}
 }
+
+func TestLintVersionsDefaultFirst(t *testing.T) {
+	it := validItem("a")
+	it.Install[0].Version = "24"
+	it.Install[0].Versions = []string{"22", "24"}
+	wantLint(t, baseCatalog(it), "a: versions")
+}

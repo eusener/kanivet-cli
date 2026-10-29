@@ -56,6 +56,9 @@ func Lint(c *Catalog, backends []string) []error {
 			if m.Backend == "script" && m.Inline == "" && !strings.HasPrefix(m.URL, "https://") {
 				add(it.ID, field, "url must be https:// (got %q)", m.URL)
 			}
+			if len(m.Versions) > 0 && m.Version != m.Versions[0] {
+				add(it.ID, "versions", "first version %q must equal version %q", m.Versions[0], m.Version)
+			}
 		}
 		for _, cfg := range it.Configs {
 			for _, f := range cfg.Files {

@@ -167,3 +167,17 @@ func stepIDs(pl *plan.Plan) []string {
 	}
 	return out
 }
+
+func TestEmbeddedLanguageVersions(t *testing.T) {
+	c := embedded(t)
+	want := map[string]string{"node": "22", "python": "3.13", "go": "1.25", "java": "temurin-21", "dotnet": "9"}
+	for id, first := range want {
+		it := c.Items[id]
+		if it == nil || len(it.Install) == 0 {
+			t.Fatalf("item %q without install", id)
+		}
+		if got := it.Install[0].Versions; len(got) == 0 || got[0] != first {
+			t.Errorf("%s: Versions[0] = %v, want %q", id, got, first)
+		}
+	}
+}
