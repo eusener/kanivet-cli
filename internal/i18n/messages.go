@@ -2,6 +2,7 @@ package i18n
 
 var messages = map[Lang]map[string]string{
 	En: {
+		"tui.external_untouched":    "installed outside kanivet-cli; it will not be touched",
 		"flag.resume":               "resume the interrupted run",
 		"msg.pending":               "Run %s was interrupted. Still to do:",
 		"msg.unfinished_hint":       "Run %s was interrupted; resume it with: kanivet-cli install --resume",
@@ -89,6 +90,7 @@ var messages = map[Lang]map[string]string{
 		"reason.distro":             "requires one of: %s",
 	},
 	PtBR: {
+		"tui.external_untouched":    "instalado fora do kanivet-cli; não será alterado",
 		"flag.resume":               "retoma a execução interrompida",
 		"msg.pending":               "A execução %s foi interrompida. Ainda falta:",
 		"msg.unfinished_hint":       "A execução %s foi interrompida; retome com: kanivet-cli install --resume",
