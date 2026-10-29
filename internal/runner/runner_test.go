@@ -78,10 +78,10 @@ func TestStdinCommandsStayInForegroundGroup(t *testing.T) {
 }
 
 func TestNonInteractiveSudoIsNonBlocking(t *testing.T) {
-	if got := execArgv(Cmd{Argv: []string{"apt-get", "install", "-y", "x"}, Sudo: true}); strings.Join(got, " ") != "sudo -n apt-get install -y x" {
+	if got := ExecArgv(Cmd{Argv: []string{"apt-get", "install", "-y", "x"}, Sudo: true}); strings.Join(got, " ") != "sudo -n apt-get install -y x" {
 		t.Fatalf("argv %v", got)
 	}
-	if got := execArgv(Cmd{Argv: []string{"sudo", "-v"}, Stdin: true}); strings.Join(got, " ") != "sudo -v" {
+	if got := ExecArgv(Cmd{Argv: []string{"sudo", "-v"}, Stdin: true}); strings.Join(got, " ") != "sudo -v" {
 		t.Fatalf("argv %v", got)
 	}
 }

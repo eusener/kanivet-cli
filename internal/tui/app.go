@@ -11,8 +11,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/detect"
+	"github.com/eusener/kanivet-cli/internal/executor"
 	"github.com/eusener/kanivet-cli/internal/i18n"
 	"github.com/eusener/kanivet-cli/internal/plan"
+	"github.com/eusener/kanivet-cli/internal/state"
 )
 
 // Screen identifica a tela atual da máquina de estados.
@@ -56,7 +58,14 @@ type Model struct {
 	showHelp    bool
 	confirmQuit bool
 	review      reviewState
-	plan        *plan.Plan // plano confirmado na revisão, para a execução (Task 9)
+	plan        *plan.Plan // plano confirmado na revisão
+	exec        execState
+	prog        *programRef // ligado ao *tea.Program pelo SetProgram
+
+	// resultado do run, para o resumo
+	runRep executor.Report
+	runJ   *state.Journal
+	runErr error
 }
 
 // New cria o modelo. start diz a tela inicial (o wizard começa em ScreenWelcome).
@@ -66,6 +75,7 @@ func New(s *app.Session, env map[string]string, start Screen) Model {
 	return Model{
 		s: s, env: env, th: NewTheme(env, false), keys: DefaultKeys(),
 		help: help.New(), spin: sp, screen: start, w: minWidth, h: minHeight, detecting: true,
+		prog: &programRef{},
 	}
 }
 
@@ -98,7 +108,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sel = NewSelection(m.s.Cat, m.s.P, msg.statuses, mode)
 		return m, nil
 	case spinner.TickMsg:
-		if !m.detecting {
+		if !m.detecting && !(m.screen == ScreenExecute && m.exec.running) {
 			return m, nil
 		}
 		var c tea.Cmd
@@ -106,6 +116,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, c
 	case planMsg:
 		return m.onPlan(msg), nil
+	case eventMsg:
+		return m.onEvent(msg)
+	case eventsClosedMsg:
+		done := m.exec.done
+		return m, func() tea.Msg { return <-done }
+	case runDoneMsg:
+		return m.onRunDone(msg)
+	case interactiveReq:
+		return m.onInteractive(msg)
+	case interactiveDoneMsg:
+		m.exec.busy = false
+		return m.nextInteractive()
 	case tea.MouseMsg:
 		if m.screen == ScreenReview {
 			var c tea.Cmd
@@ -124,6 +146,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) updateKey(km tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.screen == ScreenExecute { // q/ajuda não saem no meio do run: só ctrl+c interrompe
+		return m.updateExecute(km)
+	}
 	if km.String() == "ctrl+c" {
 		return m, tea.Quit
 	}
@@ -177,7 +202,11 @@ func (m Model) View() string {
 		body = append(body, "")
 	}
 	status := ""
-	if m.sel != nil {
+	switch {
+	case m.screen == ScreenExecute:
+		status = m.progressLine()
+	case m.screen == ScreenSummary: // o resumo (Task 10) não mostra pendências
+	case m.sel != nil:
 		n, c := m.pending()
 		status = m.th.Accent.Render(i18n.T("tui.pending", n, c))
 	}
@@ -209,6 +238,10 @@ func (m Model) title() string {
 		return i18n.T("tui.step.page", pageTitle(m.page), m.page+1, len(categoryPages))
 	case ScreenReview:
 		return i18n.T("tui.step.review")
+	case ScreenExecute:
+		return i18n.T("tui.step.execute")
+	case ScreenSummary:
+		return i18n.T("tui.step.summary")
 	}
 	return "kanivet-cli"
 }
@@ -231,7 +264,9 @@ func (m Model) bodyLines(height int) []string {
 	case ScreenReview:
 		return m.reviewLines(height)
 	case ScreenExecute:
-		return []string{i18n.T("tui.execute.placeholder")}
+		return m.executeLines(height)
+	case ScreenSummary:
+		return []string{i18n.T("tui.summary.placeholder")}
 	}
 	return nil
 }
@@ -249,6 +284,8 @@ func (m Model) bindings() []key.Binding {
 		return []key.Binding{m.keys.Up, m.keys.Down, m.keys.Toggle, m.keys.Left, m.keys.Search, enter, m.keys.Back, m.keys.Help, m.keys.Quit}
 	case ScreenReview:
 		return m.reviewBindings()
+	case ScreenExecute:
+		return []key.Binding{m.keys.Up, m.keys.Down, m.keys.Follow, m.keys.Interrupt}
 	}
 	return []key.Binding{m.keys.Back, m.keys.Quit}
 }

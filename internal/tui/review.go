@@ -318,7 +318,7 @@ func (m Model) updateReview(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return back(), nil
 		default:
 			m.plan = r.pl
-			m.screen = ScreenExecute
+			return m.startRun()
 		}
 	case r.loading || r.blocked():
 	case key.Matches(km, m.keys.Diff):

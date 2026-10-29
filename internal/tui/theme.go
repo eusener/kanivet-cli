@@ -3,6 +3,7 @@ package tui
 import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/eusener/kanivet-cli/internal/detect"
+	"github.com/eusener/kanivet-cli/internal/state"
 )
 
 // Theme agrupa os estilos e a escolha de ícones da TUI.
@@ -72,6 +73,28 @@ func (t Theme) StatusIcon(s detect.Status) string {
 		return v
 	}
 	return m[detect.StatusUnknown]
+}
+
+// StepIcon devolve o ícone do passo na execução: ✓/✗/↷ ou, sem Nerd Font, [ok]/[x]/[skip].
+func (t Theme) StepIcon(s state.StepStatus) string {
+	switch s {
+	case state.StepDone:
+		return pick(t.Nerd, "✓", "[ok]")
+	case state.StepFailed:
+		return pick(t.Nerd, "✗", "[x]")
+	case state.StepSkipped:
+		return pick(t.Nerd, "↷", "[skip]")
+	case state.StepRunning:
+		return pick(t.Nerd, "…", "[..]")
+	}
+	return pick(t.Nerd, "·", "[ ]")
+}
+
+func pick(nerd bool, a, b string) string {
+	if nerd {
+		return a
+	}
+	return b
 }
 
 // Check devolve o marcador de seleção: caixa ou, com radio, rádio.
