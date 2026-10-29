@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -227,26 +228,24 @@ func (m Model) openLog(stepID string) Model {
 	return m.openPanel(panelLog, i18n.T("tui.summary.log_title", path, logTail), diffContent(text, m.w))
 }
 
-// forceConfig acha a config do catálogo dona do arquivo e monta o plano de um passo para reaplicá-la.
+// forcePlan acha a config do catálogo dona do arquivo e monta um plano de um passo que reaplica só esse arquivo
+// (os irmãos da config ficam de fora: o usuário não os viu nem confirmou).
 func (m Model) forcePlan(target string) (*plan.Plan, bool) {
-	for itemID, it := range m.s.Cat.Items {
-		for _, cfg := range it.Configs {
-			match := false
+	ids := make([]string, 0, len(m.s.Cat.Items))
+	for id := range m.s.Cat.Items {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, itemID := range ids {
+		for _, cfg := range m.s.Cat.Items[itemID].Configs {
 			for _, f := range cfg.Files {
-				if !f.Dir && m.s.ExpandTarget(f.Target) == target {
-					match = true
+				if f.Dir || m.s.ExpandTarget(f.Target) != target {
+					continue
 				}
+				st := plan.Step{ID: "config:" + cfg.ID, ItemID: itemID, Kind: plan.KindConfig,
+					Files: []plan.FileChange{{Target: f.Target, Template: f.Template, ItemID: itemID}}}
+				return &plan.Plan{Steps: []plan.Step{st}}, true
 			}
-			if !match {
-				continue
-			}
-			st := plan.Step{ID: "config:" + cfg.ID, ItemID: itemID, Kind: plan.KindConfig}
-			for _, f := range cfg.Files {
-				if !f.Dir {
-					st.Files = append(st.Files, plan.FileChange{Target: f.Target, Template: f.Template, ItemID: itemID})
-				}
-			}
-			return &plan.Plan{Steps: []plan.Step{st}}, true
 		}
 	}
 	return nil, false

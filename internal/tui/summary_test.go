@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
@@ -8,6 +11,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/eusener/kanivet-cli/internal/app"
+	"github.com/eusener/kanivet-cli/internal/catalog"
 	"github.com/eusener/kanivet-cli/internal/configs"
 	"github.com/eusener/kanivet-cli/internal/executor"
 	"github.com/eusener/kanivet-cli/internal/i18n"
@@ -129,6 +134,17 @@ func TestSummaryForceConflictAsksConfirmation(t *testing.T) {
 	if b, _ := os.ReadFile(target); string(b) == "mine\n" {
 		t.Fatal("config não foi reaplicada com força")
 	}
+	rendered, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := m.s.St.Configs[target]
+	if cfg.SHA256 != shaHex(rendered) {
+		t.Fatalf("St.Configs[target].SHA256 = %q, want sha do conteúdo reaplicado", cfg.SHA256)
+	}
+	if b, err := os.ReadFile(cfg.Backup); err != nil || string(b) != "mine\n" {
+		t.Fatalf("backup = %q, %v", b, err)
+	}
 	m = send(m, msg)
 	if v := m.View(); !strings.Contains(v, "reapplied") {
 		t.Fatalf("sem resultado:\n%s", v)
@@ -162,4 +178,62 @@ func TestSummaryKeys(t *testing.T) {
 	if m.screen != ScreenDashboard {
 		t.Fatalf("enter sem falha: screen = %v", m.screen)
 	}
+}
+
+func shaHex(b []byte) string {
+	s := sha256.Sum256(b)
+	return hex.EncodeToString(s[:])
+}
+
+// Forçar A não pode reescrever B, outro arquivo da mesma config que o usuário também editou.
+func TestSummaryForceOnlyTouchesConfirmedFile(t *testing.T) {
+	m, _ := summaryModel(t)
+	s := m.s
+	tpl := "configs/fzf/fzfrc"
+	s.Cat.Items["fzf"].Configs = []catalog.ConfigSpec{{ID: "two", Files: []catalog.ConfigFile{
+		{Template: tpl, Target: "{{.XDG_CONFIG}}/fzf/a"},
+		{Template: tpl, Target: "{{.XDG_CONFIG}}/fzf/b"},
+	}}}
+	a, b := s.ExpandTarget("{{.XDG_CONFIG}}/fzf/a"), s.ExpandTarget("{{.XDG_CONFIG}}/fzf/b")
+	if err := os.MkdirAll(a[:strings.LastIndex(a, "/")], 0o755); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(a, []byte("orig A\n"), 0o644)
+	first := &plan.Plan{Steps: []plan.Step{{ID: "config:two", ItemID: "fzf", Kind: plan.KindConfig, Files: []plan.FileChange{
+		{Target: "{{.XDG_CONFIG}}/fzf/a", Template: tpl, ItemID: "fzf"},
+		{Target: "{{.XDG_CONFIG}}/fzf/b", Template: tpl, ItemID: "fzf"},
+	}}}}
+	if rep, _, err := s.Run(context.Background(), first, nil, app.RunOptions{}); err != nil || len(rep.Failed) > 0 {
+		t.Fatalf("primeira aplicação: %+v %v", rep, err)
+	}
+	prevB := s.St.Configs[b]
+	os.WriteFile(a, []byte("edited A\n"), 0o644)
+	os.WriteFile(b, []byte("edited B\n"), 0o644)
+	m.runRep.Conflicts = []configs.Conflict{{Target: a, Diff: "x"}, {Target: b, Diff: "y"}}
+	m.sum = summaryState{cursor: 1} // falha em 0, conflito A em 1
+
+	m = send(m, keyRune("F"))
+	nm, cmd := m.Update(keyRune("y"))
+	m = nm.(Model)
+	if cmd == nil {
+		t.Fatal("y deve produzir um cmd")
+	}
+	msg := cmd()
+	if got, _ := os.ReadFile(b); string(got) != "edited B\n" {
+		t.Fatalf("B foi sobrescrito sem confirmação: %q", got)
+	}
+	if got, _ := os.ReadFile(a); string(got) == "edited A\n" {
+		t.Fatal("A não foi reaplicado")
+	}
+	if s.St.Configs[b] != prevB {
+		t.Fatalf("estado de B mudou: %+v -> %+v", prevB, s.St.Configs[b])
+	}
+	got, _ := os.ReadFile(a)
+	if s.St.Configs[a].SHA256 != shaHex(got) {
+		t.Fatal("estado de A não reflete o conteúdo reaplicado")
+	}
+	if bk, err := os.ReadFile(s.St.Configs[a].Backup); err != nil || string(bk) != "orig A\n" {
+		t.Fatalf("backup de A = %q, %v", bk, err)
+	}
+	_ = msg
 }
