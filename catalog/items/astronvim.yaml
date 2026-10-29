@@ -1,0 +1,19 @@
+id: astronvim
+category: neovim
+name: "AstroNvim"
+description: {en: "Aesthetic, feature-rich Neovim config", pt-BR: "Config de Neovim bonita e completa"}
+platforms: [macos, linux]
+depends_on: [neovim-bin]
+configs:
+  - id: astronvim-backup
+    description: {en: "Move the current ~/.config/nvim to the backup first", pt-BR: "Move o ~/.config/nvim atual para o backup antes"}
+    default: true
+    files:
+      - target: ~/.config/nvim
+        dir: true
+detect:
+  command: "grep -rqs AstroNvim \"$HOME/.config/nvim/lua\""
+install:
+  - backend: git
+    repo: https://github.com/AstroNvim/template
+    dest: ~/.config/nvim

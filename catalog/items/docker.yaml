@@ -1,0 +1,14 @@
+id: docker
+category: container-engine
+name: "Docker"
+description: {en: "Docker Engine (Docker Desktop on macOS)", pt-BR: "Docker Engine (Docker Desktop no macOS)"}
+platforms: [macos, linux]
+detect:
+  command: "docker --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: cask:docker
+    when: {os: macos}
+  - backend: system
+    package: apt=docker.io,dnf=moby-engine,pacman=docker,zypper=docker

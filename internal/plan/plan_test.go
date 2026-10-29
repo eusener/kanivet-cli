@@ -123,7 +123,7 @@ func TestDependencyPulled(t *testing.T) {
 		t.Fatalf("note: %q", g.Note)
 	}
 	h := step(t, p, "install:herdr-plugins")
-	if len(h.DependsOn) != 1 || h.DependsOn[0] != "install:go" {
+	if len(h.DependsOn) == 0 || h.DependsOn[0] != "install:go" {
 		t.Fatalf("deps: %v", h.DependsOn)
 	}
 	layers := p.Order()
@@ -275,5 +275,51 @@ func TestPlanJSONRoundTrip(t *testing.T) {
 	got, err := Decode(data)
 	if err != nil || len(got.Steps) != len(p.Steps) || got.Steps[0].Cmds[0].String() != p.Steps[0].Cmds[0].String() {
 		t.Fatalf("roundtrip: %+v %v", got, err)
+	}
+}
+
+func TestProfileExclusiveByOS(t *testing.T) {
+	c := testCatalog()
+	c.Profiles = append(c.Profiles, catalog.Profile{ID: "byos", Items: []string{"fzf"},
+		ExclusiveByOS: map[platform.OS]map[string]string{platform.MacOS: {"php-local": "flock"}, platform.Linux: {"php-local": "lerd"}}})
+	p, _ := Build(c, linux, absent(c), Selection{Profile: "byos"})
+	if !has(p, "install:lerd") || has(p, "install:flock") {
+		t.Fatalf("linux: %v", ids(p))
+	}
+	mac := linux
+	mac.OS = platform.MacOS
+	p, _ = Build(c, mac, absent(c), Selection{Profile: "byos"})
+	if !has(p, "install:flock") || has(p, "install:lerd") {
+		t.Fatalf("macos: %v", ids(p))
+	}
+}
+
+func TestImplicitBackendDependency(t *testing.T) {
+	c := testCatalog()
+	p, _ := Build(c, linux, absent(c), Selection{Add: []string{"fzf"}})
+	if !has(p, "install:mise") || step(t, p, "install:fzf").DependsOn[0] != "install:mise" {
+		t.Fatalf("fzf via mise must depend on mise: %v %+v", ids(p), step(t, p, "install:fzf"))
+	}
+	if s := step(t, p, "install:mise"); len(s.DependsOn) != 0 {
+		t.Fatalf("mise must not depend on itself: %+v", s)
+	}
+}
+
+func TestDirConfigRunsBeforeInstall(t *testing.T) {
+	c := testCatalog()
+	c.Items["lazyvim"] = mk("lazyvim", "cli")
+	c.Items["lazyvim"].Install = []catalog.Method{{Backend: "git", Repo: "https://github.com/LazyVim/starter", Dest: "~/.config/nvim"}}
+	c.Items["lazyvim"].Configs = []catalog.ConfigSpec{{ID: "nvim-backup", Default: true, Files: []catalog.ConfigFile{{Target: "~/.config/nvim", Dir: true}}}}
+	p, _ := Build(c, linux, absent(c), Selection{Add: []string{"lazyvim"}})
+	inst := step(t, p, "install:lazyvim")
+	cfg := step(t, p, "config:nvim-backup")
+	if len(cfg.DependsOn) != 0 || len(inst.DependsOn) == 0 || inst.DependsOn[len(inst.DependsOn)-1] != "config:nvim-backup" || !cfg.Files[0].Dir {
+		t.Fatalf("install %+v config %+v", inst, cfg)
+	}
+	st := absent(c)
+	st["lazyvim"] = detect.ItemStatus{ID: "lazyvim", Status: detect.StatusExternal}
+	p, _ = Build(c, linux, st, Selection{Add: []string{"lazyvim"}})
+	if has(p, "config:nvim-backup") {
+		t.Fatal("dir backup only when the install will run")
 	}
 }

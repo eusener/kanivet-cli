@@ -1,0 +1,12 @@
+id: cuda
+category: python-data
+name: "CUDA toolkit"
+description: {en: "NVIDIA CUDA toolkit (only with an NVIDIA GPU)", pt-BR: "Toolkit CUDA da NVIDIA (só com GPU NVIDIA)"}
+platforms: [linux]
+requires: {commands: [nvidia-smi]}
+detect:
+  command: "nvcc --version"
+  version_regex: "release ([\\d.]+)"
+install:
+  - backend: system
+    package: apt=nvidia-cuda-toolkit,pacman=cuda

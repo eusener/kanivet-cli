@@ -59,6 +59,8 @@ type Requires struct {
 	MinMacOS  string   `yaml:"min_macos"`
 	Distros   []string `yaml:"distros"` // "<id>" ou "<id>>=<versão>"
 	Arch      []string `yaml:"arch"`
+	Commands  []string `yaml:"commands"`   // binários que precisam existir (ex.: nvidia-smi)
+	MacOSArch []string `yaml:"macos_arch"` // arquiteturas aceitas só no macOS (ex.: Flock exige arm64)
 }
 
 type Detect struct {
@@ -95,6 +97,8 @@ type ConfigSpec struct {
 type ConfigFile struct {
 	Template string `yaml:"template"`
 	Target   string `yaml:"target"`
+	// Dir: o alvo é um diretório que vai para o backup antes da instalação (ex.: ~/.config/nvim).
+	Dir bool `yaml:"dir"`
 }
 
 type ShellSpec struct {
@@ -106,10 +110,12 @@ type ShellSpec struct {
 }
 
 type Profile struct {
-	ID          string              `yaml:"id"`
-	Name        i18n.Text           `yaml:"name"`
-	Description i18n.Text           `yaml:"description"`
-	Items       []string            `yaml:"items"`
-	Exclusive   map[string]string   `yaml:"exclusive"`
-	Extras      map[string][]string `yaml:"extras"`
+	ID          string            `yaml:"id"`
+	Name        i18n.Text         `yaml:"name"`
+	Description i18n.Text         `yaml:"description"`
+	Items       []string          `yaml:"items"`
+	Exclusive   map[string]string `yaml:"exclusive"`
+	// ExclusiveByOS sobrescreve Exclusive por sistema (ex.: lerd no Linux, Flock no macOS).
+	ExclusiveByOS map[platform.OS]map[string]string `yaml:"exclusive_by_os"`
+	Extras        map[string][]string               `yaml:"extras"`
 }

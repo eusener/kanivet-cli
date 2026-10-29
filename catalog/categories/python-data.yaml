@@ -1,0 +1,4 @@
+id: python-data
+name: {en: "Python and data", pt-BR: "Python e dados"}
+description: {en: "Python tooling, notebooks and GPU", pt-BR: "Ferramentas Python, notebooks e GPU"}
+exclusive: false

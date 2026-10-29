@@ -26,6 +26,7 @@ const (
 
 type Vars struct {
 	HOME, XDG_CONFIG, XDG_DATA, OS, Arch string
+	Extras                               []string // extras do perfil (ex.: LazyVim)
 }
 
 func VarsFor(p platform.Platform, env map[string]string) Vars {
@@ -171,6 +172,22 @@ func (a *Applier) Apply(fc plan.FileChange, force bool) (*Conflict, error) {
 
 func (a *Applier) record(item, target, backup string, content []byte) {
 	a.St.Configs[target] = state.AppliedConfig{Item: item, Target: target, Backup: backup, SHA256: sha(content), At: time.Now().UTC()}
+}
+
+// ApplyDir move um diretório existente para o backup do run (antes de uma instalação que o recria).
+func (a *Applier) ApplyDir(fc plan.FileChange) error {
+	target, err := a.ExpandTarget(fc.Target)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Lstat(target); errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	dest := filepath.Join(a.BackupDir, strings.TrimPrefix(target, "/"))
+	if err := os.MkdirAll(filepath.Dir(dest), 0o700); err != nil {
+		return err
+	}
+	return os.Rename(target, dest)
 }
 
 // Remove desfaz uma config: restaura o backup original ou apaga o arquivo se ele não existia.

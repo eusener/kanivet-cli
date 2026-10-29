@@ -1,0 +1,19 @@
+id: kickstart
+category: neovim
+name: "kickstart.nvim"
+description: {en: "Small, documented starting point to build your own config", pt-BR: "Ponto de partida pequeno e documentado para montar a sua config"}
+platforms: [macos, linux]
+depends_on: [neovim-bin]
+configs:
+  - id: kickstart-backup
+    description: {en: "Move the current ~/.config/nvim to the backup first", pt-BR: "Move o ~/.config/nvim atual para o backup antes"}
+    default: true
+    files:
+      - target: ~/.config/nvim
+        dir: true
+detect:
+  command: "grep -qs kickstart \"$HOME/.config/nvim/init.lua\""
+install:
+  - backend: git
+    repo: https://github.com/nvim-lua/kickstart.nvim
+    dest: ~/.config/nvim

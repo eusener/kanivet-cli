@@ -63,7 +63,14 @@ func selectedFor(e *Env, sel plan.Selection) map[string]bool {
 		for _, id := range p.Items {
 			out[id] = true
 		}
-		for _, id := range p.Exclusive {
+		excl := map[string]string{}
+		for cat, id := range p.Exclusive {
+			excl[cat] = id
+		}
+		for cat, id := range p.ExclusiveByOS[e.P.OS] {
+			excl[cat] = id
+		}
+		for _, id := range excl {
 			out[id] = true
 		}
 	}
@@ -116,7 +123,7 @@ func planCmd(e *Env) *cobra.Command {
 			if err != nil {
 				return exit(1, err.Error())
 			}
-			printPlan(e.Stdout, pl)
+			printPlan(e.Stdout, pl, e.expandTarget)
 			return nil
 		},
 	}
@@ -180,7 +187,7 @@ func (e *Env) apply(r runFlags, build func(*state.State) (*plan.Plan, error), pr
 		if pl, err = build(st); err != nil {
 			return exit(1, err.Error())
 		}
-		printPlan(e.Stdout, pl)
+		printPlan(e.Stdout, pl, e.expandTarget)
 		if r.dryRun || len(pl.Steps) == 0 {
 			return nil
 		}
@@ -198,7 +205,17 @@ func (e *Env) apply(r runFlags, build func(*state.State) (*plan.Plan, error), pr
 	if profile != "" {
 		st.Profile = profile
 	}
-	return e.execute(st, j, pl, r)
+	return e.execute(st, j, pl, r, e.extrasFor(st.Profile))
+}
+
+// extrasFor devolve os extras do LazyVim do perfil (renderizados no lazyvim.json).
+func (e *Env) extrasFor(profile string) []string {
+	for _, p := range e.Cat.Profiles {
+		if p.ID == profile {
+			return p.Extras["lazyvim"]
+		}
+	}
+	return nil
 }
 
 func (e *Env) confirm(question string) bool {
@@ -211,10 +228,12 @@ func (e *Env) confirm(question string) bool {
 	return ans == "y" || ans == "yes" || ans == "s" || ans == "sim"
 }
 
-func (e *Env) execute(st *state.State, j *state.Journal, pl *plan.Plan, r runFlags) error {
+func (e *Env) execute(st *state.State, j *state.Journal, pl *plan.Plan, r runFlags, extras []string) error {
+	vars := configs.VarsFor(e.P, e.Getenv)
+	vars.Extras = extras
 	ex := &executor.Executor{
 		R: e.R, J: j, St: st, Cat: e.Cat, P: e.P, Det: e.detector(st),
-		Ap:       &configs.Applier{St: st, BackupDir: filepath.Join(e.StateDir, "backups", j.RunID), Vars: configs.VarsFor(e.P, e.Getenv), Files: e.Cat.Files},
+		Ap:       &configs.Applier{St: st, BackupDir: filepath.Join(e.StateDir, "backups", j.RunID), Vars: vars, Files: e.Cat.Files},
 		ShellDir: e.shellDir(), Rc: e.rcPath(),
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -271,4 +290,12 @@ func (e *Env) summary(j *state.Journal, pl *plan.Plan, rep executor.Report) erro
 		return exit(1, "")
 	}
 	return nil
+}
+
+func (e *Env) expandTarget(target string) string {
+	ap := &configs.Applier{Vars: configs.VarsFor(e.P, e.Getenv)}
+	if out, err := ap.ExpandTarget(target); err == nil {
+		return out
+	}
+	return target
 }

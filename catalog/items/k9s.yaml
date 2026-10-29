@@ -1,0 +1,14 @@
+id: k9s
+category: containers
+name: "k9s"
+description: {en: "Kubernetes TUI", pt-BR: "TUI de Kubernetes"}
+platforms: [macos, linux]
+detect:
+  command: "k9s version --short"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: k9s
+    when: {os: macos}
+  - backend: mise
+    package: aqua:derailed/k9s

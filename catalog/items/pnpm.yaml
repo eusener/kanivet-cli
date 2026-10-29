@@ -1,0 +1,13 @@
+id: pnpm
+category: languages
+name: "pnpm"
+description: {en: "Fast, disk-efficient Node package manager", pt-BR: "Gerenciador de pacotes Node rápido e econômico"}
+platforms: [macos, linux]
+depends_on: [node]
+detect:
+  command: "pnpm --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: mise
+    package: pnpm
+    version: "latest"

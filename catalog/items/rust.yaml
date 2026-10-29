@@ -1,0 +1,16 @@
+id: rust
+category: languages
+name: "Rust"
+description: {en: "Rust toolchain via rustup", pt-BR: "Toolchain Rust via rustup"}
+homepage: https://rustup.rs
+platforms: [macos, linux]
+shell:
+  guard: sh
+  init:
+    any: '[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"'
+detect:
+  command: "rustc --version"
+  version_regex: "rustc ([\\d.]+)"
+install:
+  - backend: rustup
+    version: stable

@@ -1,0 +1,14 @@
+id: kubectl
+category: containers
+name: "kubectl"
+description: {en: "Kubernetes CLI", pt-BR: "CLI do Kubernetes"}
+platforms: [macos, linux]
+detect:
+  command: "kubectl version --client"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: kubernetes-cli
+    when: {os: macos}
+  - backend: mise
+    package: aqua:kubernetes/kubectl

@@ -91,6 +91,9 @@ func Execute() int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
+	// Os passos seguintes precisam enxergar o que os anteriores instalaram (mise, cargo, brew...).
+	env["PATH"] = withToolPaths(env["PATH"], p.Home)
+	os.Setenv("PATH", env["PATH"])
 	c, err := catalog.Embedded()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -126,6 +129,28 @@ func (e *Env) shellDir() string { return filepath.Join(e.P.Home, ".config", "kan
 func (e *Env) plain() bool {
 	_, noColor := e.Getenv["NO_COLOR"]
 	return noColor || !e.IsTTY
+}
+
+// withToolPaths põe na frente do PATH os diretórios onde os instaladores colocam binários.
+func withToolPaths(path, home string) string {
+	dirs := []string{
+		filepath.Join(home, ".local", "bin"),
+		filepath.Join(home, ".local", "share", "mise", "shims"),
+		filepath.Join(home, ".cargo", "bin"),
+		"/opt/homebrew/bin", "/usr/local/bin", "/home/linuxbrew/.linuxbrew/bin",
+	}
+	current := filepath.SplitList(path)
+	have := map[string]bool{}
+	for _, d := range current {
+		have[d] = true
+	}
+	var add []string
+	for _, d := range dirs {
+		if !have[d] {
+			add = append(add, d)
+		}
+	}
+	return strings.Join(append(add, current...), string(os.PathListSeparator))
 }
 
 func isTerminal(f *os.File) bool {

@@ -1,0 +1,17 @@
+id: lerd
+category: php-local
+name: "lerd"
+description: {en: "Local PHP with .test domains, HTTPS and services on rootless Podman", pt-BR: "PHP local com domínios .test, HTTPS e serviços em Podman rootless"}
+homepage: https://lerd.sh
+platforms: [macos, linux]
+requires: {systemd: true}
+depends_on: [podman]
+provides: [php, composer]
+needs_sudo: true
+notes: {en: "Uses ports 80/443 (stop other local environments first). Run `lerd init` inside a project.", pt-BR: "Usa as portas 80/443 (pare outros ambientes locais antes). Rode `lerd init` dentro de um projeto."}
+detect:
+  command: "lerd --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: script
+    url: https://lerd.sh/install.sh

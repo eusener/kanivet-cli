@@ -1,0 +1,13 @@
+id: dotnet
+category: languages
+name: ".NET"
+description: {en: ".NET SDK", pt-BR: "SDK do .NET"}
+homepage: https://dotnet.microsoft.com
+platforms: [macos, linux]
+detect:
+  command: "dotnet --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: mise
+    package: dotnet
+    version: "9"

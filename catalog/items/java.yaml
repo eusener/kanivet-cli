@@ -1,0 +1,12 @@
+id: java
+category: languages
+name: "Java"
+description: {en: "Java (Eclipse Temurin LTS)", pt-BR: "Java (Eclipse Temurin LTS)"}
+platforms: [macos, linux]
+detect:
+  command: "java -version"
+  version_regex: "version \"([\\d.]+)"
+install:
+  - backend: mise
+    package: java
+    version: "temurin-21"

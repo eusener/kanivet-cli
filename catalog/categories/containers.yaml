@@ -1,0 +1,4 @@
+id: containers
+name: {en: "Containers and Kubernetes", pt-BR: "Containers e Kubernetes"}
+description: {en: "TUIs and CLIs for containers and clusters", pt-BR: "TUIs e CLIs para containers e clusters"}
+exclusive: false

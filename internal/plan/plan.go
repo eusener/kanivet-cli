@@ -47,6 +47,7 @@ type FileChange struct {
 	Template string `json:"template,omitempty"`
 	ItemID   string `json:"item"`
 	Remove   bool   `json:"remove,omitempty"`
+	Dir      bool   `json:"dir,omitempty"`
 }
 
 type Step struct {
@@ -151,6 +152,9 @@ func (b *builder) desired() ([]string, error) {
 		for cat, id := range prof.Exclusive {
 			exclusiveDefaults[cat] = id
 		}
+		for cat, id := range prof.ExclusiveByOS[b.p.OS] {
+			exclusiveDefaults[cat] = id
+		}
 	}
 	var msgs []string
 	for _, id := range b.sel.Add {
@@ -236,10 +240,8 @@ func (b *builder) closure(desired []string) []string {
 		if parent != "" {
 			b.notes[id] = i18n.T("note.dependency_of", parent)
 		}
-		for _, dep := range b.c.Items[id].DependsOn {
-			if b.c.Items[dep] != nil {
-				visit(dep, id)
-			}
+		for _, dep := range b.depsOf(id) {
+			visit(dep, id)
 		}
 		out = append(out, id)
 	}
@@ -247,6 +249,52 @@ func (b *builder) closure(desired []string) []string {
 		visit(id, "")
 	}
 	return out
+}
+
+// implicitDeps: o item que fornece cada backend (fzf via mise precisa do mise instalado).
+var implicitDeps = map[string]string{"mise": "mise", "brew": "homebrew"}
+
+// depsOf devolve as dependências declaradas mais a do backend escolhido para esta plataforma.
+func (b *builder) depsOf(id string) []string {
+	it := b.c.Items[id]
+	var deps []string
+	for _, d := range it.DependsOn {
+		if b.c.Items[d] != nil {
+			deps = append(deps, d)
+		}
+	}
+	if m, _, err := backend.Choose(it, b.p); err == nil {
+		if d, ok := implicitDeps[m.Backend]; ok && d != id && b.c.Items[d] != nil && !contains(deps, d) {
+			deps = append(deps, d)
+		}
+	}
+	return deps
+}
+
+func contains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *builder) configOn(cfg catalog.ConfigSpec) bool {
+	on, set := b.sel.Configs[cfg.ID]
+	if !set {
+		on = cfg.Default
+	}
+	return on
+}
+
+func isDirConfig(cfg catalog.ConfigSpec) bool {
+	for _, f := range cfg.Files {
+		if !f.Dir {
+			return false
+		}
+	}
+	return len(cfg.Files) > 0
 }
 
 func (b *builder) skip(id, reason string) {
@@ -275,7 +323,7 @@ func (b *builder) addInstall(id string) {
 	case s.Status != detect.StatusAbsent:
 		return
 	}
-	for _, dep := range it.DependsOn {
+	for _, dep := range b.depsOf(id) {
 		if b.skipped[dep] {
 			b.skip(id, i18n.T("reason.dependency_skipped", dep))
 			return
@@ -292,10 +340,22 @@ func (b *builder) addInstall(id string) {
 	}
 	st := Step{ID: "install:" + id, ItemID: id, Kind: KindInstall, Cmds: cmds, Note: b.notes[id],
 		NeedsSudo: it.NeedsSudo || anySudo(cmds), Backend: be.Name(), Package: m.Package}
-	for _, dep := range it.DependsOn {
+	for _, dep := range b.depsOf(id) {
 		if b.inPlan[dep] {
 			st.DependsOn = append(st.DependsOn, "install:"+dep)
 		}
+	}
+	// Diretórios que a instalação recria (ex.: ~/.config/nvim) vão para o backup antes.
+	for _, cfg := range it.Configs {
+		if !isDirConfig(cfg) || !b.configOn(cfg) {
+			continue
+		}
+		dirStep := Step{ID: "config:" + cfg.ID, ItemID: id, Kind: KindConfig}
+		for _, f := range cfg.Files {
+			dirStep.Files = append(dirStep.Files, FileChange{Target: f.Target, ItemID: id, Dir: true})
+		}
+		b.plan.Steps = append(b.plan.Steps, dirStep)
+		st.DependsOn = append(st.DependsOn, dirStep.ID)
 	}
 	b.inPlan[id] = true
 	b.plan.Steps = append(b.plan.Steps, st)
@@ -316,11 +376,7 @@ func (b *builder) addConfigsAndShell(desired []string) {
 			needsShell = true
 		}
 		for _, cfg := range it.Configs {
-			on, set := b.sel.Configs[cfg.ID]
-			if !set {
-				on = cfg.Default
-			}
-			if !on {
+			if !b.configOn(cfg) || isDirConfig(cfg) {
 				continue
 			}
 			st := Step{ID: "config:" + cfg.ID, ItemID: id, Kind: KindConfig}

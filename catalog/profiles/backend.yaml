@@ -1,0 +1,7 @@
+id: backend
+name: {en: "Backend / Systems", pt-BR: "Backend / Sistemas"}
+description: {en: "Rust, Go, .NET, Java, Podman and Kubernetes tools", pt-BR: "Rust, Go, .NET, Java, Podman e ferramentas de Kubernetes"}
+items: [starship, zsh-autosuggestions, zsh-syntax-highlighting, direnv, atuin, zoxide, fzf, eza, bat, fd, ripgrep, dust, duf, btop, procs, sd, yazi, lazygit, delta, gh, jq, kitty, herdr, herdr-plugins, nerd-font-jetbrains, herdr-icon-font, rust, go, dotnet, java, kubectl, k9s, lazydocker, just]
+exclusive: {neovim: lazyvim, container-engine: podman}
+extras:
+  lazyvim: [lang.rust, lang.go, lang.omnisharp, lang.java, lang.docker]

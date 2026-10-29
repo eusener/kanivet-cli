@@ -89,7 +89,7 @@ func (d *Detector) Detect(ctx context.Context, c *catalog.Catalog, selected map[
 			continue
 		}
 		for _, p := range it.ProvidedBy {
-			if selected[p] || out[p].Status.Present() {
+			if out[p].Status != StatusUnsupported && (selected[p] || out[p].Status.Present()) {
 				out[it.ID] = ItemStatus{ID: it.ID, Status: StatusProvided, Reason: p}
 				break
 			}
@@ -107,6 +107,12 @@ func (d *Detector) detectOne(ctx context.Context, it *catalog.Item) ItemStatus {
 	timeout := d.Timeout
 	if timeout == 0 {
 		timeout = DefaultTimeout
+	}
+	for _, bin := range it.Requires.Commands {
+		if !d.R.Run(ctx, runner.Cmd{Shell: "command -v " + bin}, io.Discard).OK() {
+			s.Status, s.Reason = StatusUnsupported, i18n.T("reason.command", bin)
+			return s
+		}
 	}
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -146,6 +152,9 @@ func Unsupported(it *catalog.Item, p platform.Platform) string {
 	}
 	if r.Graphical && !p.Graphical {
 		return i18n.T("reason.graphical")
+	}
+	if p.OS == platform.MacOS && len(r.MacOSArch) > 0 && !contains(r.MacOSArch, p.Arch) {
+		return i18n.T("reason.arch", "macOS "+p.Arch)
 	}
 	if p.OS == platform.MacOS && r.MinMacOS != "" && version.Compare(p.DistroVersion, r.MinMacOS) < 0 {
 		return i18n.T("reason.macos", r.MinMacOS)

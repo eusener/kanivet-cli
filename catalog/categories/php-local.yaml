@@ -1,0 +1,4 @@
+id: php-local
+name: {en: "Local PHP environment", pt-BR: "Ambiente PHP local"}
+description: {en: ".test domains, HTTPS, per-project PHP and services (pick one)", pt-BR: "Domínios .test, HTTPS, PHP por projeto e serviços (escolha um)"}
+exclusive: true

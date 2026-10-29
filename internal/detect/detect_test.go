@@ -142,3 +142,37 @@ func TestCheckUpdates(t *testing.T) {
 		t.Fatalf("got %+v", st["fzf"])
 	}
 }
+
+func TestUnsupportedMissingCommand(t *testing.T) {
+	it := item("cuda")
+	it.Requires.Commands = []string{"nvidia-smi"}
+	d := &Detector{R: respond(map[string]runner.Result{"command -v nvidia-smi": {ExitCode: 1}}), P: linux, Owner: owner{}}
+	s := d.Detect(context.Background(), cat(it), nil)["cuda"]
+	if s.Status != StatusUnsupported || !strings.Contains(s.Reason, "nvidia-smi") {
+		t.Fatalf("got %+v", s)
+	}
+}
+
+func TestProvidedIgnoresUnsupportedProvider(t *testing.T) {
+	php, flock := item("php"), item("flock")
+	php.ProvidedBy = []string{"flock"}
+	flock.Requires.Systemd = true // não suportado nesta plataforma de teste
+	d := &Detector{R: respond(map[string]runner.Result{"php --version": {ExitCode: 1}}), P: linux, Owner: owner{}}
+	if s := d.Detect(context.Background(), cat(php, flock), map[string]bool{"flock": true})["php"]; s.Status != StatusAbsent {
+		t.Fatalf("php must be installed when its provider is unsupported: %+v", s)
+	}
+}
+
+func TestUnsupportedMacOSArch(t *testing.T) {
+	it := item("flock")
+	it.Requires.MacOSArch = []string{"arm64"}
+	intel := platform.Platform{OS: platform.MacOS, Arch: "amd64", DistroVersion: "15.1"}
+	d := &Detector{R: respond(map[string]runner.Result{"flock --version": {ExitCode: 1}}), P: intel, Owner: owner{}}
+	if s := d.Detect(context.Background(), cat(it), nil)["flock"]; s.Status != StatusUnsupported {
+		t.Fatalf("intel mac: %+v", s)
+	}
+	d.P = linux // no Linux a restrição não vale
+	if s := d.Detect(context.Background(), cat(it), nil)["flock"]; s.Status != StatusAbsent {
+		t.Fatalf("linux: %+v", s)
+	}
+}

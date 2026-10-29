@@ -1,0 +1,13 @@
+id: homebrew
+category: managers
+name: "Homebrew"
+description: {en: "Package manager for macOS", pt-BR: "Gerenciador de pacotes do macOS"}
+homepage: https://brew.sh
+platforms: [macos]
+needs_sudo: true
+detect:
+  command: "brew --version"
+  version_regex: "Homebrew ([\\d.]+)"
+install:
+  - backend: script
+    inline: "NONINTERACTIVE=1 /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""

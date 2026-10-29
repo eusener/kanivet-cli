@@ -207,3 +207,29 @@ func TestBackupAndRestoreKeepPermissions(t *testing.T) {
 		t.Fatalf("RestoreRun perm %v, want 0600", fi.Mode().Perm())
 	}
 }
+
+func TestApplyDirMovesToBackup(t *testing.T) {
+	a, home := setup(t)
+	nvim := filepath.Join(home, ".config", "nvim")
+	_ = os.MkdirAll(filepath.Join(nvim, "lua"), 0o755)
+	_ = os.WriteFile(filepath.Join(nvim, "init.lua"), []byte("-- mine\n"), 0o644)
+	if err := a.ApplyDir(plan.FileChange{Target: "~/.config/nvim", Dir: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(nvim); !os.IsNotExist(err) {
+		t.Fatalf("dir must be moved away: %v", err)
+	}
+	if read(t, filepath.Join(a.BackupDir, strings.TrimPrefix(nvim, "/"), "init.lua")) != "-- mine\n" {
+		t.Fatal("backup must keep the old dir")
+	}
+	if err := a.ApplyDir(plan.FileChange{Target: "~/.config/nvim", Dir: true}); err != nil {
+		t.Fatalf("missing dir must be a no-op: %v", err)
+	}
+}
+
+func TestRenderExtras(t *testing.T) {
+	out, err := Render(fstest.MapFS{"t": {Data: []byte(`{{range .Extras}}[{{.}}]{{end}}`)}}, "t", Vars{Extras: []string{"lang.php", "lang.json"}})
+	if err != nil || string(out) != "[lang.php][lang.json]" {
+		t.Fatalf("%q %v", out, err)
+	}
+}

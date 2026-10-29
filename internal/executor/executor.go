@@ -258,6 +258,12 @@ func (r *run) step(ctx context.Context, s plan.Step) {
 		var conflict *configs.Conflict
 		var err error
 		for _, f := range s.Files {
+			if f.Dir {
+				if err = r.e.Ap.ApplyDir(f); err != nil {
+					break
+				}
+				continue
+			}
 			var c *configs.Conflict
 			if c, err = r.e.Ap.Apply(f, r.o.ForceConfigs); err != nil {
 				break

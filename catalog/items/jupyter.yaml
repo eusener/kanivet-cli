@@ -1,0 +1,12 @@
+id: jupyter
+category: python-data
+name: "JupyterLab"
+description: {en: "Notebooks (installed as a uv tool)", pt-BR: "Notebooks (instalado como ferramenta do uv)"}
+platforms: [macos, linux]
+depends_on: [uv]
+detect:
+  command: "jupyter-lab --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: script
+    inline: "uv tool install jupyterlab"

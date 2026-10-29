@@ -1,0 +1,14 @@
+id: podman
+category: container-engine
+name: "Podman"
+description: {en: "Daemonless, rootless containers", pt-BR: "Containers sem daemon e rootless"}
+platforms: [macos, linux]
+detect:
+  command: "podman --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: podman
+    when: {os: macos}
+  - backend: system
+    package: podman

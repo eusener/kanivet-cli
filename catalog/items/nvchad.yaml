@@ -1,0 +1,19 @@
+id: nvchad
+category: neovim
+name: "NvChad"
+description: {en: "Fast, themed Neovim config", pt-BR: "Config de Neovim rápida e com temas"}
+platforms: [macos, linux]
+depends_on: [neovim-bin]
+configs:
+  - id: nvchad-backup
+    description: {en: "Move the current ~/.config/nvim to the backup first", pt-BR: "Move o ~/.config/nvim atual para o backup antes"}
+    default: true
+    files:
+      - target: ~/.config/nvim
+        dir: true
+detect:
+  command: "grep -qs nvchad \"$HOME/.config/nvim/init.lua\""
+install:
+  - backend: git
+    repo: https://github.com/NvChad/starter
+    dest: ~/.config/nvim

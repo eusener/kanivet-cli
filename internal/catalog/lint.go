@@ -59,6 +59,9 @@ func Lint(c *Catalog, backends []string) []error {
 		}
 		for _, cfg := range it.Configs {
 			for _, f := range cfg.Files {
+				if f.Dir {
+					continue
+				}
 				if _, err := fs.Stat(c.Files, f.Template); err != nil {
 					add(it.ID, "configs."+cfg.ID, "template %s not found", f.Template)
 				}
@@ -74,16 +77,26 @@ func Lint(c *Catalog, backends []string) []error {
 				add(p.ID, "items", "unknown item %q", ref)
 			}
 		}
-		for cat, ref := range p.Exclusive {
-			if !cats[cat].Exclusive {
-				add(p.ID, "exclusive", "category %q is not exclusive", cat)
-			}
-			if it := c.Items[ref]; it == nil || it.Category != cat {
-				add(p.ID, "exclusive", "item %q is not in category %q", ref, cat)
-			}
+		excl := []map[string]string{p.Exclusive}
+		for _, m := range p.ExclusiveByOS {
+			excl = append(excl, m)
+		}
+		for _, m := range excl {
+			lintProfileExclusive(p.ID, m, cats, c, add)
 		}
 	}
 	return errs
+}
+
+func lintProfileExclusive(profile string, m map[string]string, cats map[string]Category, c *Catalog, add func(string, string, string, ...any)) {
+	for cat, ref := range m {
+		if !cats[cat].Exclusive {
+			add(profile, "exclusive", "category %q is not exclusive", cat)
+		}
+		if it := c.Items[ref]; it == nil || it.Category != cat {
+			add(profile, "exclusive", "item %q is not in category %q", ref, cat)
+		}
+	}
 }
 
 func lintText(item, field string, t i18n.Text, add func(string, string, string, ...any)) {

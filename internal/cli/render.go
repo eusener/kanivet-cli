@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/eusener/kanivet-cli/internal/i18n"
@@ -20,7 +21,8 @@ func (e *Env) icon(s state.StepStatus) string {
 }
 
 // printPlan mostra o plano agrupado: sudo, instalar, configurar, atualizar, remover, pular, avisos.
-func printPlan(w io.Writer, pl *plan.Plan) {
+// expand resolve o destino real de um arquivo (variáveis e ~).
+func printPlan(w io.Writer, pl *plan.Plan, expand func(string) string) {
 	groups := []struct {
 		title string
 		match func(plan.Step) bool
@@ -51,14 +53,19 @@ func printPlan(w io.Writer, pl *plan.Plan) {
 			}
 			lines = append(lines, head)
 			for _, c := range s.Cmds {
-				lines = append(lines, "      $ "+c.Shown())
+				lines = append(lines, "      $ "+compact(c.Shown()))
 			}
 			for _, f := range s.Files {
 				verb := "→"
 				if f.Remove {
 					verb = "✗"
 				}
-				lines = append(lines, "      "+verb+" "+f.Target)
+				target := expand(f.Target)
+				line := "      " + verb + " " + target
+				if _, err := os.Stat(target); err == nil && !f.Remove {
+					line += "  (" + i18n.T("plan.backup") + ")"
+				}
+				lines = append(lines, line)
 			}
 			if s.Kind == plan.KindShell {
 				lines = append(lines, "      → ~/.config/kanivet-cli/shell/init.{zsh,bash}")
@@ -85,4 +92,13 @@ func printPlan(w io.Writer, pl *plan.Plan) {
 			fmt.Fprintln(w, "  ! "+m)
 		}
 	}
+}
+
+// compact mostra só a primeira linha de um comando de várias linhas.
+func compact(cmd string) string {
+	cmd = strings.TrimSpace(cmd)
+	if first, _, multi := strings.Cut(cmd, "\n"); multi {
+		return strings.TrimSpace(first) + " …"
+	}
+	return cmd
 }

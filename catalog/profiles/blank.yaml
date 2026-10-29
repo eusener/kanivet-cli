@@ -1,0 +1,5 @@
+id: blank
+name: {en: "Start from scratch", pt-BR: "Começar do zero"}
+description: {en: "Only the base: shell, modern CLI tools, git, LazyVim and the terminal", pt-BR: "Só a base: shell, ferramentas CLI modernas, git, LazyVim e o terminal"}
+items: [starship, zsh-autosuggestions, zsh-syntax-highlighting, direnv, atuin, zoxide, fzf, eza, bat, fd, ripgrep, dust, duf, btop, procs, sd, yazi, lazygit, delta, gh, jq, kitty, herdr, herdr-plugins, nerd-font-jetbrains, herdr-icon-font]
+exclusive: {neovim: lazyvim}

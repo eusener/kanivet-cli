@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eusener/kanivet-cli/internal/plan"
+	"github.com/eusener/kanivet-cli/internal/platform"
 	"github.com/eusener/kanivet-cli/internal/state"
 )
 
@@ -148,5 +150,59 @@ func TestDoctor(t *testing.T) {
 	h := newHarness(t)
 	if code := h.run("doctor"); code != 0 || !strings.Contains(h.out.String(), ".zshrc") {
 		t.Fatalf("exit %d:\n%s", code, h.out)
+	}
+}
+
+func TestSelectedForExclusiveByOS(t *testing.T) {
+	h := newHarness(t)
+	h.env.Cat.Profiles[0].ExclusiveByOS = map[platform.OS]map[string]string{platform.Linux: {"php-local": "flock"}}
+	got := selectedFor(h.env, plan.Selection{Profile: "laravel"})
+	if !got["flock"] || got["lerd"] {
+		t.Fatalf("selected %v", got)
+	}
+}
+
+func TestProfileExtrasReachTemplates(t *testing.T) {
+	h := newHarness(t)
+	h.env.Cat.Profiles[0].Extras = map[string][]string{"lazyvim": {"lang.php"}}
+	if got := h.env.extrasFor("laravel"); len(got) != 1 || got[0] != "lang.php" {
+		t.Fatalf("extras %v", got)
+	}
+}
+
+func TestToolPathsPrepended(t *testing.T) {
+	got := withToolPaths("/usr/bin", "/home/dev")
+	for _, want := range []string{"/home/dev/.local/bin", "/home/dev/.local/share/mise/shims", "/home/dev/.cargo/bin"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("PATH %q missing %q", got, want)
+		}
+	}
+	if !strings.HasSuffix(got, ":/usr/bin") || withToolPaths(got, "/home/dev") != got {
+		t.Fatalf("must keep original PATH last and be idempotent: %q", got)
+	}
+}
+
+func TestPlanRendersExpandedTargetsAndBackupMarker(t *testing.T) {
+	h := newHarness(t)
+	cfg := filepath.Join(h.env.P.Home, ".config", "fzf", "fzfrc")
+	_ = os.MkdirAll(filepath.Dir(cfg), 0o755)
+	_ = os.WriteFile(cfg, []byte("mine\n"), 0o644)
+	if code := h.run("plan", "fzf"); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	out := h.out.String()
+	if strings.Contains(out, "{{") || !strings.Contains(out, cfg+"  (backup)") {
+		t.Fatalf("plan output:\n%s", out)
+	}
+}
+
+func TestPlanMultilineCommandCompact(t *testing.T) {
+	h := newHarness(t)
+	h.env.Cat.Items["fzf"].PostInstall = []string{"if true; then\n  echo a\nfi\n"}
+	if code := h.run("plan", "fzf"); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if strings.Contains(h.out.String(), "\n  echo a") || !strings.Contains(h.out.String(), "$ if true; then …") {
+		t.Fatalf("plan output:\n%s", h.out)
 	}
 }

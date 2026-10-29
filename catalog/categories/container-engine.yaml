@@ -1,0 +1,4 @@
+id: container-engine
+name: {en: "Container engine", pt-BR: "Motor de containers"}
+description: {en: "Podman or Docker (pick one)", pt-BR: "Podman ou Docker (escolha um)"}
+exclusive: true

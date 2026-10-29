@@ -1,0 +1,16 @@
+id: composer
+category: languages
+name: "Composer"
+description: {en: "PHP dependency manager", pt-BR: "Gerenciador de dependências PHP"}
+platforms: [macos, linux]
+provided_by: [lerd, flock]
+depends_on: [php]
+detect:
+  command: "composer --version"
+  version_regex: "Composer version ([\\d.]+)"
+install:
+  - backend: brew
+    package: composer
+    when: {os: macos}
+  - backend: script
+    inline: "mkdir -p \"$HOME/.local/bin\" && curl -fsSL https://getcomposer.org/download/latest-stable/composer.phar -o \"$HOME/.local/bin/composer\" && chmod +x \"$HOME/.local/bin/composer\""

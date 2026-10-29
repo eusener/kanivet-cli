@@ -2,6 +2,8 @@ package i18n
 
 var messages = map[Lang]map[string]string{
 	En: {
+		"plan.backup":               "backup",
+		"reason.command":            "requires %s",
 		"cli.update":                "Update items installed by kanivet-cli",
 		"cli.uninstall":             "Uninstall items and undo their configs",
 		"cli.restore":               "List runs with backups, or restore the files of one run",
@@ -83,6 +85,8 @@ var messages = map[Lang]map[string]string{
 		"reason.distro":             "requires one of: %s",
 	},
 	PtBR: {
+		"plan.backup":               "backup",
+		"reason.command":            "requer %s",
 		"cli.update":                "Atualiza os itens instalados pelo kanivet-cli",
 		"cli.uninstall":             "Desinstala itens e desfaz as configs",
 		"cli.restore":               "Lista execuções com backup ou restaura os arquivos de uma",
