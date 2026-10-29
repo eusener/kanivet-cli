@@ -1,0 +1,2 @@
+# Mantém o tema vesper fixo (não seguir claro/escuro do macOS).
+follow_appearance = false
