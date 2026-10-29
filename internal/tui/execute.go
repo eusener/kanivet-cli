@@ -270,6 +270,7 @@ func (m Model) onRunDone(msg runDoneMsg) (Model, tea.Cmd) {
 	m.exec.running = false
 	m.exec.elapsed = time.Since(m.exec.started)
 	m.runRep, m.runJ, m.runErr = msg.rep, msg.j, msg.err
+	m.sum = summaryState{}
 	if m.exec.interrupted {
 		return m, tea.Quit
 	}

@@ -60,6 +60,7 @@ type Model struct {
 	review      reviewState
 	plan        *plan.Plan // plano confirmado na revisão
 	exec        execState
+	sum         summaryState
 	prog        *programRef // ligado ao *tea.Program pelo SetProgram
 
 	// resultado do run, para o resumo
@@ -96,6 +97,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.screen == ScreenReview {
 			m = m.layoutReview()
 		}
+		if m.screen == ScreenSummary {
+			m = m.layoutSummary()
+		}
 		return m, nil
 	case detectMsg:
 		m.detecting = false
@@ -123,12 +127,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, func() tea.Msg { return <-done }
 	case runDoneMsg:
 		return m.onRunDone(msg)
+	case forceDoneMsg:
+		return m.onForceDone(msg), nil
 	case interactiveReq:
 		return m.onInteractive(msg)
 	case interactiveDoneMsg:
 		m.exec.busy = false
 		return m.nextInteractive()
 	case tea.MouseMsg:
+		if m.screen == ScreenSummary && m.sum.panel != panelNone {
+			var c tea.Cmd
+			m.sum.vp, c = m.sum.vp.Update(msg)
+			return m, c
+		}
 		if m.screen == ScreenReview {
 			var c tea.Cmd
 			if m.review.diffOpen {
@@ -152,6 +163,9 @@ func (m Model) updateKey(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if km.String() == "ctrl+c" {
 		return m, tea.Quit
 	}
+	if m.screen == ScreenSummary && m.sum.confirm { // y/N da reaplicação consome a tecla
+		return m.updateSummary(km)
+	}
 	if m.confirmQuit {
 		if km.String() == "q" {
 			return m, tea.Quit
@@ -170,7 +184,7 @@ func (m Model) updateKey(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.showHelp = true
 			return m, nil
 		case key.Matches(km, m.keys.Quit):
-			if n, c := m.pending(); n+c > 0 {
+			if n, c := m.pending(); n+c > 0 && m.screen != ScreenSummary { // depois do run não há nada pendente
 				m.confirmQuit = true
 				return m, nil
 			}
@@ -188,6 +202,8 @@ func (m Model) updateKey(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.updateCategories(km)
 	case ScreenReview:
 		return m.updateReview(km)
+	case ScreenSummary:
+		return m.updateSummary(km)
 	}
 	return m, nil
 }
@@ -213,6 +229,9 @@ func (m Model) View() string {
 	foot := m.help.ShortHelpView(m.bindings())
 	if m.confirmQuit {
 		foot = m.th.Warn.Render(i18n.T("tui.quit_confirm"))
+	}
+	if m.screen == ScreenSummary && m.sum.confirm {
+		foot = m.th.Warn.Render(i18n.T("tui.summary.force_confirm", shorten(m.cursorTarget(), 40)))
 	}
 	lines := append([]string{m.th.Title.Render(m.title())}, body[:m.h-3]...)
 	lines = append(lines, status, lipgloss.NewStyle().MaxWidth(m.w).Render(foot))
@@ -266,7 +285,7 @@ func (m Model) bodyLines(height int) []string {
 	case ScreenExecute:
 		return m.executeLines(height)
 	case ScreenSummary:
-		return []string{i18n.T("tui.summary.placeholder")}
+		return m.summaryLines(height)
 	}
 	return nil
 }
@@ -286,6 +305,8 @@ func (m Model) bindings() []key.Binding {
 		return m.reviewBindings()
 	case ScreenExecute:
 		return []key.Binding{m.keys.Up, m.keys.Down, m.keys.Follow, m.keys.Interrupt}
+	case ScreenSummary:
+		return m.summaryBindings()
 	}
 	return []key.Binding{m.keys.Back, m.keys.Quit}
 }

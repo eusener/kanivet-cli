@@ -1,0 +1,24 @@
+Summary
+Done: 3 · Failed: 1 · Skipped: 0
+
+Failed steps (enter opens the log)
+> [x] install:node
+      log: /state/runs/R1/logs/node.log
+Fix the problem and run kanivet-cli install again to retry the failed items.
+
+Configs you changed (kept as is)
+  /home/u/.config/fzf/fzfrc
+
+Next steps
+  Open a new terminal to load the shell changes.
+  fzf: Run fzf --help once.
+
+
+
+
+
+
+
+
+
+↑/k up • ↓/j down • enter open log • ? help • q quit

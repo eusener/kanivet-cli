@@ -396,11 +396,7 @@ func (m Model) openDiff() Model {
 		}
 		text = configs.Diff(string(cur), string(next))
 	}
-	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
-	for i, l := range lines {
-		lines[i] = lipgloss.NewStyle().MaxWidth(m.w).Render(l)
-	}
-	r.diff.SetContent(strings.Join(lines, "\n"))
+	r.diff.SetContent(diffContent(text, m.w))
 	r.diff.GotoTop()
 	r.diffOpen, r.diffPath = true, target
 	m.review = r
@@ -420,4 +416,13 @@ func (m Model) reviewBindings() []key.Binding {
 		enter.SetHelp("enter", i18n.T("tui.key.back"))
 	}
 	return []key.Binding{m.keys.Up, m.keys.Down, m.keys.Diff, enter, m.keys.Back, m.keys.Help, m.keys.Quit}
+}
+
+// diffContent prepara o texto de um diff para um viewport: corta cada linha na largura w.
+func diffContent(text string, w int) string {
+	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
+	for i, l := range lines {
+		lines[i] = lipgloss.NewStyle().MaxWidth(w).Render(l)
+	}
+	return strings.Join(lines, "\n")
 }
