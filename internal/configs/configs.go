@@ -97,8 +97,11 @@ func sha(b []byte) string {
 	return hex.EncodeToString(s[:])
 }
 
+// backup copia o arquivo atual para backups/<run>, com as mesmas permissões e
+// diretórios 0700 (o backup pode conter segredos).
 func (a *Applier) backup(target string) (string, error) {
-	data, err := os.ReadFile(realPath(target))
+	real := realPath(target)
+	data, err := os.ReadFile(real)
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", nil
 	}
@@ -109,7 +112,27 @@ func (a *Applier) backup(target string) (string, error) {
 	if _, err := os.Stat(dest); err == nil {
 		return dest, nil // já tem backup neste run
 	}
-	return dest, state.WriteFileAtomic(dest, data, 0o644)
+	if err := os.MkdirAll(filepath.Dir(dest), 0o700); err != nil {
+		return "", err
+	}
+	return dest, state.WriteFileAtomic(dest, data, permOf(real, 0o600))
+}
+
+// permOf devolve as permissões de path, ou fallback se ele não existir.
+func permOf(path string, fallback fs.FileMode) fs.FileMode {
+	if fi, err := os.Stat(path); err == nil {
+		return fi.Mode().Perm()
+	}
+	return fallback
+}
+
+// restoreFile grava o conteúdo do backup em target com as permissões do backup.
+func restoreFile(backup, target string) error {
+	data, err := os.ReadFile(backup)
+	if err != nil {
+		return err
+	}
+	return state.WriteFileAtomic(target, data, permOf(backup, 0o600))
 }
 
 func (a *Applier) Apply(fc plan.FileChange, force bool) (*Conflict, error) {
@@ -139,11 +162,7 @@ func (a *Applier) Apply(fc plan.FileChange, force bool) (*Conflict, error) {
 	if applied {
 		backup = prev.Backup // guarda sempre o original de antes do kanivet-cli
 	}
-	perm := fs.FileMode(0o644)
-	if fi, err := os.Stat(real); err == nil {
-		perm = fi.Mode().Perm()
-	}
-	if err := state.WriteFileAtomic(real, content, perm); err != nil {
+	if err := state.WriteFileAtomic(real, content, permOf(real, 0o644)); err != nil {
 		return nil, err
 	}
 	a.record(fc.ItemID, target, backup, content)
@@ -169,11 +188,7 @@ func (a *Applier) Remove(target string) error {
 	}
 	real := realPath(target)
 	if rec.Backup != "" {
-		data, err := os.ReadFile(rec.Backup)
-		if err != nil {
-			return err
-		}
-		if err := state.WriteFileAtomic(real, data, 0o644); err != nil {
+		if err := restoreFile(rec.Backup, real); err != nil {
 			return err
 		}
 	} else if err := os.Remove(real); err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -202,11 +217,7 @@ func EnsureRcBlock(rc, shell string) (bool, error) {
 		content = append(content, '\n')
 	}
 	content = append(content, []byte("\n"+RcBlock(shell))...)
-	perm := fs.FileMode(0o644)
-	if fi, err := os.Stat(real); err == nil {
-		perm = fi.Mode().Perm()
-	}
-	return true, state.WriteFileAtomic(real, content, perm)
+	return true, state.WriteFileAtomic(real, content, permOf(real, 0o644))
 }
 
 // RestoreRun copia de volta todos os arquivos de backups/<run>.
@@ -218,11 +229,7 @@ func RestoreRun(backupRunDir string) ([]string, error) {
 		}
 		rel, _ := filepath.Rel(backupRunDir, p)
 		target := "/" + filepath.ToSlash(rel)
-		data, err := os.ReadFile(p)
-		if err != nil {
-			return err
-		}
-		if err := state.WriteFileAtomic(realPath(target), data, 0o644); err != nil {
+		if err := restoreFile(p, realPath(target)); err != nil {
 			return err
 		}
 		restored = append(restored, target)

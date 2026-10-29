@@ -178,3 +178,32 @@ func TestRestoreRun(t *testing.T) {
 		t.Fatalf("%v %v %q", got, err, read(t, target))
 	}
 }
+
+func TestBackupAndRestoreKeepPermissions(t *testing.T) {
+	a, home := setup(t)
+	target := filepath.Join(home, ".config", "bat", "config")
+	_ = os.MkdirAll(filepath.Dir(target), 0o755)
+	_ = os.WriteFile(target, []byte("secret\n"), 0o600)
+	_, _ = a.Apply(batFC, false)
+	rec := a.St.Configs[target]
+	if fi, _ := os.Stat(rec.Backup); fi.Mode().Perm() != 0o600 {
+		t.Fatalf("backup perm %v, want 0600", fi.Mode().Perm())
+	}
+	if fi, _ := os.Stat(a.BackupDir); fi.Mode().Perm() != 0o700 {
+		t.Fatalf("backup dir perm %v, want 0700", fi.Mode().Perm())
+	}
+	_ = os.Chmod(target, 0o644)
+	if err := a.Remove(batFC.Target); err != nil {
+		t.Fatal(err)
+	}
+	if fi, _ := os.Stat(target); fi.Mode().Perm() != 0o600 {
+		t.Fatalf("restored perm %v, want 0600", fi.Mode().Perm())
+	}
+	_ = os.Chmod(target, 0o644)
+	if _, err := RestoreRun(a.BackupDir); err != nil {
+		t.Fatal(err)
+	}
+	if fi, _ := os.Stat(target); fi.Mode().Perm() != 0o600 {
+		t.Fatalf("RestoreRun perm %v, want 0600", fi.Mode().Perm())
+	}
+}
