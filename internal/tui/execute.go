@@ -210,9 +210,10 @@ func (m Model) startRun() (Model, tea.Cmd) {
 	m.exec = e
 	m.screen = ScreenExecute
 
-	s, pl, ro := m.s, m.plan, app.RunOptions{Events: events, RunInteractive: m.prog.runInteractive, Profile: m.review.profile}
+	// Na retomada, o plano pendente continua o journal existente (os passos feitos não rodam de novo).
+	s, pl, j, ro := m.s, m.plan, m.review.journal, app.RunOptions{Events: events, RunInteractive: m.prog.runInteractive, Profile: m.review.profile}
 	launch := func() tea.Msg {
-		rep, j, err := s.Run(ctx, pl, nil, ro)
+		rep, j, err := s.Run(ctx, pl, j, ro)
 		done <- runDoneMsg{rep: rep, j: j, err: err}
 		close(events) // depois do done: o eventsClosedMsg sempre encontra o resultado
 		return nil
@@ -285,14 +286,7 @@ func (m Model) updateExecute(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if !e.running {
 			return m, tea.Quit
 		}
-		if !e.interrupted {
-			e.interrupted = true
-			e.cancel()
-			for _, req := range e.queue {
-				req.reply <- canceled()
-			}
-			e.queue = nil
-		}
+		return m.interrupt(), nil
 	case key.Matches(km, m.keys.Up):
 		if e.cursor > 0 {
 			e.cursor--
@@ -311,6 +305,23 @@ func (m Model) updateExecute(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	m.exec = e
 	return m, nil
+}
+
+// interrupt cancela o run uma vez e responde aos pedidos interativos na fila; a saída
+// espera o runDoneMsg. Serve ao ctrl+c e aos sinais externos (interruptMsg).
+func (m Model) interrupt() Model {
+	e := m.exec
+	if !e.running || e.interrupted {
+		return m
+	}
+	e.interrupted = true
+	e.cancel()
+	for _, req := range e.queue {
+		req.reply <- canceled()
+	}
+	e.queue = nil
+	m.exec = e
+	return m
 }
 
 func canceled() runner.Result { return runner.Result{ExitCode: -1, Err: context.Canceled} }

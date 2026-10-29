@@ -15,6 +15,7 @@ import (
 	"github.com/eusener/kanivet-cli/internal/configs"
 	"github.com/eusener/kanivet-cli/internal/i18n"
 	"github.com/eusener/kanivet-cli/internal/plan"
+	"github.com/eusener/kanivet-cli/internal/state"
 )
 
 // planMsg entrega o plano montado para a revisão (ou o erro que o bloqueia).
@@ -57,6 +58,9 @@ type reviewState struct {
 	diff     viewport.Model
 	diffPath string
 	note     string // aviso curto (ex.: sem diff para a linha)
+	// retomada: o plano são só os passos pendentes de journal, que o enter continua
+	resume  bool
+	journal *state.Journal
 }
 
 // rowKey devolve o id do passo da linha (vazio nas linhas sem passo).
@@ -296,26 +300,34 @@ func (m Model) updateReview(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.review.diff, c = r.diff.Update(km)
 		return m, c
 	}
-	back := func() Model {
+	back := func() (tea.Model, tea.Cmd) {
+		if r.resume { // descartar a retomada não apaga o journal: o próximo run o substitui
+			m.review = reviewState{}
+			if r.caller == ScreenDashboard {
+				return m.enterDashboard()
+			}
+			m.screen = r.caller
+			return m, nil
+		}
 		if r.caller == ScreenDashboard {
 			m.screen = ScreenDashboard
-			return m
+			return m, nil
 		}
 		m.screen = ScreenCategories
 		m.page = len(categoryPages) - 1
 		if m.sel != nil {
 			m.list = m.newList()
 		}
-		return m
+		return m, nil
 	}
 	switch {
 	case key.Matches(km, m.keys.Back):
-		return back(), nil
+		return back()
 	case key.Matches(km, m.keys.Enter):
 		switch {
 		case r.loading || r.blocked():
 		case r.empty():
-			return back(), nil
+			return back()
 		default:
 			m.plan = r.pl
 			return m.startRun()

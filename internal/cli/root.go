@@ -18,6 +18,7 @@ import (
 	"github.com/eusener/kanivet-cli/internal/platform"
 	"github.com/eusener/kanivet-cli/internal/runner"
 	"github.com/eusener/kanivet-cli/internal/state"
+	"github.com/eusener/kanivet-cli/internal/tui"
 )
 
 type Env struct {
@@ -30,6 +31,8 @@ type Env struct {
 	IsTTY          bool
 	Now            func() time.Time
 	Getenv         map[string]string
+	// RunTUI abre a TUI (nil usa tui.Run); os testes trocam por um falso.
+	RunTUI func(*app.Session, map[string]string) error
 }
 
 // exitError carrega o código de saída de um comando.
@@ -48,6 +51,21 @@ func NewRoot(e *Env) *cobra.Command {
 		Short:         i18n.T("cli.short"),
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		// Sem subcomando: TUI quando stdin e stdout são terminais; senão, a ajuda.
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !e.IsTTY {
+				return cmd.Help()
+			}
+			s, err := e.open()
+			if err != nil {
+				return err
+			}
+			run := e.RunTUI
+			if run == nil {
+				run = tui.Run
+			}
+			return run(s, e.Getenv)
+		},
 	}
 	root.SetOut(e.Stdout)
 	root.SetErr(e.Stderr)

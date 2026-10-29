@@ -134,6 +134,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case eventsClosedMsg:
 		done := m.exec.done
 		return m, func() tea.Msg { return <-done }
+	case interruptMsg:
+		return m.interrupt(), nil
 	case runDoneMsg:
 		return m.onRunDone(msg)
 	case forceDoneMsg:
@@ -272,6 +274,9 @@ func (m Model) title() string {
 	case ScreenCategories:
 		return i18n.T("tui.step.page", pageTitle(m.page), m.page+1, len(categoryPages))
 	case ScreenReview:
+		if m.review.resume && m.review.journal != nil {
+			return i18n.T("tui.resume_title", m.review.journal.RunID)
+		}
 		return i18n.T("tui.step.review")
 	case ScreenExecute:
 		return i18n.T("tui.step.execute")

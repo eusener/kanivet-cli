@@ -2,6 +2,7 @@ package i18n
 
 var messages = map[Lang]map[string]string{
 	En: {
+		"tui.resume_title":           "Resume unfinished run %s",
 		"tui.step.dashboard":         "Dashboard",
 		"tui.dash.pending":           "%d to install · %d to update · %d to remove",
 		"tui.dash.profile":           "Profile: %s",
@@ -182,6 +183,7 @@ var messages = map[Lang]map[string]string{
 		"reason.distro":              "requires one of: %s",
 	},
 	PtBR: {
+		"tui.resume_title":           "Retomar a execução inacabada %s",
 		"tui.step.dashboard":         "Painel",
 		"tui.dash.pending":           "%d a instalar · %d a atualizar · %d a remover",
 		"tui.dash.profile":           "Perfil: %s",
