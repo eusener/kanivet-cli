@@ -501,7 +501,7 @@ func (m Model) counterTags() []string {
 		return out
 	}
 	n, c := m.pending()
-	return []string{m.th.Tag(i18n.T("tui.tag.install", n), colSky), m.th.Tag(i18n.T("tui.tag.configs", c), colMint)}
+	return []string{m.th.Tag(i18n.T("tui.tag.install", n), colSky), m.th.Tag(i18n.N("tui.tag.configs", c), colMint)}
 }
 
 // pending devolve o que a barra mostra (itens a instalar, configs ligadas); o aviso ao sair usa o mesmo critério.

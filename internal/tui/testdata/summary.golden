@@ -3,7 +3,7 @@
   └──────────────────────────────────────────────────────────────────────────┘
 
   FINISHED WITH FAILURES
-  [1 INSTALLED] [1 CONFIGS] [1 FAILED] [1 KEPT]
+  [1 INSTALLED] [1 CONFIG] [1 FAILED] [1 KEPT]
   ┌─ FAILED ─────────────────────────────────────────────────────────────────┐
   │ [x] NODE.JS  log: /state/runs/R1/logs/node.log                           │
   │ L VIEW LOG                                                               │

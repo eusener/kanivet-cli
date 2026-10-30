@@ -184,7 +184,7 @@ func (m Model) profileCard(pr catalog.Profile, selected bool, w, descLines int) 
 	if selected || tagBg == "" {
 		tagBg = colCard
 	}
-	body = append(body, m.th.Tag(i18n.T("tui.profile.items", m.profileItemCount(pr.ID)), tagBg))
+	body = append(body, m.th.Tag(i18n.N("tui.profile.items", m.profileItemCount(pr.ID)), tagBg))
 	o := BoxOpts{}
 	if selected {
 		o.Fill, o.Fg = colSky, colInkStrong

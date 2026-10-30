@@ -188,9 +188,9 @@ func TestDashHeaderDropsWholeTags80(t *testing.T) {
 	}
 	tags := []string{
 		strings.ToUpper(i18n.T("tui.dash.profile", "laravel")),
-		strings.ToUpper(i18n.T("tui.dash.hd_installed", inst)),
-		strings.ToUpper(i18n.T("tui.dash.hd_updates", upd)),
-		strings.ToUpper(i18n.T("tui.dash.hd_external", ext)),
+		strings.ToUpper(i18n.N("tui.dash.hd_installed", inst)),
+		strings.ToUpper(i18n.N("tui.dash.hd_updates", upd)),
+		strings.ToUpper(i18n.N("tui.dash.hd_external", ext)),
 	}
 	if !strings.Contains(h, tags[0]) {
 		t.Errorf("o perfil deve ficar: %q", h)

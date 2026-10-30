@@ -68,7 +68,7 @@ func (m Model) welcomeLines() []string {
 	if p.PkgManager != "" {
 		r := label("tui.welcome.pkg") + p.PkgManager
 		if n := m.sudoCount(); n > 0 {
-			r += "   " + m.th.Tag(i18n.T("tui.welcome.sudo", n), colSun)
+			r += "   " + m.th.Tag(i18n.N("tui.welcome.sudo", n), colSun)
 		}
 		rows = append(rows, r)
 	}

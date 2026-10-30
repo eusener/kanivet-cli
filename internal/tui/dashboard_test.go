@@ -301,10 +301,13 @@ func TestDashHeaderCounts(t *testing.T) {
 		"eza": st("eza", detect.StatusExternal),
 	})
 	v := ansi.Strip(m.View())
-	for _, want := range []string{"KANIVET", "2 INSTALLED", "1 UPDATES", "1 EXTERNAL"} {
+	for _, want := range []string{"KANIVET", "2 INSTALLED", "1 UPDATE", "1 EXTERNAL"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("cabeçalho sem %q:\n%s", want, v)
 		}
+	}
+	if strings.Contains(v, "1 UPDATES") { // M2: singular com N=1
+		t.Errorf("plural com N=1:\n%s", v)
 	}
 }
 

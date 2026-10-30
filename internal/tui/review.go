@@ -376,7 +376,7 @@ func (m Model) reviewHeading() string {
 	if rem > 0 {
 		tags = append(tags, m.th.Tag(i18n.T("tui.review.total.remove", rem), colCoral))
 	}
-	tags = append(tags, m.th.Tag(i18n.T("tui.review.total.configs", cfg), colMint))
+	tags = append(tags, m.th.Tag(i18n.N("tui.review.total.configs", cfg), colMint))
 	if n := r.sudoCount(); n > 0 {
 		tags = append(tags, m.th.Tag(i18n.T("tui.review.total.sudo", n), colSun))
 	}

@@ -216,17 +216,17 @@ func (m Model) summaryTags() string {
 		}
 	}
 	tags := []string{
-		m.th.Tag(i18n.T("tui.summary.tag.installed", inst), colMint),
-		m.th.Tag(i18n.T("tui.summary.tag.configs", cfg), colSky),
+		m.th.Tag(i18n.N("tui.summary.tag.installed", inst), colMint),
+		m.th.Tag(i18n.N("tui.summary.tag.configs", cfg), colSky),
 	}
 	if n := len(r.Failed); n > 0 {
-		tags = append(tags, m.th.Tag(i18n.T("tui.summary.tag.failed", n), colCoral))
+		tags = append(tags, m.th.Tag(i18n.N("tui.summary.tag.failed", n), colCoral))
 	}
 	if n := len(r.Skipped); n > 0 {
-		tags = append(tags, m.th.Tag(i18n.T("tui.summary.tag.skipped", n), colPeach))
+		tags = append(tags, m.th.Tag(i18n.N("tui.summary.tag.skipped", n), colPeach))
 	}
 	if n := len(r.Conflicts); n > 0 {
-		tags = append(tags, m.th.Tag(i18n.T("tui.summary.tag.conflicts", n), colSun))
+		tags = append(tags, m.th.Tag(i18n.N("tui.summary.tag.conflicts", n), colSun))
 	}
 	sp := m.th.S().Render(" ")
 	for len(tags) > 1 && lipgloss.Width(strings.Join(tags, sp)) > m.contentWidth() {

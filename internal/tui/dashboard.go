@@ -244,12 +244,12 @@ func (m Model) dashTags() []string {
 			ext++
 		}
 	}
-	out = append(out, m.th.Tag(i18n.T("tui.dash.hd_installed", inst), colMint))
+	out = append(out, m.th.Tag(i18n.N("tui.dash.hd_installed", inst), colMint))
 	if upd > 0 {
-		out = append(out, m.th.Tag(i18n.T("tui.dash.hd_updates", upd), colSun))
+		out = append(out, m.th.Tag(i18n.N("tui.dash.hd_updates", upd), colSun))
 	}
 	if ext > 0 {
-		out = append(out, m.th.Tag(i18n.T("tui.dash.hd_external", ext), colPeach))
+		out = append(out, m.th.Tag(i18n.N("tui.dash.hd_external", ext), colPeach))
 	}
 	return out
 }

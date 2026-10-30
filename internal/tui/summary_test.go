@@ -572,3 +572,45 @@ func TestRetryReviewQuitIgnoresWizardPending(t *testing.T) {
 		t.Fatalf("q na revisão do retry deveria sair direto (confirm=%v)", nm.(Model).confirmQuit)
 	}
 }
+
+// M2: as tags de contagem concordam com o número em pt-BR (1 instalado, 2 falhas...).
+func TestCountTagsPluralPtBR(t *testing.T) {
+	one, _ := summaryModel(t) // 1 instalado, 1 config, 1 falha, 1 conflito
+	two := retryModel(t)      // 3 instalados, 2 falhas
+	i18n.SetLang(i18n.PtBR)
+	t.Cleanup(func() { i18n.SetLang(i18n.En) })
+	got1 := tagText(one.summaryTags())
+	for _, want := range []string{"1 INSTALADO ", "1 CONFIG ", "1 FALHA ", "1 MANTIDA "} {
+		if !strings.Contains(got1, want) {
+			t.Errorf("N=1: falta %q em %q", want, got1)
+		}
+	}
+	got2 := tagText(two.summaryTags())
+	for _, want := range []string{"3 INSTALADOS ", "2 FALHAS "} {
+		if !strings.Contains(got2, want) {
+			t.Errorf("N=2: falta %q em %q", want, got2)
+		}
+	}
+	d := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusOutdated), "eza": st("eza", detect.StatusExternal)})
+	i18n.SetLang(i18n.PtBR)
+	h := tagText(strings.Join(d.dashTags(), " "))
+	for _, want := range []string{"1 INSTALADO ", "1 ATUALIZAÇÃO ", "1 EXTERNO "} {
+		if !strings.Contains(h, want) {
+			t.Errorf("painel N=1: falta %q em %q", want, h)
+		}
+	}
+	d = dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusOutdated), "fd": st("fd", detect.StatusOutdated),
+		"eza": st("eza", detect.StatusExternal), "jq": st("jq", detect.StatusExternal)})
+	i18n.SetLang(i18n.PtBR)
+	h = tagText(strings.Join(d.dashTags(), " "))
+	for _, want := range []string{"2 INSTALADOS ", "2 ATUALIZAÇÕES ", "2 EXTERNOS "} {
+		if !strings.Contains(h, want) {
+			t.Errorf("painel N=2: falta %q em %q", want, h)
+		}
+	}
+}
+
+// tagText tira cores e colchetes das tags (modo plain) e termina com espaço.
+func tagText(s string) string {
+	return strings.NewReplacer("[", " ", "]", " ").Replace(ansi.Strip(s)) + " "
+}
