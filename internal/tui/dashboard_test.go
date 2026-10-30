@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
 
@@ -148,11 +149,8 @@ func TestDashboardExternalUntouched(t *testing.T) {
 		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
 	}
 	m = send(m, keyRune(" "))
-	// a nota é quebrada na caixa de detalhe: confere palavra por palavra
-	explained := true
-	for _, w := range strings.Fields(i18n.T("tui.external_untouched")) {
-		explained = explained && strings.Contains(m.View(), w)
-	}
+	// a nota é quebrada na caixa de detalhe: junta a coluna do detalhe e compara a frase inteira
+	explained := strings.Contains(detailText(m.View()), i18n.T("tui.external_untouched"))
 	if !m.sel.Marked("eza") || !explained {
 		t.Fatalf("externo não desmarca e explica:\n%s", m.View())
 	}
@@ -196,4 +194,23 @@ func hasAll(v string, texts ...string) bool {
 		}
 	}
 	return true
+}
+
+// detailText junta o texto da última caixa de cada linha (o detalhe), com os espaços
+// e as quebras de linha reduzidos a um espaço.
+func detailText(v string) string {
+	var parts []string
+	for _, ln := range strings.Split(ansi.Strip(v), "\n") {
+		rs := []rune(ln)
+		var at []int
+		for i, r := range rs {
+			if r == '│' || r == '┃' {
+				at = append(at, i)
+			}
+		}
+		if len(at) >= 2 {
+			parts = append(parts, string(rs[at[len(at)-2]+1:at[len(at)-1]]))
+		}
+	}
+	return strings.Join(strings.Fields(strings.Join(parts, " ")), " ")
 }

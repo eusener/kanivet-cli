@@ -309,9 +309,20 @@ func TestItemListTwoBoxesAt80(t *testing.T) {
 }
 
 func TestItemListMinRows(t *testing.T) {
+	for name, th := range map[string]*Theme{"plain": nil, "paper": ptr(paperTheme())} {
+		t.Run(name, func(t *testing.T) { minRows(t, th) })
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
+
+func minRows(t *testing.T, th *Theme) {
 	m := detected(t, newModel(t, linuxSystemd))
+	if th != nil {
+		m.th = *th
+	}
 	m = send(m, enter(), enter())
-	marker := regexp.MustCompile(`^  [│┃] (\[[x ]\]|\(•\)|\( \)|[✓○●]) `)
+	marker := regexp.MustCompile(`^  ▐?[│┃] (\[[x ]\]|\(•\)|\( \)|[✓○●]) `)
 	n := 0
 	for _, ln := range stripLines(m.View()) {
 		if marker.MatchString(ln) {
@@ -319,7 +330,7 @@ func TestItemListMinRows(t *testing.T) {
 		}
 	}
 	if n < 6 {
-		t.Errorf("visible items = %d, want >= 6:\n%s", n, m.View())
+		t.Errorf("visible items = %d, want >= 6:\n%s", n, ansi.Strip(m.View()))
 	}
 }
 

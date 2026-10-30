@@ -1,6 +1,7 @@
 package tui
 
 import (
+	tea "github.com/charmbracelet/bubbletea"
 	"strings"
 	"testing"
 
@@ -78,5 +79,21 @@ func TestHeaderFitsWidest80(t *testing.T) {
 		if !strings.Contains(v, want) {
 			t.Errorf("cabeçalho sem %q:\n%s", want, v)
 		}
+	}
+}
+
+func TestCategoriesPaintedSearchAndPanel(t *testing.T) {
+	base := send(detected(t, newModel(t, linuxSystemd)), enter(), enter())
+	base.th = paperTheme()
+	base = send(base, size(80, 24))
+	cases := map[string][]tea.Msg{
+		"search": {keyRune("/"), keyRune("e")},
+		"panel":  {keyRune("c")},
+	}
+	for name, msgs := range cases {
+		t.Run(name, func(t *testing.T) {
+			m := send(base, msgs...)
+			assertPainted(t, m.View(), 80, 24)
+		})
 	}
 }
