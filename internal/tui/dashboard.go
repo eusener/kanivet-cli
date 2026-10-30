@@ -199,7 +199,10 @@ func (m Model) dashBindings() []key.Binding {
 	}
 	apply := m.keys.Apply
 	apply.SetEnabled(!m.detecting)
-	return []key.Binding{m.keys.Toggle, m.keys.Update, m.keys.UpdateAll, m.keys.Profile, m.keys.NextTab, m.keys.Search, apply, m.keys.Help, m.keys.Quit}
+	version := key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", i18n.T("tui.key.version")))
+	cfg := key.NewBinding(key.WithKeys("c"), key.WithHelp("c", i18n.T("tui.key.configs")))
+	return []key.Binding{m.keys.Toggle, m.keys.Update, m.keys.UpdateAll, m.keys.Profile, m.keys.NextTab, m.keys.PrevTab,
+		m.keys.Search, version, cfg, apply, m.keys.Help, m.keys.Quit}
 }
 
 // age formata a idade da verificação (5m, 2h, 3d).
@@ -215,9 +218,9 @@ func age(d time.Duration) string {
 	return fmt.Sprintf("%dd", int(d.Hours()/24))
 }
 
-// dashHeader são as tags do cabeçalho do painel: perfil e totais (atualizações e
-// externos só quando há).
-func (m Model) dashHeader() string {
+// dashTags são as tags do cabeçalho do painel, da mais à menos importante: perfil e
+// totais (atualizações e externos só quando há).
+func (m Model) dashTags() []string {
 	ref := m.s.St.Profile
 	if m.dash.profile != "" {
 		ref = m.dash.profile
@@ -225,8 +228,7 @@ func (m Model) dashHeader() string {
 	if ref == "" {
 		ref = "—"
 	}
-	sp := m.th.S().Render(" ")
-	out := m.th.Tag(i18n.T("tui.dash.profile", ref), colPeach)
+	out := []string{m.th.Tag(i18n.T("tui.dash.profile", ref), colPeach)}
 	if m.detecting || m.sel == nil {
 		return out
 	}
@@ -242,12 +244,12 @@ func (m Model) dashHeader() string {
 			ext++
 		}
 	}
-	out += sp + m.th.Tag(i18n.T("tui.dash.hd_installed", inst), colMint)
+	out = append(out, m.th.Tag(i18n.T("tui.dash.hd_installed", inst), colMint))
 	if upd > 0 {
-		out += sp + m.th.Tag(i18n.T("tui.dash.hd_updates", upd), colSun)
+		out = append(out, m.th.Tag(i18n.T("tui.dash.hd_updates", upd), colSun))
 	}
 	if ext > 0 {
-		out += sp + m.th.Tag(i18n.T("tui.dash.hd_external", ext), colPeach)
+		out = append(out, m.th.Tag(i18n.T("tui.dash.hd_external", ext), colPeach))
 	}
 	return out
 }

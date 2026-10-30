@@ -265,7 +265,8 @@ func (m Model) View() string {
 	}
 	bh := m.bodyHeight()
 	// nas telas de itens e de revisão o título (com as tags) é a primeira linha do próprio corpo
-	ownTitle := (m.screen == ScreenCategories || m.screen == ScreenReview || m.screen == ScreenExecute || (m.screen == ScreenSummary && m.sum.panel == panelNone) || m.screen == ScreenDashboard) && !m.showHelp && !m.confirmQuit
+	// a boas-vindas não repete o nome do passo: a trilha já o mostra e a manchete vem logo abaixo
+	ownTitle := (m.screen == ScreenWelcome || m.screen == ScreenCategories || m.screen == ScreenReview || m.screen == ScreenExecute || (m.screen == ScreenSummary && m.sum.panel == panelNone) || m.screen == ScreenDashboard) && !m.showHelp && !m.confirmQuit
 	if ownTitle {
 		bh += 1 + m.respiro()/2
 	}
@@ -324,30 +325,46 @@ func (m Model) trailStep() (step int, done bool) {
 // header desenha a caixa de marca: tag KANIVET, trilha e N/5 (ou FIM) à direita. No
 // painel, o perfil e os totais ocupam o lugar da trilha.
 func (m Model) header() []string {
+	inner := m.contentWidth() - 4 // bordas e padding
+	if m.th.Paper {
+		inner-- // sombra
+	}
+	brand := m.th.Tag("KANIVET", colSun) + "  "
 	var mid, right string
 	if m.screen == ScreenDashboard {
-		mid, right = m.dashHeader(), m.dashStatus()
+		// sem espaço, primeiro cai o status da verificação; depois as tags, inteiras, da direita
+		tags := m.dashTags()
+		right = m.dashStatus()
+		sp := m.th.S().Render(" ")
+		need := func() int {
+			w := lipgloss.Width(brand) + lipgloss.Width(strings.Join(tags, sp))
+			if right != "" {
+				w += 2 + lipgloss.Width(right)
+			}
+			return w
+		}
+		if need() > inner {
+			right = ""
+		}
+		for len(tags) > 1 && need() > inner {
+			tags = tags[:len(tags)-1]
+		}
+		mid = strings.Join(tags, sp)
 	} else {
 		step, done := m.trailStep()
-		mid = m.th.Trail(step, done)
 		right = fmt.Sprintf("%d/5", step+1)
 		if done {
 			right = strings.ToUpper(i18n.T("tui.trail.end"))
 		}
 		right = m.th.Subtle.Render(right)
+		// a trilha cabe no que sobra, com ao menos 1 espaço antes do N/5 (ou FIM)
+		mid = m.th.TrailFit(step, done, max(inner-lipgloss.Width(brand)-lipgloss.Width(right)-1, 0))
 	}
-	inner := m.contentWidth() - 4 // bordas e padding
-	if m.th.Paper {
-		inner-- // sombra
-	}
-	left := m.th.Tag("KANIVET", colSun) + "  " + mid
+	left := brand + mid
 	if fill := inner - lipgloss.Width(left) - lipgloss.Width(right); fill > 0 {
-		left += strings.Repeat(" ", fill)
+		left += m.th.S().Render(strings.Repeat(" ", fill))
 	}
-	if m.screen == ScreenDashboard && lipgloss.Width(left)+lipgloss.Width(right)+2 > inner {
-		right = "" // sem espaço, o status da verificação cai
-	}
-	// se faltar largura, corta a trilha e preserva o N/5
+	// último recurso (largura abaixo do mínimo): corta a esquerda e preserva a direita
 	row := ansi.Truncate(left, max(inner-lipgloss.Width(right), 0), "") + right
 	out := strings.Split(m.th.Box(row, m.contentWidth(), BoxOpts{}), "\n")
 	for len(out) < headerHeight {
@@ -400,14 +417,14 @@ func (m Model) footer() string {
 	head = append(head, m.counterTags()...)
 	type hint struct {
 		text string
-		keep bool
+		rank int // 0 nunca cai; sem largura, cai primeiro o de rank maior
 	}
 	var hints []hint
 	for _, b := range m.bindings() {
 		if !b.Enabled() || (hasPrimary && b.Help().Key == k) {
 			continue
 		}
-		hints = append(hints, hint{m.th.Help.Render(m.keyCap(b.Help().Key) + " " + b.Help().Desc), b.Help().Key == "?" || b.Help().Key == "q"})
+		hints = append(hints, hint{m.th.Help.Render(m.keyCap(b.Help().Key) + " " + b.Help().Desc), m.hintRank(b.Help().Key)})
 	}
 	join := func() string {
 		parts := append([]string{}, head...)
@@ -416,21 +433,44 @@ func (m Model) footer() string {
 		}
 		return strings.Join(parts, "  ")
 	}
-	// sem largura, descarta os atalhos menos importantes; ajuda e sair ficam
+	// sem largura, descarta os atalhos menos importantes (o primeiro do rank mais alto);
+	// ajuda e sair ficam
 	for lipgloss.Width(join()) > m.contentWidth() {
-		dropped := false
+		drop := -1
 		for i, h := range hints {
-			if !h.keep {
-				hints = append(hints[:i], hints[i+1:]...)
-				dropped = true
-				break
+			if h.rank > 0 && (drop < 0 || h.rank > hints[drop].rank) {
+				drop = i
 			}
 		}
-		if !dropped {
+		if drop < 0 {
 			break
 		}
+		hints = append(hints[:drop], hints[drop+1:]...)
 	}
 	return ansi.Truncate(join(), m.contentWidth(), "")
+}
+
+// hintRank é a importância de um atalho do rodapé: 0 nunca cai (ajuda e sair) e, sem
+// largura, cai primeiro o de número maior. No painel, abas, atualizar, perfil e busca
+// ficam até o fim; aplicar e marcar vêm depois; aba anterior, versão e configs só
+// entram quando sobra espaço.
+func (m Model) hintRank(k string) int {
+	switch k {
+	case "?", "q":
+		return 0
+	}
+	if m.screen != ScreenDashboard || m.dash.modal {
+		return 1
+	}
+	switch k {
+	case "tab", "u", "p", "/":
+		return 1
+	case "a", "space":
+		return 2
+	case "U":
+		return 3
+	}
+	return 4
 }
 
 // counterTags devolve os contadores da tela como tags para o rodapé.
@@ -441,12 +481,19 @@ func (m Model) counterTags() []string {
 	case m.screen == ScreenSummary || m.sel == nil:
 		return nil
 	case m.screen == ScreenDashboard:
+		// contadores zerados não ocupam o rodapé: o espaço vai para os atalhos
 		i, u, r := m.sel.Pending()
-		return []string{
-			m.th.Tag(i18n.T("tui.tag.install", i), colSky),
-			m.th.Tag(i18n.T("tui.tag.update", u), colPeach),
-			m.th.Tag(i18n.T("tui.tag.remove", r), colCoral),
+		var out []string
+		for _, c := range []struct {
+			key string
+			n   int
+			bg  lipgloss.Color
+		}{{"tui.tag.install", i, colSky}, {"tui.tag.update", u, colPeach}, {"tui.tag.remove", r, colCoral}} {
+			if c.n > 0 {
+				out = append(out, m.th.Tag(i18n.T(c.key, c.n), c.bg))
+			}
 		}
+		return out
 	}
 	n, c := m.pending()
 	return []string{m.th.Tag(i18n.T("tui.tag.install", n), colSky), m.th.Tag(i18n.T("tui.tag.configs", c), colMint)}

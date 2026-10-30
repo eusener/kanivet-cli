@@ -184,26 +184,54 @@ func (t Theme) Button(key, label string) string {
 }
 
 // Trail desenha a trilha de 5 passos; step vai de 0 a 4 e done marca todos como concluídos.
-func (t Theme) Trail(step int, done bool) string {
+func (t Theme) Trail(step int, done bool) string { return t.TrailFit(step, done, -1) }
+
+// TrailFit desenha a trilha em no máximo width colunas (width < 0: sem limite). Sem
+// espaço, ela degrada em vez de cortar: primeiro os passos feitos viram só "✓" (do mais
+// antigo ao mais recente), depois o separador encolhe para 1 coluna e, por fim, somem
+// os passos que faltam. O passo ativo nunca é cortado.
+func (t Theme) TrailFit(step int, done bool, width int) string {
 	names := []string{
 		i18n.T("tui.trail.welcome"), i18n.T("tui.trail.profile"), i18n.T("tui.trail.items"),
 		i18n.T("tui.trail.review"), i18n.T("tui.trail.install"),
 	}
-	// sem Nerd Font a marca é "[x]" (larga): um espaço basta, a trilha cabe em 80 colunas
-	sep := t.Subtle.Render(pick(t.Nerd, " ─ ", " "))
-	parts := make([]string, len(names))
-	for i, n := range names {
-		up := strings.ToUpper(n)
-		switch {
-		case done || i < step:
-			parts[i] = t.OK.Render(pick(t.Nerd, "✓", "x")) + " " + t.Subtle.Render(up)
-		case i == step:
-			parts[i] = t.Tag(n, colSky)
-		default:
-			parts[i] = t.Subtle.Render(up)
+	nDone := step
+	if done {
+		nDone = len(names)
+	}
+	render := func(collapsed int, short, noFuture bool) string {
+		// sem Nerd Font a marca é "[x]" (larga): um espaço basta, a trilha cabe em 80 colunas
+		sep := t.Subtle.Render(pick(t.Nerd && !short, " ─ ", " "))
+		var parts []string
+		for i, n := range names {
+			up := strings.ToUpper(n)
+			switch {
+			case i < nDone && i < collapsed:
+				parts = append(parts, t.OK.Render(pick(t.Nerd, "✓", "x")))
+			case i < nDone:
+				parts = append(parts, t.OK.Render(pick(t.Nerd, "✓", "x"))+t.S().Render(" ")+t.Subtle.Render(up))
+			case i == step:
+				parts = append(parts, t.Tag(n, colSky))
+			case !noFuture:
+				parts = append(parts, t.Subtle.Render(up))
+			}
+		}
+		return strings.Join(parts, sep)
+	}
+	fits := func(s string) bool { return width < 0 || lipgloss.Width(s) <= width }
+	for c := 0; c <= nDone; c++ {
+		if s := render(c, false, false); fits(s) {
+			return s
 		}
 	}
-	return strings.Join(parts, sep)
+	if s := render(nDone, true, false); fits(s) {
+		return s
+	}
+	s := render(nDone, true, true)
+	if !fits(s) {
+		s = ansi.Truncate(s, max(width, 0), "")
+	}
+	return s
 }
 
 // Tabs desenha abas numa linha de largura width; a ativa vai em sun. Quando não cabem

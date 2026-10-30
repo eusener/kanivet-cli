@@ -68,7 +68,8 @@ func TestDashboardPendingBar(t *testing.T) {
 		t.Fatalf("a busca global deve achar jq, achou %q", m.dashList().Current())
 	}
 	m = send(m, keyRune(" "))
-	if v := m.View(); !hasAll(v, "1 to install", "0 to update", "1 to remove") {
+	// M4: contador zerado não aparece no rodapé
+	if v := m.View(); !hasAll(v, "1 to install", "1 to remove") || strings.Contains(footOf(v), "TO UPDATE") {
 		t.Fatalf("barra errada:\n%s", v)
 	}
 }
@@ -78,11 +79,11 @@ func TestDashboardUpdateAllMarksOutdated(t *testing.T) {
 		"bat": st("bat", detect.StatusOutdated), "fd": st("fd", detect.StatusOutdated), "sd": st("sd", detect.StatusInstalled),
 	})
 	m = send(m, keyRune("U"))
-	if v := m.View(); !hasAll(v, "0 to install", "2 to update", "0 to remove") {
+	if v := m.View(); !hasAll(v, "2 to update") || strings.Contains(footOf(v), "TO INSTALL") || strings.Contains(footOf(v), "TO REMOVE") {
 		t.Fatalf("U deve marcar os 2 desatualizados:\n%s", v)
 	}
 	m = send(m, keyRune("U"))
-	if v := m.View(); !hasAll(v, "0 to update") {
+	if v := m.View(); strings.Contains(footOf(v), "TO UPDATE") {
 		t.Fatalf("U de novo desfaz:\n%s", v)
 	}
 }
@@ -94,7 +95,7 @@ func TestDashboardUpdateKeyMarksCurrentOutdated(t *testing.T) {
 		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
 	}
 	m = send(m, keyRune("u"))
-	if !hasAll(m.View(), "0 to install", "1 to update") {
+	if v := m.View(); !hasAll(v, "1 to update") || strings.Contains(footOf(v), "TO INSTALL") {
 		t.Fatalf("u deve marcar bat:\n%s", m.View())
 	}
 }
@@ -188,6 +189,12 @@ func TestDashboardUpdatesMsgAppliesStatuses(t *testing.T) {
 }
 
 // hasAll diz se v tem cada texto como tag de contador (as tags saem em maiúsculas).
+// footOf devolve a última linha da tela (o rodapé), sem cores.
+func footOf(v string) string {
+	lines := strings.Split(ansi.Strip(v), "\n")
+	return lines[len(lines)-1]
+}
+
 func hasAll(v string, texts ...string) bool {
 	for _, t := range texts {
 		if !strings.Contains(v, strings.ToUpper(t)) {

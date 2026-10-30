@@ -1,9 +1,13 @@
 package tui
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
+	"fmt"
+	"sort"
 	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eusener/kanivet-cli/internal/detect"
 	"github.com/eusener/kanivet-cli/internal/i18n"
@@ -95,5 +99,148 @@ func TestCategoriesPaintedSearchAndPanel(t *testing.T) {
 			m := send(base, msgs...)
 			assertPainted(t, m.View(), 80, 24)
 		})
+	}
+}
+
+// headerText devolve o texto da linha do cabeçalho, entre as bordas da caixa.
+func headerText(v string) string {
+	row := strings.Split(ansi.Strip(v), "\n")[1]
+	if i := strings.Index(row, "┃"); i >= 0 {
+		row = row[i+len("┃"):]
+	}
+	if i := strings.LastIndex(row, "┃"); i >= 0 {
+		row = row[:i]
+	}
+	return strings.TrimSpace(row)
+}
+
+// leftover tira do texto as partes inteiras dadas e os separadores; o que sobra é
+// pedaço de palavra cortada.
+func leftover(s string, parts ...string) string {
+	sort.Slice(parts, func(i, j int) bool { return len(parts[i]) > len(parts[j]) })
+	for _, p := range parts {
+		if p != "" {
+			s = strings.ReplaceAll(s, p, " ")
+		}
+	}
+	return strings.Join(strings.Fields(strings.NewReplacer("✓", " ", "─", " ").Replace(s)), " ")
+}
+
+// Em pt-BR, com Nerd Font e 80 colunas, a trilha degrada (passos feitos viram ✓,
+// separador curto) em vez de cortar o passo ativo ou colar no N/5.
+func TestHeaderTrailFitsPtBRNerd80(t *testing.T) {
+	screens := allScreens(t)
+	i18n.SetLang(i18n.PtBR)
+	t.Cleanup(func() { i18n.SetLang(i18n.En) })
+	labels := []string{}
+	for _, k := range []string{"welcome", "profile", "items", "review", "install"} {
+		labels = append(labels, strings.ToUpper(i18n.T("tui.trail."+k)))
+	}
+	for name, step := range map[string]int{"welcome": 0, "profile": 1, "categories": 2, "review": 3, "execute": 4, "summary": 5} {
+		m := withTheme(screens[name], paperTheme())
+		m = send(m, size(80, 24))
+		t.Run(name, func(t *testing.T) {
+			h := headerText(m.View())
+			right := fmt.Sprintf("%d/5", step+1)
+			if step == 5 {
+				right = strings.ToUpper(i18n.T("tui.trail.end"))
+			} else if !strings.Contains(h, labels[step]) {
+				t.Errorf("passo ativo %q cortado: %q", labels[step], h)
+			}
+			if !strings.HasSuffix(h, " "+right) {
+				t.Errorf("%q deveria vir separado por espaço no fim: %q", right, h)
+			}
+			if rest := leftover(h, append([]string{"KANIVET", right}, labels...)...); rest != "" {
+				t.Errorf("pedaço de passo cortado %q em %q", rest, h)
+			}
+		})
+	}
+}
+
+// O cabeçalho do painel em pt-BR com externos cabe em 80 colunas largando tags
+// inteiras, nunca cortando uma no meio.
+func TestDashHeaderDropsWholeTags80(t *testing.T) {
+	statuses := map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled), "fd": st("fd", detect.StatusOutdated)}
+	for _, id := range []string{"eza", "ripgrep", "jq", "zoxide", "btop", "lazygit", "delta", "tldr", "httpie", "yq"} {
+		statuses[id] = st(id, detect.StatusExternal)
+	}
+	m := dashModel(t, statuses)
+	m.s.St.Profile = "laravel"
+	i18n.SetLang(i18n.PtBR)
+	m = withTheme(m, paperTheme())
+	m = send(m, size(80, 24))
+	m.dash.checking = false
+	h := headerText(m.View())
+	var inst, upd, ext int
+	for id := range m.s.Cat.Items {
+		switch x := m.sel.status(id).Status; {
+		case owned(x):
+			inst++
+			if x == detect.StatusOutdated {
+				upd++
+			}
+		case external(x):
+			ext++
+		}
+	}
+	if ext == 0 || upd == 0 {
+		t.Fatalf("o teste precisa de externos e atualizações: ext=%d upd=%d", ext, upd)
+	}
+	tags := []string{
+		strings.ToUpper(i18n.T("tui.dash.profile", "laravel")),
+		strings.ToUpper(i18n.T("tui.dash.hd_installed", inst)),
+		strings.ToUpper(i18n.T("tui.dash.hd_updates", upd)),
+		strings.ToUpper(i18n.T("tui.dash.hd_external", ext)),
+	}
+	if !strings.Contains(h, tags[0]) {
+		t.Errorf("o perfil deve ficar: %q", h)
+	}
+	status := ansi.Strip(m.dashStatus())
+	if rest := leftover(h, append([]string{"KANIVET", status}, tags...)...); rest != "" {
+		t.Errorf("tag cortada no meio (%q) em %q", rest, h)
+	}
+}
+
+// No painel a 80 colunas o rodapé não gasta espaço com contadores zerados e mantém os
+// atalhos principais (tab, u, p, /, ?, q).
+func TestDashFooterKeepsMainKeys80(t *testing.T) {
+	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
+	m = send(m, size(80, 24))
+	lines := strings.Split(ansi.Strip(m.View()), "\n")
+	foot := lines[len(lines)-1]
+	for _, want := range []string{"TAB ", "U ", "P ", "/ ", "? ", "Q "} {
+		if !strings.Contains(foot, want) {
+			t.Errorf("rodapé sem %q: %q", want, foot)
+		}
+	}
+	if strings.Contains(foot, "0 TO") {
+		t.Errorf("contador zerado no rodapé: %q", foot)
+	}
+	// com pendências o contador aparece
+	m = gotoCategory(t, m, "replacements")
+	for m.dashList().Current() != "bat" {
+		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
+	}
+	m = send(m, keyRune(" "))
+	lines = strings.Split(ansi.Strip(m.View()), "\n")
+	if foot = lines[len(lines)-1]; !strings.Contains(foot, "1 TO REMOVE") || !strings.Contains(foot, "TAB ") {
+		t.Errorf("rodapé com pendência: %q", foot)
+	}
+}
+
+// A boas-vindas não repete o nome do passo acima da manchete: a trilha já o mostra.
+func TestWelcomeNoRepeatedTitle(t *testing.T) {
+	for _, lang := range []i18n.Lang{i18n.En, i18n.PtBR} {
+		i18n.SetLang(lang)
+		t.Cleanup(func() { i18n.SetLang(i18n.En) })
+		m := detected(t, newModel(t, linuxSystemd))
+		for _, sz := range [][2]int{{80, 24}, {120, 40}} {
+			m = send(m, size(sz[0], sz[1]))
+			v := ansi.Strip(m.View())
+			title := strings.ToUpper(i18n.T("tui.step.welcome"))
+			if n := strings.Count(v, title); n != 1 {
+				t.Errorf("[%v %v] %q aparece %d vezes (só a trilha):\n%s", lang, sz, title, n, v)
+			}
+		}
 	}
 }

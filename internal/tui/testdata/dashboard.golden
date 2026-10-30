@@ -1,5 +1,5 @@
   ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-  │ [KANIVET]  [PROFILE: —] [2 INSTALLED] [1 UPDATES] [1 EXTERNAL]                               │
+  │ [KANIVET]  [PROFILE: —] [2 INSTALLED] [1 UPDATES] [1 EXTERNAL]     | checking for updates... │
   └──────────────────────────────────────────────────────────────────────────────────────────────┘
 
 
@@ -27,4 +27,4 @@
   │                                                   │  │                                       │
   │                                                   │  │                                       │
   └───────────────────────────────────────────────────┘  └───────────────────────────────────────┘
-  [0 TO INSTALL]  [0 TO UPDATE]  [0 TO REMOVE]  TAB category  / search  A apply  ? help  Q quit
+  SPACE mark  U update  S-U update all  P profile  TAB category  / search  A apply  ? help  Q quit
