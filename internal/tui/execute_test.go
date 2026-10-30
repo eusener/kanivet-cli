@@ -32,7 +32,7 @@ func threeSteps() *plan.Plan {
 }
 
 // okSession usa um FakeRunner que responde sucesso a tudo.
-func okSession(t *testing.T) *app.Session {
+func okSession(t testing.TB) *app.Session {
 	t.Helper()
 	c, err := catalog.Load(os.DirFS("../catalog/testdata"))
 	if err != nil {
@@ -48,7 +48,7 @@ func okSession(t *testing.T) *app.Session {
 }
 
 // executing devolve o modelo na tela de execução sem disparar a goroutine (o cmd é descartado).
-func executing(t *testing.T) (Model, tea.Cmd) {
+func executing(t testing.TB) (Model, tea.Cmd) {
 	t.Helper()
 	i18n.SetLang(i18n.En)
 	m := New(okSession(t), nil, ScreenReview)
@@ -507,4 +507,19 @@ func TestExecuteGolden(t *testing.T) {
 	m = send(m, ev("chsh:s1", state.StepDone), ev("chsh:s3", state.StepRunning), line("chsh:s3", "mise downloading 62%"))
 	now = t0.Add(72 * time.Second)
 	golden(t, "execute.golden", trimView(m.View()))
+}
+
+// BenchmarkExecuteView mede o View da execução a 120×40 no modo Paper, com o log cheio.
+func BenchmarkExecuteView(b *testing.B) {
+	m, _ := executing(b)
+	m.th = paperTheme()
+	m = send(m, size(120, 40), ev("chsh:s1", state.StepRunning))
+	for i := 0; i < logCap; i++ {
+		m = send(m, line("chsh:s1", fmt.Sprintf("downloading package %d of %d from the mirror", i, logCap)))
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = m.View()
+	}
 }

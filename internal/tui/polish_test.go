@@ -13,14 +13,15 @@ import (
 )
 
 // allScreens monta cada tela com dados representativos: execução em andamento,
-// resumo com falhas e painel com atualizações.
+// resumo com falhas e painel com atualizações. Cada tela tem a sua própria seleção
+// (nenhuma herda as marcações de outra).
 func allScreens(t *testing.T) map[string]Model {
 	t.Helper()
 	exec, _ := executing(t)
 	sum, _ := summaryModel(t)
 	welcome := detected(t, newModel(t, linuxSystemd))
-	profile := send(welcome, enter())
-	cats := send(profile, enter())
+	profile := send(detected(t, newModel(t, linuxSystemd)), enter())
+	cats := send(detected(t, newModel(t, linuxSystemd)), enter(), enter())
 	dash := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
 	dash = send(dash, updatesMsg{statuses: map[string]detect.ItemStatus{"bat": st("bat", detect.StatusOutdated)}, gen: dash.dash.gen})
 	return map[string]Model{
@@ -29,9 +30,32 @@ func allScreens(t *testing.T) map[string]Model {
 	}
 }
 
+// withTheme troca o tema do modelo e remonta o que guarda uma cópia dele (as listas do
+// wizard e do painel), para que a tela inteira seja desenhada no tema dado.
+func withTheme(m Model, th Theme) Model {
+	m.th = th
+	if m.sel != nil {
+		if m.screen == ScreenCategories {
+			m.list = m.newList()
+		}
+		if m.screen == ScreenDashboard {
+			m.dash.list = m.catList()
+			if m.dash.global != nil {
+				g := *m.dash.global
+				g.th = th
+				m.dash.global = &g
+			}
+		}
+	}
+	if m.screen == ScreenReview {
+		m = m.layoutReview()
+	}
+	return m
+}
+
 func checkScreens(t *testing.T, w, h int) {
 	for name, m := range allScreens(t) {
-		m.th = paperTheme()
+		m = withTheme(m, paperTheme())
 		m = send(m, size(w, h))
 		t.Run(name, func(t *testing.T) {
 			v := m.View()
@@ -43,7 +67,19 @@ func checkScreens(t *testing.T, w, h int) {
 			if _, label, ok := m.primaryAction(); ok && !strings.Contains(strings.ToUpper(plain), strings.ToUpper(label)) {
 				t.Errorf("sem o botão %q:\n%s", label, plain)
 			}
+			// I7: as listas (categorias, painel) também são desenhadas no tema Paper
+			if strings.ContainsAny(plain, "┌└") {
+				t.Errorf("caixa com borda fina (tema fora do Paper):\n%s", plain)
+			}
+			if name == "categories" || name == "dashboard" {
+				if n := strings.Count(plain, "┏"); n < 3 {
+					t.Errorf("esperava cabeçalho + 2 caixas Paper, achei %d:\n%s", n, plain)
+				}
+			}
 			lines := strings.Split(plain, "\n")
+			if name == "welcome" && !strings.Contains(lines[len(lines)-1], "0 TO INSTALL") {
+				t.Errorf("a boas-vindas não deve herdar a seleção das outras telas: %q", lines[len(lines)-1])
+			}
 			last := ""
 			for _, l := range lines {
 				if strings.TrimSpace(l) != "" {
@@ -104,7 +140,7 @@ func TestPlainModeHasNoBackground(t *testing.T) {
 	}
 	for tn, th := range themes {
 		for name, m := range allScreens(t) {
-			m.th = th
+			m = withTheme(m, th)
 			m = send(m, size(80, 24))
 			for _, extra := range []string{"", "?"} {
 				if extra == "?" {
@@ -130,7 +166,7 @@ func TestHelpOverlayPainted(t *testing.T) {
 			if name == "execute" { // q e ? não valem no meio do run
 				continue
 			}
-			m.th = paperTheme()
+			m = withTheme(m, paperTheme())
 			m = send(m, size(sz[0], sz[1]), keyRune("?"))
 			t.Run(name, func(t *testing.T) {
 				v := m.View()
