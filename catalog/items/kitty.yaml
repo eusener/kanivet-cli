@@ -29,3 +29,11 @@ configs:
     files:
       - template: configs/kitty/kitty.conf
         target: "{{.XDG_CONFIG}}/kitty/kitty.conf"
+  - id: kitty-theme
+    description: {en: "Afterglow color theme, kept fixed in both light and dark system appearance", pt-BR: "Tema de cores Afterglow, fixo tanto no modo claro quanto no escuro do sistema"}
+    default: true
+    files:
+      - template: configs/kitty/theme.auto.conf
+        target: "{{.XDG_CONFIG}}/kitty/dark-theme.auto.conf"
+      - template: configs/kitty/theme.auto.conf
+        target: "{{.XDG_CONFIG}}/kitty/light-theme.auto.conf"

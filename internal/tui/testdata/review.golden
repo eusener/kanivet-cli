@@ -1,5 +1,5 @@
 Review the plan
-31 install · 0 update · 0 remove · 5 configure · 0 skip
+31 install · 0 update · 0 remove · 7 configure · 0 skip
 
 > Install:                                                                      
     install:mise  (script)  — dependency of starship                            
@@ -20,5 +20,5 @@ Review the plan
         $ mise use -g aqua:junegunn/fzf@latest                                  
     install:eza  (mise)                                                         
         $ mise use -g aqua:eza-community/eza@latest                             
-27 to install · 4 configs
+27 to install · 6 configs
 ↑/k up • ↓/j down • d diff • enter confirm • esc back • ? help • q quit

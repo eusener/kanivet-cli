@@ -122,8 +122,11 @@ func (l ItemList) Update(msg tea.Msg) (ItemList, tea.Cmd) {
 	case key.Matches(km, keyFocus):
 		l.panel = !l.panel
 	case key.Matches(km, keyConfig):
+		// a primeira tecla só foca o painel; as seguintes avançam entre as configs
 		if c := len(l.configs()); c > 0 {
-			l.cfgIdx = (l.cfgIdx + 1) % c
+			if l.panel {
+				l.cfgIdx = (l.cfgIdx + 1) % c
+			}
 			l.panel = true
 		}
 	case key.Matches(km, l.keys.Up):
