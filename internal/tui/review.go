@@ -405,16 +405,7 @@ func (m Model) reviewLines(height int) []string {
 		dw := m.diffDialogWidth()
 		in := m.th.BoxInner(dw)
 		body := m.th.Ink(colInkMuted).Render(padTo(" "+shorten(r.diffPath, max(in-2, 5)), in)) + "\n" + r.diff.View()
-		dialog := strings.Split(m.th.Box(body, dw, BoxOpts{Title: i18n.T("tui.review.diff_title"), Flush: true}), "\n")
-		top := max((height-len(lines)-len(dialog))/2, 0)
-		for i := 0; i < top; i++ {
-			lines = append(lines, "")
-		}
-		left := m.th.S().Render(strings.Repeat(" ", (cw-dw)/2))
-		for _, l := range dialog {
-			lines = append(lines, left+l)
-		}
-		return lines
+		return append(lines, m.centerBox(body, i18n.T("tui.review.diff_title"), dw, height, len(lines), true)...)
 	case r.loading:
 		return append(lines, box(i18n.T("tui.review.loading"), BoxOpts{})...)
 	case r.err != nil:

@@ -265,7 +265,7 @@ func (m Model) View() string {
 	}
 	bh := m.bodyHeight()
 	// nas telas de itens e de revisão o título (com as tags) é a primeira linha do próprio corpo
-	ownTitle := (m.screen == ScreenCategories || m.screen == ScreenReview || m.screen == ScreenExecute || (m.screen == ScreenSummary && m.sum.panel == panelNone) || m.screen == ScreenDashboard) && !m.showHelp
+	ownTitle := (m.screen == ScreenCategories || m.screen == ScreenReview || m.screen == ScreenExecute || (m.screen == ScreenSummary && m.sum.panel == panelNone) || m.screen == ScreenDashboard) && !m.showHelp && !m.confirmQuit
 	if ownTitle {
 		bh += 1 + m.respiro()/2
 	}
@@ -384,9 +384,6 @@ func (m Model) keyCap(k string) string {
 // footer desenha a ação principal à esquerda e os demais atalhos em ink-muted, com a
 // tecla em maiúsculas. Confirmações pendentes substituem o rodapé.
 func (m Model) footer() string {
-	if m.confirmQuit {
-		return m.th.Warn.Render(i18n.T("tui.quit_confirm"))
-	}
 	if m.screen == ScreenSummary && m.sum.confirm {
 		// o alvo encolhe para o [y/N] nunca ser cortado
 		room := m.contentWidth() - lipgloss.Width(i18n.T("tui.summary.force_confirm", ""))
@@ -488,12 +485,15 @@ func (m Model) title() string {
 }
 
 func (m Model) bodyLines(height int) []string {
+	if m.confirmQuit {
+		return m.overlay(i18n.T("tui.quit_confirm"), i18n.T("tui.dialog.quit_title"))
+	}
 	if m.showHelp {
-		all := []string{m.th.Title.Render(i18n.T("tui.help.title"))}
+		var rows []string
 		for _, b := range m.bindings() {
-			all = append(all, "  "+b.Help().Key+"  "+b.Help().Desc)
+			rows = append(rows, m.th.Ink(colInkStrong).Bold(true).Render(padTo(m.keyCap(b.Help().Key), 10))+" "+b.Help().Desc)
 		}
-		return all
+		return m.overlay(strings.Join(rows, "\n"), i18n.T("tui.help.title"))
 	}
 	switch m.screen {
 	case ScreenWelcome:
@@ -537,4 +537,38 @@ func (m Model) bindings() []key.Binding {
 		return m.dashBindings()
 	}
 	return []key.Binding{m.keys.Back, m.keys.Quit}
+}
+
+// dialogWidth é a largura total das caixas centralizadas (ajuda, confirmação).
+func (m Model) dialogWidth() int { return min(m.contentWidth(), 78) }
+
+// centerBox desenha body numa caixa de largura dw centralizada na horizontal e, na
+// vertical, numa área de height linhas da qual skip já foram usadas. Devolve o espaço
+// acima da caixa e as linhas da caixa com o recuo à esquerda.
+func (m Model) centerBox(body, title string, dw, height, skip int, flush bool) []string {
+	dialog := strings.Split(m.th.Box(body, dw, BoxOpts{Title: title, Flush: flush}), "\n")
+	top := max((height-skip-len(dialog))/2, 0)
+	out := make([]string, top, top+len(dialog))
+	left := m.th.S().Render(strings.Repeat(" ", max((m.contentWidth()-dw)/2, 0)))
+	for _, l := range dialog {
+		out = append(out, left+l)
+	}
+	return out
+}
+
+// overlay devolve o corpo da tela ocupado por uma caixa centralizada com o título
+// dado; cabeçalho e rodapé continuam os da tela. O que não cabe é cortado com
+// reticências.
+func (m Model) overlay(body string, title string) []string {
+	h := m.bodyHeight()
+	dw := m.dialogWidth()
+	maxRows := max(h-m.th.BoxOverhead(), 1)
+	var rows []string
+	for _, l := range strings.Split(body, "\n") {
+		rows = append(rows, ansi.Truncate(l, m.th.BoxInner(dw)-2, "…"))
+	}
+	if len(rows) > maxRows {
+		rows = append(rows[:maxRows-1], "…")
+	}
+	return m.centerBox(strings.Join(rows, "\n"), title, dw, h, 0, false)
 }
