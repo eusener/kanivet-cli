@@ -7,9 +7,11 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/backend"
 	"github.com/eusener/kanivet-cli/internal/detect"
 	"github.com/eusener/kanivet-cli/internal/i18n"
+	"github.com/eusener/kanivet-cli/internal/plan"
 	"github.com/eusener/kanivet-cli/internal/platform"
 )
 
@@ -23,15 +25,13 @@ func osName(p platform.Platform) string {
 	return "Linux"
 }
 
-// sudoCount conta os itens marcados cujo método escolhido pede sudo.
+// sudoCount conta os itens da base comum (o perfil blank, que todo perfil inclui)
+// cujo método escolhido, ou o próprio item, pede sudo.
 func (m Model) sudoCount() int {
-	if m.sel == nil {
-		return 0
-	}
 	n := 0
-	for id := range m.sel.marked {
+	for id := range app.SelectedFor(m.s.Cat, m.s.P, plan.Selection{Profile: blankProfile}) {
 		it := m.s.Cat.Items[id]
-		if it == nil || !m.sel.marked[id] {
+		if it == nil {
 			continue
 		}
 		if meth, _, err := backend.Choose(it, m.s.P); err == nil && (it.NeedsSudo || meth.NeedsSudo) {

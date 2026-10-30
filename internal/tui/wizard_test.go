@@ -300,14 +300,29 @@ func TestWelcomeHeadline(t *testing.T) {
 	if !strings.Contains(v, "SEU TERMINAL DE DEV") || !strings.Contains(v, "MONTADO EM MINUTOS") {
 		t.Errorf("faltou o título grande:\n%s", v)
 	}
-	if m.sudoCount() != 0 || strings.Contains(v, "SUDO EM") {
-		t.Errorf("sem seleção não há tag de sudo:\n%s", v)
+	if strings.Contains(v, "SUDO EM") {
+		t.Errorf("base sem sudo não leva a tag:\n%s", v)
 	}
-	m.sel.Toggle("lerd")
-	if m.sudoCount() < 1 {
-		t.Fatalf("lerd pede sudo no Linux, sudoCount = %d", m.sudoCount())
+}
+
+func TestWelcomeSudoTagFromCommonBase(t *testing.T) {
+	m := detected(t, newModel(t, linuxSystemd))
+	if m.sudoCount() != 0 {
+		t.Fatalf("base blank do catálogo não deveria pedir sudo no Linux, sudoCount = %d", m.sudoCount())
 	}
-	if v := m.View(); !strings.Contains(v, fmt.Sprintf("SUDO EM %d ITENS", m.sudoCount())) {
+	// dois itens da base passam a pedir sudo: um pelo item, outro por um método
+	m.s.Cat.Items["bat"].NeedsSudo = true
+	for i := range m.s.Cat.Items["fd"].Install {
+		m.s.Cat.Items["fd"].Install[i].NeedsSudo = true
+	}
+	// item fora da base não conta
+	m.s.Cat.Items["node"].NeedsSudo = true
+	if got := m.sudoCount(); got != 2 {
+		t.Fatalf("sudoCount = %d, want 2", got)
+	}
+	i18n.SetLang(i18n.PtBR)
+	defer i18n.SetLang(i18n.En)
+	if v := m.View(); !strings.Contains(v, "SUDO EM 2 ITENS") {
 		t.Errorf("faltou a tag de sudo:\n%s", v)
 	}
 }
