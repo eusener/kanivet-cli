@@ -254,7 +254,8 @@ func TestDetailKeepsConfigsAndNoteAt80x24(t *testing.T) {
 		}
 	}
 	// Move the config cursor to the last config: it must stay visible.
-	l = press(l, "c", "c", "c", "c") // wraps back to index 0 after 4 presses
+	l = press(l, "c")                // focuses the panel on index 0
+	l = press(l, "c", "c", "c", "c") // wraps back to index 0
 	l = press(l, "c", "c", "c")      // index 3
 	v := l.View(80, h)
 	checkWidth(v)

@@ -21,3 +21,10 @@ post_install:
       if command -v "$b" >/dev/null 2>&1; then herdr integration install "$a" || true; fi
     done
     herdr server reload-config >/dev/null 2>&1 || true
+configs:
+  - id: herdr-radar-config
+    description: {en: "herdr-radar keeps the vesper theme fixed instead of following the system appearance", pt-BR: "herdr-radar mantém o tema vesper fixo, sem seguir o modo claro/escuro do sistema"}
+    default: true
+    files:
+      - template: configs/herdr/plugins/hhdebb.herdr-radar/config.toml
+        target: "{{.XDG_CONFIG}}/herdr/plugins/config/hhdebb.herdr-radar/config.toml"

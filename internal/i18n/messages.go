@@ -285,7 +285,7 @@ var messages = map[Lang]map[string]string{
 		"reason.command":             "requer %s",
 		"cli.update":                 "Atualiza os itens instalados pelo kanivet-cli",
 		"cli.uninstall":              "Desinstala itens e desfaz as configs",
-		"cli.restore":                "Lista execuções com backup ou restaura os arquivos de uma",
+		"cli.restore":                "Lista execuções com backup ou restaura os arquivos de uma execução",
 		"cli.catalog":                "Ferramentas do catálogo",
 		"cli.catalog_lint":           "Valida o catálogo",
 		"cli.doctor":                 "Diagnostica o ambiente",

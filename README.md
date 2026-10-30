@@ -1,244 +1,140 @@
-# terminal-setup
+# kanivet-cli
 
-Script que instala e configura o ambiente de terminal **kitty + herdr** em uma
-máquina nova, com a mesma configuração desta: plugins do herdr, integrações com
-agentes de IA, fontes (JetBrainsMono Nerd Font e a fonte de ícones do herdr) e um
-conjunto de [ferramentas CLI](#ferramentas-cli) via Homebrew.
+Instala e gerencia um ambiente de desenvolvimento focado em terminal: shell,
+ferramentas CLI modernas, git, Neovim (LazyVim e outras distribuições),
+linguagens, ambiente PHP local (lerd ou Flock), Python/dados, containers e o
+terminal **kitty + herdr**. Tudo vem de um catálogo declarativo (`catalog/`) e de
+perfis embutidos, com uma TUI para escolher o que instalar e uma CLI completa
+para scripts.
 
-Funciona no **macOS** e no **Linux** (x86_64 e arm64). Precisa só do Python 3.8+,
-sem pacotes extras.
+Funciona no **macOS** e no **Linux** (Debian/Ubuntu, Fedora, Arch e openSUSE;
+x86_64 e arm64). É um binário único em Go, sem dependências em tempo de
+execução.
 
 ## Início rápido
 
 ```sh
-# 1. Copie a pasta terminal-setup para a máquina nova (git clone, scp, pendrive...)
-cd terminal-setup
-
-# 2. Veja o que vai ser feito, sem alterar nada
-python3 setup.py install --dry-run
-
-# 3. Instale e aplique a configuração
-python3 setup.py install
+go build -o kanivet-cli ./cmd/kanivet-cli   # precisa do Go 1.24+
+./kanivet-cli                               # abre a TUI
 ```
 
-No fim, **feche e abra o kitty de novo** e rode `herdr`.
+Na primeira vez abre o wizard: boas-vindas, perfil, categorias, revisão,
+execução e resumo. Nada é instalado antes da tela de revisão.
 
-## kanivet-cli (em desenvolvimento)
+## Perfis
 
-Este repositório está virando o **kanivet-cli**: um binário único em Go que
-instala e gerencia um ambiente de desenvolvimento focado em terminal, a partir de
-um catálogo declarativo (`catalog/`) e de perfis embutidos. O `setup.py` continua
-funcionando até a v1, que inclui a interface TUI. Design e plano:
-`docs/superpowers/specs/2026-10-29-kanivet-cli-design.md` e
-`docs/superpowers/plans/2026-10-29-kanivet-cli-fase1-motor-cli.md`.
+| Perfil | O que traz |
+|---|---|
+| `blank` | Só a base: shell, ferramentas CLI modernas, git, LazyVim e o terminal |
+| `web` | Node, pnpm e Bun, ferramentas de HTTP e tarefas, LazyVim para TypeScript |
+| `laravel` | PHP via lerd (Linux) ou Flock (macOS), Composer, Node e LazyVim para PHP |
+| `ml` | Python, uv, Ruff, JupyterLab e CUDA quando há GPU NVIDIA |
+| `backend` | Rust, Go, .NET, Java, Podman e ferramentas de Kubernetes |
+
+Todos incluem a base do `blank`. Depois de escolher o perfil, cada categoria
+pode ser ajustada item a item. Em categorias exclusivas (distribuição do
+Neovim, lerd ou Flock, Docker ou Podman) só um item fica marcado.
+
+## CLI
 
 ```sh
-go build -o kanivet-cli ./cmd/kanivet-cli
-
-./kanivet-cli profiles                       # laravel, web, ml, backend, blank
-./kanivet-cli status                         # estado de cada item nesta máquina
-./kanivet-cli plan --profile laravel         # o que seria feito, sem alterar nada
-./kanivet-cli install --profile laravel      # mostra o plano, pede confirmação e instala
-./kanivet-cli install lazygit --yes          # itens avulsos, sem perguntar
-./kanivet-cli install --profile web --add rust --remove bun --version node=24
-./kanivet-cli update                         # atualiza o que o kanivet-cli instalou
-./kanivet-cli uninstall bat                  # desinstala e desfaz as configs do item
-./kanivet-cli restore                        # lista execuções com backup
-./kanivet-cli doctor                         # diagnóstico
-./kanivet-cli catalog lint                   # valida o catálogo
+kanivet-cli profiles                       # perfis embutidos
+kanivet-cli list                           # itens do catálogo
+kanivet-cli status                         # estado de cada item nesta máquina
+kanivet-cli plan --profile laravel         # o que seria feito, sem alterar nada
+kanivet-cli install --profile laravel      # mostra o plano, pede confirmação e instala
+kanivet-cli install lazygit --yes          # itens avulsos, sem perguntar
+kanivet-cli install --profile web --add rust --remove bun --version node=24
+kanivet-cli install --resume               # retoma uma execução interrompida
+kanivet-cli update                         # atualiza o que o kanivet-cli instalou
+kanivet-cli uninstall bat                  # desinstala e desfaz as configs do item
+kanivet-cli restore                        # lista execuções com backup
+kanivet-cli doctor                         # diagnóstico
+kanivet-cli catalog lint                   # valida o catálogo
 ```
 
-Regras principais:
+## Regras principais
 
 - **Nada muda sem revisão.** O plano mostra cada comando e cada arquivo. Um
   arquivo que já existe aparece marcado com `(backup)` e é copiado para
-  `~/.local/state/kanivet-cli/backups/<execução>/` antes de ser alterado.
+  `~/.local/state/kanivet-cli/backups/<execução>/` antes de ser alterado;
+  `kanivet-cli restore <execução>` desfaz.
+- **Configs opinativas são opcionais.** Cada config (kitty, herdr, LazyVim...)
+  pode ser desmarcada na revisão ou no dashboard.
 - **Sem sudo à toa.** No macOS as ferramentas vêm do Homebrew; no Linux, do mise
-  (binários no `~`). Só os itens marcados na seção "Precisa de sudo" pedem a
-  senha, uma vez.
+  (binários no `~`). Só os itens da seção "Precisa de sudo" pedem a senha, uma
+  vez.
+- **Linguagens pelo mise**, com as exceções oficiais: Rust pelo rustup e PHP pelo
+  lerd/Flock (ou Homebrew no macOS e static-php-cli no Linux, se nenhum dos dois
+  for escolhido).
 - **Seleção aditiva.** `install` nunca remove nada; `--remove` só tira o item da
   seleção. Remover é sempre `uninstall`.
 - **Retomável.** Uma falha não derruba os outros itens. Se a execução for
-  interrompida, rodar `install` de novo oferece retomar de onde parou.
-- **Shell.** Aliases e hooks vão para `~/.config/kanivet-cli/shell/init.{zsh,bash}`,
-  carregados por um único bloco `# >>> kanivet-cli >>>` no fim do rc.
+  interrompida, rodar `kanivet-cli` ou `install` de novo oferece retomar de onde
+  parou.
+- **Shell.** zsh e bash. Aliases e hooks vão para
+  `~/.config/kanivet-cli/shell/init.{zsh,bash}`, carregados por um único bloco
+  `# >>> kanivet-cli >>>` no fim do rc. `install --zsh` também troca o shell
+  padrão para o zsh.
 - **Idioma.** Inglês por padrão; pt-BR quando `LANG`/`LC_ALL` começa com `pt`.
 
-**Interface.** `kanivet-cli` sem subcomando, num terminal (stdin e stdout TTY),
-abre a TUI: o wizard na primeira vez (boas-vindas, perfil, categorias, revisão,
-execução e resumo) e o dashboard depois que já há itens ou perfil no estado. Se
-houver uma execução inacabada, a TUI abre direto na revisão dos passos
-pendentes: `enter` retoma e `esc` descarta (o journal não é apagado, o próximo
-run o substitui). Sem TTY, imprime a ajuda. Atalhos: setas ou `hjkl` movem,
-`space` marca, `enter` confirma ou avança, `esc` volta, `/` busca, `?` mostra a
-ajuda, `q` sai (confirma se houver mudanças pendentes) e `ctrl+c` sai ou, durante
-a execução, interrompe. Na revisão, `d` mostra o diff do arquivo; no dashboard,
-`a` aplica, `u`/`U` atualizam, `p` troca de perfil; na execução, `f` volta a
-seguir o log. O rodapé sempre mostra os atalhos da tela. Mínimo de 80×24;
-`NO_COLOR` desliga as cores.
+## Interface
 
-Teste manual num terminal real (antes de um release):
+`kanivet-cli` sem subcomando, num terminal (stdin e stdout TTY), abre a TUI: o
+wizard na primeira vez e o dashboard depois que já há itens ou perfil no estado.
+Se houver uma execução inacabada, a TUI abre direto na revisão dos passos
+pendentes: `enter` retoma e `esc` descarta. Sem TTY, imprime a ajuda.
 
-1. wizard completo no perfil blank;
-2. senha do sudo pedida e aceita no meio da execução;
-3. `ctrl+c` durante um `brew install` e depois `kanivet-cli` oferecendo a
-   retomada;
-4. resize abaixo de 80×24;
-5. `NO_COLOR=1 kanivet-cli`.
-
-Testes: `go test ./...` e, com Docker, `test/integration/run.sh <ubuntu|debian|fedora|arch|opensuse> [perfil]`.
-
-## Comandos
-
-| Comando | O que faz |
+| Tecla | Ação |
 |---|---|
-| `python3 setup.py install` | Instala tudo que falta e aplica as configs de `configs/` |
-| `python3 setup.py` | Mesmo que `install` |
-| `python3 setup.py install --dry-run` | Só mostra os passos e comandos, sem executar |
-| `python3 setup.py install --latest` | Instala os plugins na versão mais recente, em vez do commit salvo |
-| `python3 setup.py install --no-cli-tools` | Pula o Homebrew e as ferramentas CLI |
-| `python3 setup.py snapshot` | Copia a configuração **desta** máquina para `configs/` |
+| setas ou `hjkl` | mover |
+| `space` | marcar/desmarcar |
+| `enter` | confirmar ou avançar |
+| `esc` | voltar |
+| `/` | buscar |
+| `?` | ajuda |
+| `q` | sair (confirma se houver mudanças pendentes) |
+| `ctrl+c` | sair ou, durante a execução, interromper |
+| `d` (revisão) | diff do arquivo |
+| `a`, `u`/`U`, `p` (dashboard) | aplicar, atualizar, trocar de perfil |
+| `f` (execução) | voltar a seguir o log |
 
-O `install` pode ser rodado várias vezes: o que já estiver instalado é pulado.
+O rodapé sempre mostra os atalhos da tela. Mínimo de 80×24; `NO_COLOR` desliga
+as cores. Os ícones usam Nerd Font (instalada pelo item `nerd-font-jetbrains`),
+com fallback ASCII.
 
-## O que o `install` faz
+## Ferramentas do shell
 
-1. **Detecta o sistema**: macOS ou Linux, e a arquitetura.
-2. **Ferramentas básicas**: confere `curl`, `git`, `tar` e `unzip`.
-   - No Linux, instala o que faltar (e o `fontconfig`) com `apt`, `dnf`,
-     `pacman` ou `zypper`. Pode pedir a senha do `sudo`.
-   - No macOS, se faltar o `git`, abre a instalação das Command Line Tools do
-     Xcode. Termine essa instalação e rode o script de novo.
-3. **go (>= 1.24) e node (>= 18)**: os plugins precisam deles para compilar e
-   rodar. Se faltarem ou estiverem antigos, baixa as versões oficiais em
-   `~/.local/share/terminal-setup/` e adiciona ao `PATH` no `~/.zshrc` ou
-   `~/.bashrc`.
-4. **JetBrainsMono Nerd Font**: baixa do repositório oficial do nerd-fonts e
-   instala em `~/Library/Fonts` (macOS) ou `~/.local/share/fonts` (Linux).
-5. **kitty**: usa o instalador oficial. No Linux, também cria os links `kitty` e
-   `kitten` em `~/.local/bin` e o atalho no menu de aplicativos.
-6. **herdr**: usa o instalador oficial (`herdr.dev/install.sh`).
-7. **Plugins do herdr**: instala os plugins listados em `configs/manifest.json`,
-   cada um no commit salvo, e respeita se estava ativado ou desativado.
-8. **Configs**: copia os arquivos de `configs/` para `~/.config/kitty` e
-   `~/.config/herdr`. Antes, faz backup de cada arquivo existente com o sufixo
-   `.bak-setup-AAAAMMDD-HHMMSS`.
-9. **Fonte de ícones do herdr**: instala a fonte do plugin herdr-radar e mapeia os
-   ícones no kitty.
-10. **Integrações**: roda `herdr integration install` para cada agente da lista
-    (claude, codex, opencode...), mas **só para os agentes instalados** na
-    máquina.
-11. Recarrega a configuração do herdr, se ele estiver rodando.
-12. **Ferramentas CLI** (pule com `--no-cli-tools`):
-    - instala o Homebrew, se faltar (macOS e Linux; pode pedir a senha do `sudo`);
-    - instala com `brew` as [ferramentas](#ferramentas-cli) que ainda não estão no
-      `PATH`;
-    - configura o `delta` como pager do git, **só se** o `core.pager` ainda não
-      estiver definido;
-    - copia `shell/cli-tools.sh` para `~/.config/terminal-setup/` e adiciona uma
-      linha no fim do `~/.zshrc` (ou `~/.bashrc`) para carregá-lo.
-
-## Estrutura
-
-```
-terminal-setup/
-├── setup.py                 # o script
-├── README.md
-├── shell/
-│   └── cli-tools.sh         # aliases e hooks das ferramentas CLI
-└── configs/                 # gerado pelo "snapshot"
-    ├── manifest.json        # plugins (repo + commit) e integrações
-    ├── kitty/
-    │   ├── kitty.conf
-    │   ├── dark-theme.auto.conf
-    │   └── light-theme.auto.conf
-    └── herdr/
-        ├── config.toml
-        └── plugins-config/  # configs individuais de cada plugin
-```
-
-Nos arquivos de `configs/`, o caminho da sua pasta pessoal fica como `{{HOME}}`.
-Na instalação, ele é trocado pela pasta pessoal da máquina de destino, então
-funciona com qualquer nome de usuário.
-
-## Atualizar a configuração salva
-
-Mudou algo no kitty ou no herdr e quer levar para as outras máquinas? Rode na
-máquina de origem:
-
-```sh
-python3 setup.py snapshot
-```
-
-Isso **apaga e recria** a pasta `configs/` a partir de:
-
-- `~/.config/kitty/kitty.conf` e os temas `*.auto.conf`
-- `~/.config/herdr/config.toml` e `~/.config/herdr/plugins/config/`
-- a lista de plugins instalados (`~/.config/herdr/plugins.json`)
-- as integrações ativas (`herdr integration status`)
-
-Arquivos de backup (`.bak*`), logs e sockets ficam de fora.
-
-## Configuração incluída
-
-Resumo do que a configuração atual aplica:
-
-**kitty**
-- Fonte JetBrainsMono Nerd Font Mono, tamanho 14
-- Fundo com transparência (0.85) e desfoque
-- Barra de título com a cor do fundo e o título da janela (estilo iTerm2)
-- Abas no topo, estilo `separator`, com margem `8 8`
-- Nova aba (`cmd+t`), janela (`cmd+enter`) e janela do sistema (`cmd+n`) abrem no
-  diretório atual (no Linux: `ctrl+shift+t`, `ctrl+shift+enter`, `ctrl+shift+n`)
-
-**herdr**
-- Tema `vesper`
-- Notificações dentro do próprio herdr, no canto superior direito
-- Plugins: herdr-bar, herdr-auto-title, herdr-radar, herdr-reviewr
-
-## Ferramentas CLI
-
-| Categoria | Ferramentas |
-|---|---|
-| Substitutos | `eza`, `bat`, `fd`, `ripgrep`, `zoxide`, `dust`, `duf`, `btop`, `procs`, `sd` |
-| Navegação e busca | `fzf`, `atuin`, `yazi`, `television` |
-| Git | `lazygit`, `delta`, `gh`, `jj` |
-| Shell e prompt | `starship`, `zsh-autosuggestions`, `zsh-syntax-highlighting`, `direnv`, `mise` |
-| Dados, APIs e dev | `jq`, `yq`, `xh`, `just`, `hyperfine`, `watchexec`, `tldr` (tlrc), `uv`, `lazydocker`, `k9s` |
-
-O `shell/cli-tools.sh` só ativa o que estiver instalado:
+Com os itens instalados, o init do shell ativa:
 
 | Comando / atalho | O que faz |
 |---|---|
 | `ls`, `ll`, `lt` | `eza` com ícones; `ll` com status do git, `lt` em árvore |
-| `cat` | `bat` sem paginação; o `man` também usa o `bat` |
-| `top` | `btop` |
+| `cat` | `bat` sem paginação |
 | `z <pasta>` / `zi` | pula para pastas frequentes (zoxide) |
 | `ctrl+r` | histórico com o atuin (a seta para cima continua normal) |
 | `ctrl+t` / `alt+c` | fzf: arquivos (preview com bat) / entrar numa pasta |
 | `y` | abre o yazi e, ao sair, fica na pasta onde você parou |
 | `lg` / `lzd` | lazygit / lazydocker |
-| — | hooks do `direnv` e do `mise`; `starship` (se o rc ainda não iniciou) e plugins do zsh |
 
 `grep`, `find`, `sed`, `du`, `df` e `ps` **não** ganham alias, porque as
-ferramentas novas usam flags diferentes e quebrariam scripts e o costume. Use
-`rg`, `fd`, `sd`, `dust`, `duf` e `procs` direto.
+ferramentas novas usam flags diferentes e quebrariam scripts. Use `rg`, `fd`,
+`sd`, `dust`, `duf` e `procs` direto.
 
-Para mudar algo, edite `shell/cli-tools.sh` e rode o `install` de novo: a cópia em
-`~/.config/terminal-setup/` é sobrescrita a cada execução.
+## kitty + herdr
 
-### Atalhos úteis
+As configs opinativas do terminal (todas opcionais e com backup):
 
-| Ação | kitty (macOS) | herdr |
-|---|---|---|
-| Próxima aba | `cmd+shift+]` ou `ctrl+tab` | `prefix+n` |
-| Aba anterior | `cmd+shift+[` ou `ctrl+shift+tab` | `prefix+p` |
-| Ir para a aba N | `cmd+1` … `cmd+9` | `prefix+1` … `prefix+9` |
-| Nova aba | `cmd+t` | `prefix+c` |
-| Recarregar config | `ctrl+cmd+,` | `prefix+shift+r` |
+- **kitty**: JetBrainsMono Nerd Font 14, abas no topo, fundo translúcido com
+  desfoque, tema Afterglow fixo (claro e escuro), e abas/janelas novas no
+  diretório atual (`cmd+t`, `cmd+enter`, `cmd+n`; no Linux `ctrl+shift+t`,
+  `ctrl+shift+enter`, `ctrl+shift+n`).
+- **herdr**: tema vesper, notificações no próprio herdr, atalhos dos plugins e
+  lazygit em popup. Plugins herdr-bar, herdr-auto-title, herdr-radar e
+  herdr-reviewr, cada um num commit fixo, mais as integrações dos agentes de IA
+  encontrados no `PATH`.
 
-O `prefix` do herdr é `ctrl+b`. Atalhos personalizados do herdr incluídos na
-configuração:
+O `prefix` do herdr é `ctrl+b`. Atalhos incluídos na config:
 
 | Ação | Atalho |
 |---|---|
@@ -256,36 +152,61 @@ configuração:
 | Radar: alternar ativos / recentes | `prefix+a` |
 | Radar: configurações | `prefix+,` |
 
-## Desfazer
+## Estrutura
 
-Cada arquivo substituído ganha uma cópia ao lado, por exemplo:
-
-```sh
-ls ~/.config/kitty/*.bak-setup-*
-# restaurar:
-cp ~/.config/kitty/kitty.conf.bak-setup-20261029-095840 ~/.config/kitty/kitty.conf
+```
+cmd/kanivet-cli/     # main
+catalog/             # catálogo embutido no binário
+├── catalog.yaml
+├── categories/      # uma categoria por arquivo (exclusive: true/false)
+├── items/           # um item por arquivo: métodos de instalação, detecção, configs, shell
+├── profiles/        # perfis embutidos
+└── configs/         # templates das configs opinativas
+internal/
+├── platform/        # detecção de SO, distro, gerenciador de pacotes, shell
+├── catalog/         # tipos, carga e lint do catálogo
+├── backend/         # brew, mise, rustup, system, script, git, font, herdr-plugin
+├── detect/          # estado de cada item e atualizações disponíveis
+├── plan/            # seleção → passos ordenados (dependências, conflitos, sudo)
+├── executor/        # execução paralela, journal, retomada
+├── configs/         # aplicação das configs com backup e restauração
+├── shellinit/       # geração do init do zsh/bash
+├── state/           # estado, journal e backups em ~/.local/state/kanivet-cli
+├── app/             # sessão compartilhada pela CLI e pela TUI
+├── cli/             # comandos (cobra)
+└── tui/             # interface (Bubble Tea)
+test/integration/    # instalação real em containers
+docs/superpowers/    # design e planos
 ```
 
-Para desligar as ferramentas CLI no shell, apague o bloco
-`# >>> terminal-setup cli-tools >>>` do `~/.zshrc`. Se o script configurou o delta,
-desfaça com `git config --global --unset core.pager` (e o mesmo para
-`interactive.diffFilter`, `delta.navigate` e `merge.conflictStyle`).
+Para adicionar uma ferramenta, crie `catalog/items/<id>.yaml` (use um item
+parecido como modelo) e rode `kanivet-cli catalog lint`.
 
-O script não remove o kitty, o herdr, os plugins, as fontes nem as ferramentas CLI. Para tirar um
-plugin, use `herdr plugin uninstall <id>`.
+## Testes
+
+```sh
+go test -race ./...
+test/integration/run.sh <ubuntu|debian|fedora|arch|opensuse> [perfil]   # precisa de Docker
+```
+
+Teste manual num terminal real (antes de um release):
+
+1. wizard completo no perfil blank;
+2. senha do sudo pedida e aceita no meio da execução;
+3. `ctrl+c` durante um `brew install` e depois `kanivet-cli` oferecendo a
+   retomada;
+4. resize abaixo de 80×24;
+5. `NO_COLOR=1 kanivet-cli`.
 
 ## Problemas comuns
 
-- **`herdr não ficou no PATH`**: abra um terminal novo (para carregar o
-  `~/.local/bin` no `PATH`) e rode o script de novo.
 - **Ícones aparecem como quadrados**: feche e abra o kitty. Se continuar, rode
   `herdr plugin action invoke hhdebb.herdr-radar.install-font`.
-- **A barra de título não mudou de cor**: o kitty precisa ser reiniciado; só
-  recarregar a config não basta para essa opção.
-- **Um plugin falhou ao instalar**: o script avisa e continua. Veja o log com
-  `herdr plugin log <id>` e tente `python3 setup.py install --latest`.
-- **Uma ferramenta CLI não instalou**: o script avisa quais falharam e continua.
-  Tente `brew install <fórmula>` para ver o erro. No Linux arm64, algumas
-  fórmulas podem não ter binário pronto e precisar compilar.
-- **Uma integração foi pulada**: o agente não foi encontrado no `PATH`. Instale o
-  agente e rode o script de novo.
+- **A barra de título do kitty não mudou de cor**: o kitty precisa ser
+  reiniciado; só recarregar a config não basta para essa opção.
+- **Um item falhou**: os outros continuam. O resumo mostra o log de cada passo;
+  os logs ficam em `~/.local/state/kanivet-cli/runs/<execução>/`. Corrija a causa
+  e rode `kanivet-cli install --resume`.
+- **Uma integração do herdr foi pulada**: o agente não foi encontrado no `PATH`.
+  Instale o agente e rode `kanivet-cli install herdr-plugins` de novo.
+- **Algo estranho no ambiente**: `kanivet-cli doctor`.
