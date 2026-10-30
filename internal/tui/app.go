@@ -1,0 +1,342 @@
+package tui
+
+import (
+	"context"
+	"strings"
+
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/eusener/kanivet-cli/internal/app"
+	"github.com/eusener/kanivet-cli/internal/detect"
+	"github.com/eusener/kanivet-cli/internal/executor"
+	"github.com/eusener/kanivet-cli/internal/i18n"
+	"github.com/eusener/kanivet-cli/internal/plan"
+	"github.com/eusener/kanivet-cli/internal/state"
+)
+
+// Screen identifica a tela atual da máquina de estados.
+type Screen int
+
+const (
+	ScreenWelcome Screen = iota
+	ScreenProfile
+	ScreenCategories
+	ScreenReview
+	ScreenExecute
+	ScreenSummary
+	ScreenDashboard
+)
+
+const (
+	minWidth  = 80
+	minHeight = 24
+)
+
+// detectMsg entrega o resultado da detecção inicial.
+type detectMsg struct{ statuses map[string]detect.ItemStatus }
+
+// Model é o modelo raiz: escolhe a tela e delega teclas e desenho a ela.
+type Model struct {
+	s      *app.Session
+	env    map[string]string
+	th     Theme
+	keys   KeyMap
+	help   help.Model
+	spin   spinner.Model
+	screen Screen
+	w, h   int
+
+	detecting   bool
+	statuses    map[string]detect.ItemStatus
+	sel         *Selection
+	profCursor  int
+	page        int
+	list        ItemList
+	showHelp    bool
+	confirmQuit bool
+	review      reviewState
+	planSeq     int        // contador dos pedidos de plano (planMsg.req)
+	plan        *plan.Plan // plano confirmado na revisão
+	exec        execState
+	sum         summaryState
+	dash        dashState
+	prog        *programRef // ligado ao *tea.Program pelo SetProgram
+
+	// resultado do run, para o resumo
+	runRep executor.Report
+	runJ   *state.Journal
+	runErr error
+}
+
+// New cria o modelo. start diz a tela inicial (o wizard começa em ScreenWelcome).
+func New(s *app.Session, env map[string]string, start Screen) Model {
+	sp := spinner.New()
+	sp.Spinner = spinner.Line
+	return Model{
+		s: s, env: env, th: NewTheme(env, false), keys: DefaultKeys(),
+		help: help.New(), spin: sp, screen: start, w: minWidth, h: minHeight, detecting: true,
+		prog: &programRef{},
+	}
+}
+
+// Init dispara a detecção e o spinner.
+func (m Model) Init() tea.Cmd {
+	return tea.Batch(m.spin.Tick, m.detectCmd())
+}
+
+func (m Model) detectCmd() tea.Cmd {
+	s := m.s
+	return func() tea.Msg {
+		return detectMsg{statuses: s.Statuses(context.Background(), plan.Selection{})}
+	}
+}
+
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.w, m.h = msg.Width, msg.Height
+		m.help.Width = msg.Width
+		if m.screen == ScreenReview {
+			m = m.layoutReview()
+		}
+		if m.screen == ScreenSummary {
+			m = m.layoutSummary()
+		}
+		return m, nil
+	case detectMsg:
+		m.detecting = false
+		m.statuses = msg.statuses
+		m.th = NewTheme(m.env, HasNerdFont(msg.statuses))
+		mode := ModeWizard
+		if m.screen == ScreenDashboard {
+			mode = ModeDashboard
+		}
+		m.sel = NewSelection(m.s.Cat, m.s.P, msg.statuses, mode)
+		if mode == ModeDashboard {
+			return m.initDashboard()
+		}
+		return m, nil
+	case spinner.TickMsg:
+		if !m.detecting && !m.dash.checking && !(m.screen == ScreenExecute && m.exec.running) {
+			return m, nil
+		}
+		var c tea.Cmd
+		m.spin, c = m.spin.Update(msg)
+		return m, c
+	case updatesMsg:
+		return m.onUpdates(msg), nil
+	case planMsg:
+		return m.onPlan(msg), nil
+	case eventMsg:
+		return m.onEvent(msg)
+	case eventsClosedMsg:
+		done := m.exec.done
+		return m, func() tea.Msg { return <-done }
+	case interruptMsg:
+		return m.interrupt(), nil
+	case runDoneMsg:
+		return m.onRunDone(msg)
+	case forceDoneMsg:
+		return m.onForceDone(msg), nil
+	case interactiveReq:
+		return m.onInteractive(msg)
+	case interactiveDoneMsg:
+		m.exec.busy = false
+		// o ReleaseTerminal do ExecProcess desliga o mouse e o RestoreTerminal não o religa
+		nm, c := m.nextInteractive()
+		return nm, tea.Batch(tea.EnableMouseCellMotion, c)
+	case tea.MouseMsg:
+		if m.screen == ScreenSummary && m.sum.panel != panelNone {
+			var c tea.Cmd
+			m.sum.vp, c = m.sum.vp.Update(msg)
+			return m, c
+		}
+		if m.screen == ScreenReview {
+			var c tea.Cmd
+			if m.review.diffOpen {
+				m.review.diff, c = m.review.diff.Update(msg)
+			} else {
+				m.review.vp, c = m.review.vp.Update(msg)
+			}
+			return m, c
+		}
+		return m, nil
+	case tea.KeyMsg:
+		return m.updateKey(msg)
+	}
+	return m, nil
+}
+
+func (m Model) updateKey(km tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.screen == ScreenExecute { // q/ajuda não saem no meio do run: só ctrl+c interrompe
+		return m.updateExecute(km)
+	}
+	if km.String() == "ctrl+c" {
+		return m, tea.Quit
+	}
+	if m.screen == ScreenSummary && m.sum.confirm { // y/N da reaplicação consome a tecla
+		return m.updateSummary(km)
+	}
+	if m.confirmQuit {
+		if km.String() == "q" {
+			return m, tea.Quit
+		}
+		m.confirmQuit = false
+		return m, nil
+	}
+	if m.showHelp {
+		m.showHelp = false // a tecla que fecha a ajuda é consumida
+		return m, nil
+	}
+	typing := (m.screen == ScreenCategories && m.list.Filtering()) || (m.screen == ScreenDashboard && m.sel != nil && m.dashList().Filtering())
+	if !typing {
+		switch {
+		case key.Matches(km, m.keys.Help):
+			m.showHelp = true
+			return m, nil
+		case key.Matches(km, m.keys.Quit):
+			if n, c := m.pending(); n+c > 0 && m.screen != ScreenSummary { // depois do run não há nada pendente
+				m.confirmQuit = true
+				return m, nil
+			}
+			return m, tea.Quit
+		}
+	}
+	switch m.screen {
+	case ScreenWelcome:
+		if key.Matches(km, m.keys.Enter) && !m.detecting {
+			m.screen = ScreenProfile
+		}
+	case ScreenProfile:
+		return m.updateProfile(km), nil
+	case ScreenCategories:
+		return m.updateCategories(km)
+	case ScreenReview:
+		return m.updateReview(km)
+	case ScreenSummary:
+		return m.updateSummary(km)
+	case ScreenDashboard:
+		return m.updateDashboard(km)
+	}
+	return m, nil
+}
+
+// View desenha título, corpo, barra de pendências e atalhos (sempre visíveis).
+func (m Model) View() string {
+	if m.w < minWidth || m.h < minHeight {
+		return i18n.T("tui.too_small", m.w, m.h, minWidth, minHeight)
+	}
+	body := m.bodyLines(m.h - 3)
+	for len(body) < m.h-3 {
+		body = append(body, "")
+	}
+	status := ""
+	switch {
+	case m.screen == ScreenExecute:
+		status = m.progressLine()
+	case m.screen == ScreenSummary: // o resumo (Task 10) não mostra pendências
+	case m.screen == ScreenDashboard:
+		status = m.dashStatus()
+	case m.sel != nil:
+		n, c := m.pending()
+		status = m.th.Accent.Render(i18n.T("tui.pending", n, c))
+	}
+	foot := m.help.ShortHelpView(m.bindings())
+	if m.confirmQuit {
+		foot = m.th.Warn.Render(i18n.T("tui.quit_confirm"))
+	}
+	if m.screen == ScreenSummary && m.sum.confirm {
+		foot = m.th.Warn.Render(i18n.T("tui.summary.force_confirm", shorten(m.cursorTarget(), 40)))
+	}
+	lines := append([]string{m.th.Title.Render(m.title())}, body[:m.h-3]...)
+	lines = append(lines, status, lipgloss.NewStyle().MaxWidth(m.w).Render(foot))
+	return strings.Join(lines, "\n")
+}
+
+// pending devolve o que a barra mostra (itens a instalar, configs ligadas); o aviso ao sair usa o mesmo critério.
+func (m Model) pending() (install, configs int) {
+	if m.sel == nil {
+		return 0, 0
+	}
+	install, update, remove := m.sel.Pending()
+	if m.screen == ScreenDashboard { // no dashboard tudo que a revisão mostraria conta
+		return install + update + remove, 0
+	}
+	return install, m.sel.ConfigsOn()
+}
+
+func (m Model) title() string {
+	switch m.screen {
+	case ScreenWelcome:
+		return i18n.T("tui.step", 1, i18n.T("tui.step.welcome"))
+	case ScreenProfile:
+		return i18n.T("tui.step", 2, i18n.T("tui.step.profile"))
+	case ScreenCategories:
+		return i18n.T("tui.step.page", pageTitle(m.page), m.page+1, len(categoryPages))
+	case ScreenReview:
+		if m.review.resume && m.review.journal != nil {
+			return i18n.T("tui.resume_title", m.review.journal.RunID)
+		}
+		return i18n.T("tui.step.review")
+	case ScreenExecute:
+		return i18n.T("tui.step.execute")
+	case ScreenSummary:
+		return i18n.T("tui.step.summary")
+	case ScreenDashboard:
+		return i18n.T("tui.step.dashboard")
+	}
+	return "kanivet-cli"
+}
+
+func (m Model) bodyLines(height int) []string {
+	if m.showHelp {
+		all := []string{m.th.Title.Render(i18n.T("tui.help.title"))}
+		for _, b := range m.bindings() {
+			all = append(all, "  "+b.Help().Key+"  "+b.Help().Desc)
+		}
+		return all
+	}
+	switch m.screen {
+	case ScreenWelcome:
+		return m.welcomeLines()
+	case ScreenProfile:
+		return m.profileLines(height)
+	case ScreenCategories:
+		return strings.Split(m.list.View(m.w, height), "\n")
+	case ScreenReview:
+		return m.reviewLines(height)
+	case ScreenExecute:
+		return m.executeLines(height)
+	case ScreenSummary:
+		return m.summaryLines(height)
+	case ScreenDashboard:
+		return m.dashLines(height)
+	}
+	return nil
+}
+
+// bindings devolve os atalhos da tela atual (o Enter some enquanto detecta).
+func (m Model) bindings() []key.Binding {
+	enter := m.keys.Enter
+	enter.SetEnabled(!m.detecting)
+	switch m.screen {
+	case ScreenWelcome:
+		return []key.Binding{enter, m.keys.Help, m.keys.Quit}
+	case ScreenProfile:
+		return []key.Binding{m.keys.Up, m.keys.Down, enter, m.keys.Help, m.keys.Quit}
+	case ScreenCategories:
+		return []key.Binding{m.keys.Up, m.keys.Down, m.keys.Toggle, m.keys.Left, m.keys.Search, enter, m.keys.Back, m.keys.Help, m.keys.Quit}
+	case ScreenReview:
+		return m.reviewBindings()
+	case ScreenExecute:
+		return []key.Binding{m.keys.Up, m.keys.Down, m.keys.Follow, m.keys.Interrupt}
+	case ScreenSummary:
+		return m.summaryBindings()
+	case ScreenDashboard:
+		return m.dashBindings()
+	}
+	return []key.Binding{m.keys.Back, m.keys.Quit}
+}

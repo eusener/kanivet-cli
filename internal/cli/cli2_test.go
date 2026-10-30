@@ -228,3 +228,14 @@ func TestPlanShowsRcFile(t *testing.T) {
 		t.Fatalf("plan output:\n%s", h.out)
 	}
 }
+
+// Com --zsh (chsh) partindo do bash, o executor também grava o bloco no ~/.zshrc: o plano mostra os dois rc.
+func TestPlanShowsZshrcWhenSwitchingShell(t *testing.T) {
+	h := newHarness(t)
+	h.env.P.Shell = "bash"
+	code := h.run("plan", "fzf", "--zsh")
+	out := h.out.String()
+	if code != 0 || !strings.Contains(out, filepath.Join(h.env.P.Home, ".bashrc")) || !strings.Contains(out, filepath.Join(h.env.P.Home, ".zshrc")) {
+		t.Fatalf("exit %d, plan output:\n%s%s", code, out, h.errOut)
+	}
+}

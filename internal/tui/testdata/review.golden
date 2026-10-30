@@ -1,0 +1,24 @@
+Review the plan
+31 install · 0 update · 0 remove · 5 configure · 0 skip
+
+> Install:                                                                      
+    install:mise  (script)  — dependency of starship                            
+        $ curl https://mise.run | bash                                          
+    install:starship  (mise)                                                    
+        $ mise use -g aqua:starship/starship@latest                             
+    install:zsh-autosuggestions  (git)                                          
+        $ git clone https://github.com/zsh-users/zsh-autosuggestions            
+    install:zsh-syntax-highlighting  (git)                                      
+        $ git clone https://github.com/zsh-users/zsh-syntax-highlighting        
+    install:direnv  (mise)                                                      
+        $ mise use -g aqua:direnv/direnv@latest                                 
+    install:atuin  (mise)                                                       
+        $ mise use -g github:atuinsh/atuin[matching=musl]@latest                
+    install:zoxide  (mise)                                                      
+        $ mise use -g aqua:ajeetdsouza/zoxide@latest                            
+    install:fzf  (mise)                                                         
+        $ mise use -g aqua:junegunn/fzf@latest                                  
+    install:eza  (mise)                                                         
+        $ mise use -g aqua:eza-community/eza@latest                             
+27 to install · 4 configs
+↑/k up • ↓/j down • d diff • enter confirm • esc back • ? help • q quit

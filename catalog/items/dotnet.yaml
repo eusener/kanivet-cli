@@ -11,3 +11,4 @@ install:
   - backend: mise
     package: dotnet
     version: "9"
+    versions: ["9", "10", "8"]

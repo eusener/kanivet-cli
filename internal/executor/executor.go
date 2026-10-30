@@ -36,6 +36,9 @@ type Options struct {
 	DryRun       bool
 	ForceConfigs bool
 	Events       chan<- Event
+	// RunInteractive, se definido, roda todo Cmd com Stdin: true (sudo -v, chsh) no lugar de R.Run,
+	// para a TUI ceder o terminal (tea.ExecProcess).
+	RunInteractive func(ctx context.Context, c runner.Cmd) runner.Result
 }
 
 type Report struct {
@@ -122,7 +125,7 @@ func (r *run) startSudo(ctx context.Context, pl *plan.Plan) func() {
 	if !need {
 		return func() {}
 	}
-	if res := r.e.R.Run(ctx, runner.Cmd{Argv: []string{"sudo", "-v"}, Stdin: true}, io.Discard); !res.OK() {
+	if res := r.exec(ctx, runner.Cmd{Argv: []string{"sudo", "-v"}, Stdin: true}, io.Discard); !res.OK() {
 		r.sudoOK = false
 		return func() {}
 	}
@@ -257,7 +260,7 @@ func (r *run) step(ctx context.Context, s plan.Step) {
 			return
 		}
 		r.mu.Lock()
-		delete(r.e.St.Items, s.ItemID)
+		r.e.St.DeleteItem(s.ItemID)
 		for _, f := range s.Files {
 			remove := r.e.Ap.Remove
 			if f.Dir {
@@ -317,7 +320,7 @@ func (r *run) step(ctx context.Context, s plan.Step) {
 // runCmds roda os comandos em ordem; devolve false se falhou ou foi cancelado.
 func (r *run) runCmds(ctx context.Context, s plan.Step, out io.Writer) bool {
 	for _, c := range s.Cmds {
-		res := r.withLock(c.Lock, func() runner.Result { return r.e.R.Run(ctx, c, out) })
+		res := r.withLock(c.Lock, func() runner.Result { return r.exec(ctx, c, out) })
 		if ctx.Err() != nil {
 			return false // fica "running" no journal para retomar
 		}
@@ -327,6 +330,14 @@ func (r *run) runCmds(ctx context.Context, s plan.Step, out io.Writer) bool {
 		}
 	}
 	return true
+}
+
+// exec manda os comandos que leem o terminal para o hook interativo, se houver; os demais vão ao runner.
+func (r *run) exec(ctx context.Context, c runner.Cmd, out io.Writer) runner.Result {
+	if c.Stdin && r.o.RunInteractive != nil {
+		return r.o.RunInteractive(ctx, c)
+	}
+	return r.e.R.Run(ctx, c, out)
 }
 
 func (r *run) withLock(name string, fn func() runner.Result) runner.Result {
@@ -348,7 +359,7 @@ func (r *run) withLock(name string, fn func() runner.Result) runner.Result {
 func (r *run) own(s plan.Step) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.e.St.Items[s.ItemID] = state.InstalledItem{Backend: s.Backend, Package: s.Package, At: time.Now().UTC()}
+	r.e.St.SetItem(s.ItemID, state.InstalledItem{Backend: s.Backend, Package: s.Package, At: time.Now().UTC()})
 	_ = r.e.St.Save()
 }
 

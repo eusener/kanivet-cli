@@ -30,8 +30,10 @@ func doctorCmd(e *Env) *cobra.Command {
 			p := e.P
 			fmt.Fprintf(e.Stdout, "%s: %s %s %s %s (%s)\n", i18n.T("doctor.system"), p.OS, p.Arch, p.Distro, p.DistroVersion, p.PkgManager)
 			fmt.Fprintf(e.Stdout, "%s: %s\n", i18n.T("doctor.shell"), p.Shell)
-			rc, _ := os.ReadFile(e.rcPath())
-			fmt.Fprintf(e.Stdout, "%s %s: %s\n", ok(strings.Contains(string(rc), configs.RcMarkerStart)), i18n.T("doctor.rc_block"), e.rcPath())
+			sess := e.session()
+			rcPath := sess.RcPath()
+			rc, _ := os.ReadFile(rcPath)
+			fmt.Fprintf(e.Stdout, "%s %s: %s\n", ok(strings.Contains(string(rc), configs.RcMarkerStart)), i18n.T("doctor.rc_block"), rcPath)
 			localBin := filepath.Join(p.Home, ".local", "bin")
 			inPath := false
 			for _, d := range filepath.SplitList(e.Getenv["PATH"]) {

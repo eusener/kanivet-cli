@@ -10,3 +10,4 @@ install:
   - backend: mise
     package: java
     version: "temurin-21"
+    versions: ["temurin-21", "temurin-25", "temurin-17"]

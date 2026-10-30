@@ -7,15 +7,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
 
 	"github.com/spf13/cobra"
 
-	"github.com/eusener/kanivet-cli/internal/configs"
-	"github.com/eusener/kanivet-cli/internal/detect"
+	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/executor"
 	"github.com/eusener/kanivet-cli/internal/i18n"
 	"github.com/eusener/kanivet-cli/internal/plan"
@@ -54,56 +52,14 @@ func (f *selFlags) selection(args []string) (plan.Selection, error) {
 	return sel, nil
 }
 
-// selectedFor aproxima o conjunto escolhido, para o detector saber o que fornece o quê (php pelo lerd).
+// selectedFor e extrasFor delegam à sessão (mantidos para os testes da CLI).
 func selectedFor(e *Env, sel plan.Selection) map[string]bool {
-	out := map[string]bool{}
-	for _, p := range e.Cat.Profiles {
-		if p.ID != sel.Profile {
-			continue
-		}
-		for _, id := range p.Items {
-			out[id] = true
-		}
-		excl := map[string]string{}
-		for cat, id := range p.Exclusive {
-			excl[cat] = id
-		}
-		for cat, id := range p.ExclusiveByOS[e.P.OS] {
-			excl[cat] = id
-		}
-		for _, id := range excl {
-			out[id] = true
-		}
-	}
-	for _, id := range sel.Add {
-		if it := e.Cat.Items[id]; it != nil {
-			for other := range out { // um Add explícito substitui o padrão da categoria exclusiva
-				if e.Cat.Items[other] != nil && e.Cat.Items[other].Category == it.Category && isExclusive(e, it.Category) {
-					delete(out, other)
-				}
-			}
-		}
-		out[id] = true
-	}
-	for _, id := range sel.Remove {
-		delete(out, id)
-	}
-	return out
+	return app.SelectedFor(e.Cat, e.P, sel)
 }
 
-func isExclusive(e *Env, cat string) bool {
-	for _, c := range e.Cat.Categories {
-		if c.ID == cat {
-			return c.Exclusive
-		}
-	}
-	return false
-}
-
-func (e *Env) buildPlan(ctx context.Context, st *state.State, sel plan.Selection) (*plan.Plan, map[string]detect.ItemStatus, error) {
-	statuses := e.detector(st).Detect(ctx, e.Cat, selectedFor(e, sel))
-	pl, err := plan.Build(e.Cat, e.P, statuses, sel)
-	return pl, statuses, err
+func (e *Env) extrasFor(profile string) []string {
+	s := e.session()
+	return s.ExtrasFor(profile)
 }
 
 func planCmd(e *Env) *cobra.Command {
@@ -116,15 +72,15 @@ func planCmd(e *Env) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			st, err := e.loadState()
+			s, err := e.open()
 			if err != nil {
 				return err
 			}
-			pl, _, err := e.buildPlan(context.Background(), st, sel)
+			pl, _, err := s.Plan(context.Background(), sel)
 			if err != nil {
 				return exit(1, err.Error())
 			}
-			printPlan(e.Stdout, pl, e.expandTarget, e.rcPath())
+			printPlan(e.Stdout, pl, s.GroupPlan(pl))
 			return nil
 		},
 	}
@@ -151,8 +107,8 @@ func installCmd(e *Env) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return e.apply(r, func(st *state.State) (*plan.Plan, error) {
-				pl, _, err := e.buildPlan(context.Background(), st, sel)
+			return e.apply(r, func(s *app.Session) (*plan.Plan, error) {
+				pl, _, err := s.Plan(context.Background(), sel)
 				return pl, err
 			}, sel.Profile, true)
 		},
@@ -165,69 +121,50 @@ func installCmd(e *Env) *cobra.Command {
 
 // apply é o fluxo comum de install/update/uninstall: retomar ou planejar, mostrar, confirmar, executar, resumir.
 // Só o install retoma, e só com --resume ou confirmação interativa depois de mostrar o que falta.
-func (e *Env) apply(r runFlags, build func(*state.State) (*plan.Plan, error), profile string, allowResume bool) error {
+func (e *Env) apply(r runFlags, build func(*app.Session) (*plan.Plan, error), profile string, allowResume bool) error {
 	if !r.yes && !r.dryRun && !e.IsTTY {
 		return exit(2, i18n.T("err.non_interactive"))
 	}
-	st, err := e.loadState()
+	s, err := e.open()
 	if err != nil {
 		return err
 	}
 	var pl *plan.Plan
 	var j *state.Journal
-	if unfinished, data, err := state.LatestUnfinished(e.StateDir); err == nil && unfinished != nil && !r.dryRun {
-		pending, err := plan.Decode(data)
+	if !r.dryRun {
+		unfinished, pending, err := s.Unfinished()
 		if err != nil {
 			return err
 		}
-		pending = pendingSteps(pending, unfinished)
-		switch {
-		case !allowResume:
-			fmt.Fprintln(e.Stdout, i18n.T("msg.unfinished_hint", unfinished.RunID))
-		case r.resume || (!r.yes && e.IsTTY):
-			fmt.Fprintln(e.Stdout, i18n.T("msg.pending", unfinished.RunID))
-			printPlan(e.Stdout, pending, e.expandTarget, e.rcPath())
-			if r.resume || e.confirm(i18n.T("prompt.resume", unfinished.RunID)) {
-				pl, j = pending, unfinished
-				fmt.Fprintln(e.Stdout, i18n.T("msg.resuming", unfinished.RunID))
+		if unfinished != nil {
+			switch {
+			case !allowResume:
+				fmt.Fprintln(e.Stdout, i18n.T("msg.unfinished_hint", unfinished.RunID))
+			case r.resume || (!r.yes && e.IsTTY):
+				fmt.Fprintln(e.Stdout, i18n.T("msg.pending", unfinished.RunID))
+				printPlan(e.Stdout, pending, s.GroupPlan(pending))
+				if r.resume || e.confirm(i18n.T("prompt.resume", unfinished.RunID)) {
+					pl, j = pending, unfinished
+					fmt.Fprintln(e.Stdout, i18n.T("msg.resuming", unfinished.RunID))
+				}
+			default:
+				fmt.Fprintln(e.Stdout, i18n.T("msg.unfinished_hint", unfinished.RunID))
 			}
-		default:
-			fmt.Fprintln(e.Stdout, i18n.T("msg.unfinished_hint", unfinished.RunID))
 		}
 	}
 	if pl == nil {
-		if pl, err = build(st); err != nil {
+		if pl, err = build(s); err != nil {
 			return exit(1, err.Error())
 		}
-		printPlan(e.Stdout, pl, e.expandTarget, e.rcPath())
+		printPlan(e.Stdout, pl, s.GroupPlan(pl))
 		if r.dryRun || len(pl.Steps) == 0 {
 			return nil
 		}
 		if !r.yes && !e.confirm(i18n.T("prompt.proceed")) {
 			return exit(1, i18n.T("msg.aborted"))
 		}
-		data, err := pl.MarshalJSON()
-		if err != nil {
-			return err
-		}
-		if j, err = state.NewJournal(e.StateDir, e.Now(), data); err != nil {
-			return err
-		}
 	}
-	if profile != "" {
-		st.Profile = profile
-	}
-	return e.execute(st, j, pl, r, e.extrasFor(st.Profile))
-}
-
-// extrasFor devolve os extras do LazyVim do perfil (renderizados no lazyvim.json).
-func (e *Env) extrasFor(profile string) []string {
-	for _, p := range e.Cat.Profiles {
-		if p.ID == profile {
-			return p.Extras["lazyvim"]
-		}
-	}
-	return nil
+	return e.execute(s, j, pl, r, profile)
 }
 
 func (e *Env) confirm(question string) bool {
@@ -240,14 +177,7 @@ func (e *Env) confirm(question string) bool {
 	return ans == "y" || ans == "yes" || ans == "s" || ans == "sim"
 }
 
-func (e *Env) execute(st *state.State, j *state.Journal, pl *plan.Plan, r runFlags, extras []string) error {
-	vars := configs.VarsFor(e.P, e.Getenv)
-	vars.Extras = extras
-	ex := &executor.Executor{
-		R: e.R, J: j, St: st, Cat: e.Cat, P: e.P, Det: e.detector(st),
-		Ap:       &configs.Applier{St: st, BackupDir: filepath.Join(e.StateDir, "backups", j.RunID), Vars: vars, Files: e.Cat.Files},
-		ShellDir: e.shellDir(), Rc: e.rcPath(),
-	}
+func (e *Env) execute(s *app.Session, j *state.Journal, pl *plan.Plan, r runFlags, profile string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer stop()
 
@@ -266,7 +196,7 @@ func (e *Env) execute(st *state.State, j *state.Journal, pl *plan.Plan, r runFla
 			}
 		}
 	}()
-	rep, err := ex.Execute(ctx, pl, executor.Options{ForceConfigs: r.forceConfigs, Events: events})
+	rep, j, err := s.Run(ctx, pl, j, app.RunOptions{ForceConfigs: r.forceConfigs, Events: events, Profile: profile})
 	close(events)
 	wg.Wait()
 	if errors.Is(err, context.Canceled) {
@@ -302,23 +232,4 @@ func (e *Env) summary(j *state.Journal, pl *plan.Plan, rep executor.Report) erro
 		return exit(1, "")
 	}
 	return nil
-}
-
-func (e *Env) expandTarget(target string) string {
-	ap := &configs.Applier{Vars: configs.VarsFor(e.P, e.Getenv)}
-	if out, err := ap.ExpandTarget(target); err == nil {
-		return out
-	}
-	return target
-}
-
-// pendingSteps devolve o plano salvo sem os passos já concluídos.
-func pendingSteps(pl *plan.Plan, j *state.Journal) *plan.Plan {
-	out := &plan.Plan{Skipped: pl.Skipped, Warnings: pl.Warnings}
-	for _, s := range pl.Steps {
-		if j.Get(s.ID) != state.StepDone {
-			out.Steps = append(out.Steps, s)
-		}
-	}
-	return out
 }

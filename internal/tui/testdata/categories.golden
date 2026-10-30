@@ -1,0 +1,30 @@
+Step 3/5 · Terminal and shell (1/5)
+> [x] herdr                    [ ]
+  [x] herdr agent icons        [ ]
+  [x] herdr plugins            [ ]
+  [x] kitty                    [ ]
+  [x] JetBrainsMono Nerd Font  [ ]
+  [x] atuin                    [ ]
+  [x] direnv                   [ ]
+  [x] fzf                      [ ]
+  [x] starship                 [ ]
+  [x] zoxide                   [ ]
+  [ ] zsh                      [ ]
+  [x] zsh-autosuggestions      [ ]
+  [x] zsh-syntax-highlighting  [ ]
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+herdr
+Terminal workspace manager for AI coding agents
+status: [ ] not installed
+method: script
+  [x] Vesper theme, in-app toasts, plugin shortcuts and lazygit popup
+
+
+
+
+
+36 to install · 4 configs
+↑/k up • ↓/j down • space mark • ←/h left • / search • enter confirm • esc back • ? help • q quit
