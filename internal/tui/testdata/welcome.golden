@@ -5,18 +5,18 @@
 
   WELCOME
 
-  kanivet-cli sets up your dev terminal. Nothing runs before you review the plan.
 
-  system:            ubuntu 24.04 · amd64
-  shell:             zsh
-  package manager:   apt
+  YOUR DEV TERMINAL,
+  SET UP IN MINUTES.
 
+  Pick a profile, tweak item by item, review the plan.
+  Nothing runs before you review the plan.
 
-
-
-
-
-
+  ┌──────────────────────────────────────────────────┐
+  │ SYSTEM    ubuntu 24.04 · amd64                   │
+  │ SHELL     zsh                                    │
+  │ PACKAGES  apt                                    │
+  └──────────────────────────────────────────────────┘
 
 
 

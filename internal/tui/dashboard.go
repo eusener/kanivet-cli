@@ -185,10 +185,14 @@ func (m Model) updateCatPane(km tea.KeyMsg) Model {
 func (m Model) updateDashModal(km tea.KeyMsg) Model {
 	n := len(m.profiles())
 	switch {
-	case key.Matches(km, m.keys.Up) && m.profCursor > 0:
-		m.profCursor--
-	case key.Matches(km, m.keys.Down) && m.profCursor < n-1:
-		m.profCursor++
+	case key.Matches(km, m.keys.Up):
+		m = m.moveProfile(-1, 0)
+	case key.Matches(km, m.keys.Down):
+		m = m.moveProfile(1, 0)
+	case key.Matches(km, m.keys.Left):
+		m = m.moveProfile(0, -1)
+	case key.Matches(km, m.keys.Right):
+		m = m.moveProfile(0, 1)
 	case key.Matches(km, m.keys.Back):
 		m.dash.modal = false
 	case key.Matches(km, m.keys.Enter) && n > 0:

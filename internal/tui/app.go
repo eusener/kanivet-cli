@@ -519,7 +519,7 @@ func (m Model) bindings() []key.Binding {
 	case ScreenWelcome:
 		return []key.Binding{enter, m.keys.Help, m.keys.Quit}
 	case ScreenProfile:
-		return []key.Binding{m.keys.Up, m.keys.Down, enter, m.keys.Help, m.keys.Quit}
+		return []key.Binding{m.keys.Up, m.keys.Down, m.keys.Left, m.keys.Right, enter, m.keys.Help, m.keys.Quit}
 	case ScreenCategories:
 		return []key.Binding{m.keys.Up, m.keys.Down, m.keys.Toggle, m.keys.Left, m.keys.Search, enter, m.keys.Back, m.keys.Help, m.keys.Quit}
 	case ScreenReview:

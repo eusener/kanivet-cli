@@ -7,9 +7,11 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/catalog"
 	"github.com/eusener/kanivet-cli/internal/i18n"
+	"github.com/eusener/kanivet-cli/internal/plan"
 	"github.com/eusener/kanivet-cli/internal/platform"
 	"github.com/eusener/kanivet-cli/internal/runner"
 )
@@ -88,10 +90,7 @@ func TestWizardFlowToReview(t *testing.T) {
 	if m.screen != ScreenProfile {
 		t.Fatalf("screen = %v, want profile", m.screen)
 	}
-	// perfis: backend, blank, laravel, ml, web (ordem do catálogo); acha o web.
-	for m.profileID() != "web" {
-		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
-	}
+	m = cursorOn(t, m, "web")
 	m = send(m, enter())
 	if m.screen != ScreenCategories {
 		t.Fatalf("screen = %v, want categories", m.screen)
@@ -253,13 +252,20 @@ func pickProfile(t *testing.T, m Model, id string) Model {
 	if m.screen != ScreenProfile {
 		t.Fatalf("screen = %v, want profile", m.screen)
 	}
-	for m.profCursor > 0 {
-		m = send(m, tea.KeyMsg{Type: tea.KeyUp})
+	return send(cursorOn(t, m, id), enter())
+}
+
+// cursorOn põe o cursor do perfil em id (a grade não tem ordem linear de setas).
+func cursorOn(t *testing.T, m Model, id string) Model {
+	t.Helper()
+	for i, p := range m.profiles() {
+		if p.ID == id {
+			m.profCursor = i
+			return m
+		}
 	}
-	for m.profileID() != id {
-		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
-	}
-	return send(m, enter())
+	t.Fatalf("perfil %q não existe", id)
+	return m
 }
 
 func TestWizardChangingProfileReplacesSelection(t *testing.T) {
@@ -284,4 +290,100 @@ func TestWizardChangingProfileReplacesSelection(t *testing.T) {
 	if m.sel.Marked("node") {
 		t.Fatal("reentrar no mesmo perfil não pode desfazer a escolha do usuário")
 	}
+}
+
+func TestWelcomeHeadline(t *testing.T) {
+	m := detected(t, newModel(t, linuxSystemd))
+	i18n.SetLang(i18n.PtBR)
+	defer i18n.SetLang(i18n.En)
+	v := m.View()
+	if !strings.Contains(v, "SEU TERMINAL DE DEV") || !strings.Contains(v, "MONTADO EM MINUTOS") {
+		t.Errorf("faltou o título grande:\n%s", v)
+	}
+	if m.sudoCount() != 0 || strings.Contains(v, "SUDO EM") {
+		t.Errorf("sem seleção não há tag de sudo:\n%s", v)
+	}
+	m.sel.Toggle("lerd")
+	if m.sudoCount() < 1 {
+		t.Fatalf("lerd pede sudo no Linux, sudoCount = %d", m.sudoCount())
+	}
+	if v := m.View(); !strings.Contains(v, fmt.Sprintf("SUDO EM %d ITENS", m.sudoCount())) {
+		t.Errorf("faltou a tag de sudo:\n%s", v)
+	}
+}
+
+func TestProfileGridNavigation(t *testing.T) {
+	m := detected(t, newModel(t, linuxSystemd))
+	m = send(m, enter())
+	m = cursorOn(t, m, "laravel")
+	right := tea.KeyMsg{Type: tea.KeyRight}
+	left := tea.KeyMsg{Type: tea.KeyLeft}
+	down := tea.KeyMsg{Type: tea.KeyDown}
+	up := tea.KeyMsg{Type: tea.KeyUp}
+	if m = send(m, right); m.profileID() != "web" {
+		t.Fatalf("→ de laravel: %s", m.profileID())
+	}
+	if m = send(m, left); m.profileID() != "laravel" {
+		t.Fatalf("← de web: %s", m.profileID())
+	}
+	if m = send(m, down); m.profileID() != "ml" {
+		t.Fatalf("↓ de laravel: %s", m.profileID())
+	}
+	if m = send(m, down); m.profileID() != "blank" {
+		t.Fatalf("↓↓ de laravel: %s", m.profileID())
+	}
+	if m = send(m, left, right); m.profileID() != "blank" {
+		t.Fatalf("← → em blank saíram: %s", m.profileID())
+	}
+	if m = send(m, down); m.profileID() != "blank" {
+		t.Fatalf("↓ em blank saiu: %s", m.profileID())
+	}
+	if m = send(m, up); m.profileID() == "blank" {
+		t.Fatal("↑ em blank deveria voltar à grade")
+	}
+}
+
+func TestProfileCardCounts(t *testing.T) {
+	m := detected(t, newModel(t, linuxSystemd))
+	m = send(m, enter())
+	v := m.View()
+	for _, pr := range m.profiles() {
+		if pr.ID == "blank" {
+			continue
+		}
+		n := len(app.SelectedFor(m.s.Cat, m.s.P, plan.Selection{Profile: pr.ID}))
+		if want := fmt.Sprintf("%d ITEMS", n); !strings.Contains(v, want) {
+			t.Errorf("perfil %s: faltou %q em:\n%s", pr.ID, want, v)
+		}
+		if got := m.profileItemCount(pr.ID); got != n {
+			t.Errorf("profileItemCount(%s) = %d, want %d", pr.ID, got, n)
+		}
+	}
+}
+
+func TestProfileColor(t *testing.T) {
+	for id, want := range map[string]lipgloss.Color{"laravel": colSun, "web": colPeach, "ml": colMint, "backend": colCoral, "blank": ""} {
+		if got := profileColor(id); got != want {
+			t.Errorf("profileColor(%s) = %q, want %q", id, got, want)
+		}
+	}
+}
+
+func TestWelcomeAndProfilePainted(t *testing.T) {
+	for _, h := range []int{24, 30} {
+		m := detected(t, newModel(t, linuxSystemd))
+		m.th = paperTheme()
+		m = send(m, size(100, h))
+		assertPainted(t, m.View(), 100, h)
+		m = send(m, enter())
+		assertPainted(t, m.View(), 100, h)
+		m = send(m, tea.KeyMsg{Type: tea.KeyDown}, tea.KeyMsg{Type: tea.KeyDown})
+		assertPainted(t, m.View(), 100, h)
+	}
+	m := detected(t, newModel(t, linuxSystemd))
+	m.th = paperTheme()
+	m = send(m, size(80, 24))
+	assertPainted(t, m.View(), 80, 24)
+	m = send(m, enter())
+	assertPainted(t, m.View(), 80, 24)
 }

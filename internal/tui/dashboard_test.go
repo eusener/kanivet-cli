@@ -118,10 +118,10 @@ func TestDashboardProfileModalIsAdditive(t *testing.T) {
 		before[id] = m.sel.Marked(id)
 	}
 	m = send(m, keyRune("p"))
-	if !strings.Contains(m.View(), "Web") {
+	if !strings.Contains(m.View(), "WEB (JS/TS)") {
 		t.Fatalf("o modal deve listar os perfis:\n%s", m.View())
 	}
-	for i, p := range m.s.Cat.Profiles {
+	for i, p := range m.profiles() {
 		if p.ID == "web" {
 			m.profCursor = i
 		}
