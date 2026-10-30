@@ -263,8 +263,8 @@ func (m Model) View() string {
 	if m.screen == ScreenExecute {
 		bh-- // a última linha é a barra de progresso
 	}
-	// na tela de itens o título da categoria é a primeira linha da própria lista
-	ownTitle := m.screen == ScreenCategories && !m.showHelp
+	// nas telas de itens e de revisão o título (com as tags) é a primeira linha do próprio corpo
+	ownTitle := (m.screen == ScreenCategories || m.screen == ScreenReview) && !m.showHelp
 	if ownTitle {
 		bh += 1 + m.respiro()/2
 	}

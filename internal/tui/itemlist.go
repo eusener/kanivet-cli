@@ -247,30 +247,13 @@ const sideBySide = 64
 
 // boxOverhead é o que cada caixa gasta além das linhas de conteúdo: bordas e, no modo
 // Paper, a linha da sombra.
-func (l ItemList) boxOverhead() int {
-	if l.th.Paper {
-		return 3
-	}
-	return 2
-}
+func (l ItemList) boxOverhead() int { return l.th.BoxOverhead() }
 
 // boxInner é a largura útil (de borda a borda) de uma caixa de largura total w.
-func (l ItemList) boxInner(w int) int {
-	n := w - 2
-	if l.th.Paper {
-		n--
-	}
-	return max(n, 1)
-}
+func (l ItemList) boxInner(w int) int { return l.th.BoxInner(w) }
 
 // ink devolve um estilo sem o fundo creme (para texto dentro de caixas).
-func (l ItemList) ink(c lipgloss.Color) lipgloss.Style {
-	s := l.th.R.NewStyle()
-	if l.th.Color {
-		s = s.Foreground(c)
-	}
-	return s
-}
+func (l ItemList) ink(c lipgloss.Color) lipgloss.Style { return l.th.Ink(c) }
 
 // View desenha o título da categoria (no wizard) e duas caixas: lista e detalhe.
 func (l ItemList) View(width, height int) string {

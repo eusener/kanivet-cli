@@ -201,3 +201,30 @@ func (t Theme) Canvas(lines []string, w, h int) string {
 	}
 	return strings.Join(out, "\n")
 }
+
+// Ink devolve um estilo sem o fundo creme (para texto dentro de caixas).
+func (t Theme) Ink(c lipgloss.Color) lipgloss.Style {
+	s := t.R.NewStyle()
+	if t.Color {
+		s = s.Foreground(c)
+	}
+	return s
+}
+
+// BoxInner é a largura útil (de borda a borda) de uma caixa de largura total w.
+func (t Theme) BoxInner(w int) int {
+	n := w - 2
+	if t.Paper {
+		n--
+	}
+	return max(n, 1)
+}
+
+// BoxOverhead é o que uma caixa gasta além das linhas de conteúdo: bordas e, no modo
+// Paper, a linha da sombra.
+func (t Theme) BoxOverhead() int {
+	if t.Paper {
+		return 3
+	}
+	return 2
+}

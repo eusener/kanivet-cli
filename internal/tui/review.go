@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/configs"
 	"github.com/eusener/kanivet-cli/internal/i18n"
@@ -39,9 +40,11 @@ const (
 type reviewRow struct {
 	text         string
 	style        rowStyle
+	kind         app.GroupKind // linhas de título: o grupo que a tag abre
 	stepID, path string
-	// linhas de arquivo: marcador à frente, caminho (encurtável) e marcas depois
-	lead, post string
+	// linhas de arquivo: marcador à frente, caminho (encurtável), nota e tag BACKUP depois
+	lead, note string
+	backup     bool
 	file, rc   bool
 }
 
@@ -58,6 +61,7 @@ type reviewState struct {
 	diffOpen bool
 	diff     viewport.Model
 	diffPath string
+	diffText string // o diff cru; as linhas são pintadas no layout, na largura atual
 	note     string // aviso curto (ex.: sem diff para a linha)
 	// retomada: o plano são só os passos pendentes de journal, que o enter continua
 	resume  bool
@@ -103,23 +107,16 @@ func (m Model) onPlan(msg planMsg) Model {
 	return m.layoutReview()
 }
 
-// fileParts separa o marcador, o caminho e as marcas finais ((backup), rc) de um arquivo.
-func fileParts(f app.FileLine) (lead, post string) {
+// fileParts separa o marcador, a nota do rc e se a tag BACKUP acompanha um arquivo.
+func fileParts(f app.FileLine) (lead, note string, backup bool) {
 	if f.Rc {
-		post = "  (" + i18n.T("plan.rc_block") + ")"
-		if f.Exists {
-			post += " (" + i18n.T("plan.backup") + ")"
-		}
-		return "→ ", post
+		return "→ ", "(" + i18n.T("plan.rc_block") + ")", f.Exists
 	}
 	lead = "→ "
 	if f.Remove {
 		lead = "✗ "
 	}
-	if f.Exists && !f.Remove {
-		post = "  (" + i18n.T("plan.backup") + ")"
-	}
-	return lead, post
+	return lead, "", f.Exists && !f.Remove
 }
 
 // shorten corta o meio do caminho para caber em max colunas.
@@ -137,13 +134,41 @@ func shorten(path string, max int) string {
 	return string(r[:head]) + "…" + string(r[len(r)-tail:])
 }
 
+// groupTag devolve o rótulo e a cor da tag que abre um grupo.
+func groupTag(k app.GroupKind) (string, lipgloss.Color) {
+	switch k {
+	case app.GroupSudo:
+		return i18n.T("tui.review.tag.sudo"), colSun
+	case app.GroupInstall:
+		return i18n.T("tui.review.tag.install"), colSky
+	case app.GroupUpdate:
+		return i18n.T("tui.review.tag.update"), colSky
+	case app.GroupUninstall:
+		return i18n.T("tui.review.tag.uninstall"), colCoral
+	case app.GroupConfig:
+		return i18n.T("tui.review.tag.config"), colMint
+	case app.GroupOrphans:
+		return i18n.T("tui.review.tag.orphans"), colPeach
+	case app.GroupWarnings:
+		return i18n.T("tui.review.tag.warnings"), colSun
+	}
+	return i18n.T("tui.review.tag.skip"), colPeach
+}
+
 func buildRows(groups []app.Group) []reviewRow {
 	var rows []reviewRow
 	for gi, g := range groups {
 		if gi > 0 {
 			rows = append(rows, reviewRow{})
 		}
-		rows = append(rows, reviewRow{text: g.Title, style: rowTitle})
+		label, _ := groupTag(g.Kind)
+		rows = append(rows, reviewRow{text: label, style: rowTitle, kind: g.Kind})
+		switch g.Kind {
+		case app.GroupSudo: // a senha é pedida uma vez
+			rows = append(rows, reviewRow{text: "  " + i18n.T("tui.sudo_banner"), style: rowSubtle})
+		case app.GroupOrphans:
+			rows = append(rows, reviewRow{text: "  " + g.Title, style: rowSubtle})
+		}
 		for _, l := range g.Lines {
 			if g.Kind == app.GroupWarnings {
 				rows = append(rows, reviewRow{text: "  ! " + l.Text, style: rowWarn})
@@ -154,8 +179,8 @@ func buildRows(groups []app.Group) []reviewRow {
 				rows = append(rows, reviewRow{text: "      $ " + c, style: rowSubtle, stepID: l.StepID})
 			}
 			for _, f := range l.Files {
-				lead, post := fileParts(f)
-				rows = append(rows, reviewRow{stepID: l.StepID, path: f.Path, lead: lead, post: post, file: true, rc: f.Rc})
+				lead, note, backup := fileParts(f)
+				rows = append(rows, reviewRow{stepID: l.StepID, path: f.Path, lead: lead, note: note, backup: backup, file: true, rc: f.Rc})
 			}
 		}
 	}
@@ -182,52 +207,51 @@ func (r reviewState) counts() (inst, upd, rem, cfg, skip int) {
 	return inst, upd, rem, cfg, len(r.pl.Skipped)
 }
 
-func (r reviewState) hasSudo() bool {
+func (r reviewState) sudoCount() (n int) {
 	if r.pl == nil {
-		return false
+		return 0
 	}
 	for _, st := range r.pl.Steps {
 		if st.NeedsSudo {
-			return true
+			n++
 		}
 	}
-	return false
+	return n
 }
+
+func (r reviewState) hasSudo() bool { return r.sudoCount() > 0 }
 
 func (r reviewState) blocked() bool { return r.err != nil }
 func (r reviewState) empty() bool   { return r.err == nil && r.pl != nil && len(r.pl.Steps) == 0 }
 
-// header devolve as linhas fixas do topo: contadores e faixa de sudo.
-func (m Model) reviewHeader() []string {
-	r := m.review
-	if r.loading || r.err != nil || r.pl == nil {
-		return nil
-	}
-	i, u, rm, c, s := r.counts()
-	h := []string{m.th.Accent.Render(i18n.T("tui.review.counts", i, u, rm, c, s))}
-	if r.hasSudo() {
-		h = append(h, m.th.Warn.Render(i18n.T("tui.sudo_banner")))
-	}
-	if r.note != "" {
-		return append(h, m.th.Warn.Render(r.note))
-	}
-	return append(h, "")
+// reviewRowsHeight é quantas linhas de conteúdo cabem na caixa dos grupos: o corpo menos
+// as bordas e a linha reservada ao aviso (r.note), que fica logo abaixo da caixa.
+func (m Model) reviewRowsHeight() int {
+	return max(m.bodyHeight()-m.th.BoxOverhead()-1, 1)
+}
+
+// diffDialogWidth é a largura total da caixa centralizada do diff.
+func (m Model) diffDialogWidth() int { return min(m.contentWidth(), 100) }
+
+// diffRowsHeight é a altura do viewport do diff: o diff inteiro, se couber (a primeira
+// linha da caixa é o caminho do arquivo).
+func (m Model) diffRowsHeight(r reviewState) int {
+	return min(max(r.diff.TotalLineCount(), 1), max(m.bodyHeight()-m.th.BoxOverhead()-1, 1))
 }
 
 // layoutReview ajusta o viewport ao tamanho atual e mantém o cursor visível.
 func (m Model) layoutReview() Model {
 	r := m.review
-	body := m.bodyHeight()
-	height := body - len(m.reviewHeader())
-	if r.empty() {
-		height -= 2
+	height := m.reviewRowsHeight()
+	cw := m.th.BoxInner(m.contentWidth())
+	r.vp.Width, r.vp.Height = cw, height
+	if r.diffOpen {
+		dw := m.th.BoxInner(m.diffDialogWidth())
+		r.diff.Width = dw
+		r.diff.SetContent(paintDiff(m.th, r.diffText, dw))
+		r.diff.Height = m.diffRowsHeight(r) // altura < 1 deixa o YOffset passar do fim (pânico no View)
+		r.diff.SetYOffset(r.diff.YOffset)
 	}
-	if height < 1 {
-		height = 1
-	}
-	r.vp.Width, r.vp.Height = m.contentWidth(), height
-	r.diff.Width, r.diff.Height = m.contentWidth(), max(body-1, 1) // altura < 1 deixa o YOffset passar do fim (pânico no View)
-	r.diff.SetYOffset(r.diff.YOffset)
 	r.vp.SetContent(m.renderRows(r))
 	r.vp.SetYOffset(r.vp.YOffset)
 	switch {
@@ -240,41 +264,155 @@ func (m Model) layoutReview() Model {
 	return m
 }
 
+// renderRows desenha todas as linhas na largura útil da caixa; a do cursor vai em sky
+// de borda a borda (no modo plain, com "> " e vídeo invertido).
 func (m Model) renderRows(r reviewState) string {
+	cw := m.th.BoxInner(m.contentWidth())
 	out := make([]string, len(r.rows))
 	for i, row := range r.rows {
-		prefix := "  "
-		if i == r.cursor {
-			prefix = m.th.Selected.Render("> ")
-		}
-		st := lipgloss.NewStyle()
-		if row.file {
-			// as marcas (backup/rc/remover) nunca são cortadas: o caminho é que encolhe
-			fixed := lipgloss.Width(prefix) + 6 + lipgloss.Width(row.lead) + lipgloss.Width(row.post)
-			row.text = "      " + row.lead + shorten(row.path, m.contentWidth()-fixed) + row.post
-		}
-		switch row.style {
-		case rowTitle:
-			st = m.th.Title
-		case rowWarn:
-			st = m.th.Warn
-		case rowSubtle:
-			st = m.th.Subtle
-		}
-		out[i] = lipgloss.NewStyle().MaxWidth(m.contentWidth()).Render(prefix + st.Render(row.text))
+		out[i] = m.renderRow(row, i == r.cursor, cw)
 	}
 	return strings.Join(out, "\n")
 }
 
+func (m Model) renderRow(row reviewRow, sel bool, cw int) string {
+	th := m.th
+	lead := "  "
+	if sel && !th.Paper {
+		lead = "> "
+	}
+	// base é o estilo do texto; o cursor troca por sky (ou vídeo invertido)
+	base := th.R.NewStyle()
+	switch row.style {
+	case rowWarn:
+		base = th.Ink(colInk).Bold(true)
+	case rowSubtle:
+		base = th.Ink(colInkMuted)
+	}
+	if row.file {
+		base = th.R.NewStyle()
+	}
+	if sel {
+		base = th.Selected
+	}
+	line := func(left, tags string) string {
+		fill := max(cw-lipgloss.Width(lead)-lipgloss.Width(left)-lipgloss.Width(tags), 0)
+		return padTo(base.Render(lead+left)+tags+base.Render(strings.Repeat(" ", fill)), cw)
+	}
+	room := max(cw-lipgloss.Width(lead)-1, 0)
+	switch {
+	case row.file:
+		// a nota e a tag BACKUP nunca são cortadas: o caminho é que encolhe
+		var tags string
+		note := ""
+		if row.note != "" {
+			note = "  " + row.note
+		}
+		if row.backup {
+			tags = " " + th.Tag(i18n.T("plan.backup"), colPeach)
+		}
+		fixed := 6 + lipgloss.Width(row.lead) + lipgloss.Width(note) + lipgloss.Width(tags) + 1
+		left := "      " + row.lead + shorten(row.path, cw-lipgloss.Width(lead)-fixed) + note
+		if !sel && note != "" {
+			left = "      " + row.lead + shorten(row.path, cw-lipgloss.Width(lead)-fixed) + th.Ink(colInkMuted).Render(note)
+		}
+		return line(left, tags)
+	case row.style == rowTitle:
+		label, c := groupTag(row.kind)
+		return line("", th.Tag(label, c)) // no cursor a tag se mantém; o resto da linha vai em sky
+	case row.text == "":
+		return line("", "")
+	}
+	text := row.text[len(row.text)-len(strings.TrimLeft(row.text, " ")):]
+	indent := row.text[:len(row.text)-len(text)]
+	if sel && row.style == rowPlain && row.stepID != "" { // o nome do passo em maiúsculas
+		name, rest, found := strings.Cut(text, "  ")
+		text = strings.ToUpper(name)
+		if found {
+			text += "  " + rest
+		}
+	}
+	return line(ansi.Truncate(indent+text, room, "…"), "")
+}
+
+// paintDiff pinta as linhas de um diff na largura w: "+" em mint e "-" em coral-tint,
+// de borda a borda. No modo plain ficam só os marcadores.
+func paintDiff(th Theme, text string, w int) string {
+	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
+	header := len(lines) > 1 && strings.HasPrefix(lines[0], "--- ")
+	for i, l := range lines {
+		l = strings.ReplaceAll(strings.TrimRight(l, "\r"), "\t", "    ")
+		l = padTo(ansi.Truncate(" "+l, w, "…"), w)
+		switch {
+		case !th.Paper:
+		case header && i < 2:
+			l = th.Ink(colInkMuted).Bold(true).Render(l)
+		case strings.HasPrefix(l, " +"):
+			l = th.R.NewStyle().Background(colMint).Foreground(colInkStrong).Render(l)
+		case strings.HasPrefix(l, " -"):
+			l = th.R.NewStyle().Background(colCoral).Foreground(colInkStrong).Render(l)
+		}
+		lines[i] = l
+	}
+	return strings.Join(lines, "\n")
+}
+
+// reviewHeading é o título da tela com as tags de totais (as que não couberem caem).
+func (m Model) reviewHeading() string {
+	title := m.th.Title.Render(m.upperTitle())
+	r := m.review
+	if r.loading || r.err != nil || r.pl == nil {
+		return ansi.Truncate(title, m.contentWidth(), "…")
+	}
+	inst, upd, rem, cfg, _ := r.counts()
+	tags := []string{m.th.Tag(i18n.T("tui.review.total.install", inst), colSky)}
+	if upd > 0 {
+		tags = append(tags, m.th.Tag(i18n.T("tui.review.total.update", upd), colSky))
+	}
+	if rem > 0 {
+		tags = append(tags, m.th.Tag(i18n.T("tui.review.total.remove", rem), colCoral))
+	}
+	tags = append(tags, m.th.Tag(i18n.T("tui.review.total.configs", cfg), colMint))
+	if n := r.sudoCount(); n > 0 {
+		tags = append(tags, m.th.Tag(i18n.T("tui.review.total.sudo", n), colSun))
+	}
+	sp := m.th.S().Render(" ")
+	for len(tags) > 0 {
+		line := title + m.th.S().Render("   ") + strings.Join(tags, sp)
+		if lipgloss.Width(line) <= m.contentWidth() {
+			return line
+		}
+		tags = tags[:len(tags)-1]
+	}
+	return ansi.Truncate(title, m.contentWidth(), "…")
+}
+
 func (m Model) reviewLines(height int) []string {
 	r := m.review
-	if r.diffOpen {
-		head := m.th.Title.Render(i18n.T("tui.review.diff_title", r.diffPath))
-		return append([]string{head}, strings.Split(r.diff.View(), "\n")...)
+	cw := m.contentWidth()
+	lines := []string{m.reviewHeading()}
+	gap := m.respiro() / 2
+	for i := 0; i < gap; i++ {
+		lines = append(lines, "")
 	}
+	box := func(body string, o BoxOpts) []string { return strings.Split(m.th.Box(body, cw, o), "\n") }
 	switch {
+	case r.diffOpen:
+		dw := m.diffDialogWidth()
+		in := m.th.BoxInner(dw)
+		body := m.th.Ink(colInkMuted).Render(padTo(" "+shorten(r.diffPath, max(in-2, 5)), in)) + "\n" + r.diff.View()
+		dialog := strings.Split(m.th.Box(body, dw, BoxOpts{Title: i18n.T("tui.review.diff_title"), Flush: true}), "\n")
+		top := max((height-len(lines)-len(dialog))/2, 0)
+		for i := 0; i < top; i++ {
+			lines = append(lines, "")
+		}
+		left := m.th.S().Render(strings.Repeat(" ", (cw-dw)/2))
+		for _, l := range dialog {
+			lines = append(lines, left+l)
+		}
+		return lines
 	case r.loading:
-		return []string{i18n.T("tui.review.loading")}
+		return append(lines, box(i18n.T("tui.review.loading"), BoxOpts{})...)
 	case r.err != nil:
 		var msgs []string
 		var pe *plan.PlanError
@@ -283,15 +421,16 @@ func (m Model) reviewLines(height int) []string {
 		} else {
 			msgs = []string{r.err.Error()}
 		}
-		box := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.NoColor{}).
-			Width(m.contentWidth() - 2).Render(m.th.Danger.Render(i18n.T("tui.review.error") + "\n" + strings.Join(msgs, "\n")))
-		return strings.Split(box, "\n")
+		body := m.th.Ink(colInkStrong).Bold(true).Render(i18n.T("tui.review.error")) + "\n" + strings.Join(msgs, "\n")
+		return append(lines, box(body, BoxOpts{Fill: colCoral, Fg: colInkStrong})...)
+	case r.empty():
+		return append(lines, box(i18n.T("plan.empty"), BoxOpts{})...)
 	}
-	lines := m.reviewHeader()
-	if r.empty() {
-		lines = append(lines, i18n.T("plan.empty"), "")
+	lines = append(lines, box(r.vp.View(), BoxOpts{Flush: true})...)
+	if r.note != "" {
+		lines = append(lines, m.th.Warn.Render(ansi.Truncate(r.note, cw, "…")))
 	}
-	return append(lines, strings.Split(r.vp.View(), "\n")...)
+	return lines
 }
 
 func (m Model) updateReview(km tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -415,7 +554,7 @@ func (m Model) openDiff() Model {
 		}
 		text = configs.Diff(string(cur), string(next))
 	}
-	r.diff.SetContent(diffContent(text, m.contentWidth()))
+	r.diffText = text
 	r.diff.GotoTop()
 	r.diffOpen, r.diffPath = true, target
 	m.review = r
