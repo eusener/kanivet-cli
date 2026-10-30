@@ -4,45 +4,79 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/eusener/kanivet-cli/internal/detect"
 	"github.com/eusener/kanivet-cli/internal/state"
+	"github.com/muesli/termenv"
+)
+
+// Paleta "papel e tinta".
+const (
+	colPaper     = lipgloss.Color("#f4efea")
+	colCard      = lipgloss.Color("#ffffff")
+	colInk       = lipgloss.Color("#383838")
+	colInkStrong = lipgloss.Color("#111110")
+	colInkMuted  = lipgloss.Color("#666666")
+	colSky       = lipgloss.Color("#97d4ff")
+	colSun       = lipgloss.Color("#ffde00")
+	colPeach     = lipgloss.Color("#ffdcbd")
+	colMint      = lipgloss.Color("#b0fff4")
+	colCoral     = lipgloss.Color("#ffcbc8")
+	colOK        = lipgloss.Color("#068475")
+	colErr       = lipgloss.Color("#e23f35")
+	colLogBg     = lipgloss.Color("#2b2a29")
+	colLogFg     = lipgloss.Color("#e8e2dc")
 )
 
 // Theme agrupa os estilos e a escolha de ícones da TUI.
 type Theme struct {
 	Title, Subtle, Accent, Selected, Danger, Warn, OK, Border, Help lipgloss.Style
 	Nerd, Color                                                     bool
+	// Paper é true quando há cor e o terminal tem 256 cores ou mais: só então
+	// a tela é pintada de creme, com sombras e bordas grossas. Caso contrário
+	// (16 cores, NO_COLOR) o tema é "plain".
+	Paper bool
+	R     *lipgloss.Renderer
 }
 
-var (
-	colAccent = lipgloss.AdaptiveColor{Light: "#5A4FCF", Dark: "#A79BFF"}
-	colOK     = lipgloss.AdaptiveColor{Light: "#2E7D32", Dark: "#7BD88F"}
-	colWarn   = lipgloss.AdaptiveColor{Light: "#B26A00", Dark: "#FFC56B"}
-	colDanger = lipgloss.AdaptiveColor{Light: "#C62828", Dark: "#FF7B72"}
-	colSubtle = lipgloss.AdaptiveColor{Light: "#6B6B76", Dark: "#8B8B99"}
-	colBorder = lipgloss.AdaptiveColor{Light: "#D0D0DA", Dark: "#3A3A48"}
-)
-
-// NewTheme monta o tema. Com NO_COLOR não vazio em env, os estilos não têm cor.
+// NewTheme monta o tema com o renderer padrão do lipgloss.
 func NewTheme(env map[string]string, nerd bool) Theme {
-	t := Theme{Nerd: nerd, Color: env["NO_COLOR"] == ""}
+	return NewThemeWith(lipgloss.DefaultRenderer(), env, nerd)
+}
+
+// NewThemeWith monta o tema para o renderer dado. Com NO_COLOR não vazio em
+// env, os estilos não têm cor.
+func NewThemeWith(r *lipgloss.Renderer, env map[string]string, nerd bool) Theme {
+	t := Theme{Nerd: nerd, Color: env["NO_COLOR"] == "", R: r}
+	p := r.ColorProfile()
+	t.Paper = t.Color && (p == termenv.TrueColor || p == termenv.ANSI256)
 	fg := func(c lipgloss.TerminalColor) lipgloss.Style {
 		if !t.Color {
-			return lipgloss.NewStyle()
+			return t.S()
 		}
-		return lipgloss.NewStyle().Foreground(c)
+		return t.S().Foreground(c)
 	}
-	t.Title = lipgloss.NewStyle().Bold(true)
-	if t.Color {
-		t.Title = t.Title.Foreground(colAccent)
+	t.Title = fg(colInkStrong).Bold(true)
+	t.Subtle = fg(colInkMuted)
+	t.Accent = fg(colInkStrong)
+	t.Selected = fg(colInkStrong).Bold(true)
+	if t.Paper {
+		t.Selected = t.Selected.Background(colSky)
+	} else {
+		t.Selected = t.Selected.Reverse(true)
 	}
-	t.Subtle = fg(colSubtle)
-	t.Accent = fg(colAccent)
-	t.Selected = fg(colAccent).Bold(true)
-	t.Danger = fg(colDanger)
-	t.Warn = fg(colWarn)
+	t.Danger = fg(colErr)
+	t.Warn = fg(colInk).Bold(true)
 	t.OK = fg(colOK)
-	t.Border = fg(colBorder)
-	t.Help = fg(colSubtle)
+	t.Border = fg(colInk)
+	t.Help = fg(colInkMuted)
 	return t
+}
+
+// S devolve um estilo novo do renderer, com o fundo creme quando Paper.
+func (t Theme) S() lipgloss.Style {
+	s := t.R.NewStyle()
+	if t.Paper {
+		s = s.Background(colPaper)
+	}
+	return s
 }
 
 var (
@@ -97,17 +131,16 @@ func pick(nerd bool, a, b string) string {
 	return b
 }
 
-// Check devolve o marcador de seleção: caixa ou, com radio, rádio.
+// Check devolve o marcador de seleção: ✓/○ (ou ●/○ com radio) ou, sem Nerd
+// Font, [x]/[ ] (ou (•)/( )).
 func (t Theme) Check(marked, radio bool) string {
 	switch {
 	case t.Nerd && radio && marked:
-		return ""
-	case t.Nerd && radio:
-		return ""
+		return "●"
 	case t.Nerd && marked:
-		return ""
+		return "✓"
 	case t.Nerd:
-		return ""
+		return "○"
 	case radio && marked:
 		return "(•)"
 	case radio:

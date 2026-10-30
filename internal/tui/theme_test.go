@@ -56,7 +56,7 @@ func TestCheckMarkers(t *testing.T) {
 		want          string
 	}{
 		{a, true, false, "[x]"}, {a, false, false, "[ ]"}, {a, true, true, "(•)"}, {a, false, true, "( )"},
-		{n, true, false, ""}, {n, false, false, ""}, {n, true, true, ""}, {n, false, true, ""},
+		{n, true, false, "✓"}, {n, false, false, "○"}, {n, true, true, "●"}, {n, false, true, "○"},
 	}
 	for _, c := range cases {
 		if got := c.th.Check(c.marked, c.radio); got != c.want {
@@ -75,6 +75,27 @@ func TestNoColorRendersPlain(t *testing.T) {
 	}
 	if !NewTheme(map[string]string{}, false).Color {
 		t.Error("Color should be true without NO_COLOR")
+	}
+}
+
+func TestThemePaperModes(t *testing.T) {
+	cases := []struct {
+		name  string
+		p     termenv.Profile
+		env   map[string]string
+		paper bool
+		color bool
+	}{
+		{"truecolor", termenv.TrueColor, nil, true, true},
+		{"256", termenv.ANSI256, nil, true, true},
+		{"16", termenv.ANSI, nil, false, true},
+		{"no_color", termenv.TrueColor, map[string]string{"NO_COLOR": "1"}, false, false},
+	}
+	for _, c := range cases {
+		th := themeWithProfile(c.p, c.env)
+		if th.Paper != c.paper || th.Color != c.color {
+			t.Errorf("%s: Paper=%v Color=%v", c.name, th.Paper, th.Color)
+		}
 	}
 }
 
