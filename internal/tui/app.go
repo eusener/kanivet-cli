@@ -205,7 +205,9 @@ func (m Model) updateKey(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.showHelp = true
 			return m, nil
 		case key.Matches(km, m.keys.Quit):
-			if n, c := m.pending(); n+c > 0 && m.screen != ScreenSummary { // depois do run não há nada pendente
+			// depois do run (resumo e a revisão do "tentar de novo") a seleção do wizard já não está pendente
+			afterRun := m.screen == ScreenSummary || (m.screen == ScreenReview && m.review.caller == ScreenSummary)
+			if n, c := m.pending(); n+c > 0 && !afterRun {
 				m.confirmQuit = true
 				return m, nil
 			}
@@ -383,8 +385,7 @@ func (m Model) primaryAction() (key, label string, ok bool) {
 		r := m.review
 		return "enter", i18n.T("tui.primary.install"), !(r.diffOpen || r.blocked() || r.loading || m.detecting || r.empty())
 	case ScreenSummary:
-		row, onRow := m.summaryRow()
-		return "enter", i18n.T("tui.primary.dashboard"), m.sum.panel == panelNone && !m.sum.confirm && !(onRow && row.failed)
+		return "enter", i18n.T("tui.primary.dashboard"), m.sum.panel == panelNone && !m.sum.confirm
 	}
 	return "", "", false
 }
@@ -480,6 +481,8 @@ func (m Model) counterTags() []string {
 		return nil // o progresso fica no título da tela
 	case m.screen == ScreenSummary || m.sel == nil:
 		return nil
+	case m.screen == ScreenReview:
+		return nil // os totais do plano ficam no título; os da seleção poderiam contradizê-los
 	case m.screen == ScreenDashboard:
 		// contadores zerados não ocupam o rodapé: o espaço vai para os atalhos
 		i, u, r := m.sel.Pending()

@@ -138,6 +138,10 @@ func (m Model) retrySelection() (plan.Selection, bool) {
 	seen := map[string]bool{}
 	for _, id := range m.runRep.Failed {
 		st, ok := m.stepItem(id)
+		if ok && st.Kind == plan.KindChsh { // a troca de shell volta como troca de shell, não como instalação do zsh
+			out.SwitchToZsh = true
+			continue
+		}
 		if !ok || st.ItemID == "" || seen[st.ItemID] || st.Kind == plan.KindUninstall {
 			continue
 		}
@@ -170,7 +174,7 @@ func (m Model) retrySelection() (plan.Selection, bool) {
 			}
 		}
 	}
-	return out, len(out.Add)+len(out.Update) > 0
+	return out, len(out.Add)+len(out.Update) > 0 || out.SwitchToZsh
 }
 
 // canRetry diz se o "tentar de novo" tem o que tentar.
@@ -547,10 +551,7 @@ func (m Model) updateSummary(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 			nm.review.profile = m.sel.ToPlan().Profile // o perfil segue como metadado do run, fora do plano
 			return nm, cmd
 		}
-	case key.Matches(km, m.keys.Enter):
-		if onRow && row.failed {
-			return m.openLog(m.runRep.Failed[row.idx]), nil
-		}
+	case key.Matches(km, m.keys.Enter): // sempre o painel; o log da falha abre com l
 		return m.enterDashboard()
 	case key.Matches(km, m.keys.Diff):
 		if onRow && !row.failed {
@@ -578,10 +579,6 @@ func (m Model) summaryBindings() []key.Binding {
 	logKey.SetEnabled(onRow && row.failed)
 	retry.SetEnabled(m.canRetry())
 	enter := m.keys.Enter
-	if onRow && row.failed {
-		enter.SetHelp("enter", i18n.T("tui.summary.key_log"))
-	} else {
-		enter.SetHelp("enter", i18n.T("tui.summary.key_dashboard"))
-	}
+	enter.SetHelp("enter", i18n.T("tui.summary.key_dashboard"))
 	return []key.Binding{m.keys.Up, m.keys.Down, enter, logKey, retry, diff, force, m.keys.Help, m.keys.Quit}
 }

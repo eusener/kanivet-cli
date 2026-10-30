@@ -74,7 +74,7 @@ func TestSummaryGolden(t *testing.T) {
 
 func TestSummaryOpensLog(t *testing.T) {
 	m, _ := summaryModel(t)
-	m = send(m, enter())
+	m = send(m, keyRune("l")) // I4: o log abre com l (enter vai ao painel)
 	v := m.View()
 	if !strings.Contains(v, "log line 250") {
 		t.Fatalf("o log deve abrir no fim:\n%s", v)
@@ -287,6 +287,18 @@ func retryModel(t *testing.T) Model {
 
 func TestSummaryLogKey(t *testing.T) {
 	m, _ := summaryModel(t)
+	// I4: numa falha, enter vai ao painel (o botão principal continua visível) e l abre o log
+	if _, label, ok := m.primaryAction(); !ok || !strings.Contains(strings.ToUpper(footOf(m.View())), strings.ToUpper(label)) {
+		t.Fatalf("o botão ENTER do painel deve aparecer mesmo com o cursor numa falha: %q", footOf(m.View()))
+	}
+	for _, b := range m.summaryBindings() {
+		if b.Help().Key == "enter" && b.Help().Desc != i18n.T("tui.summary.key_dashboard") {
+			t.Errorf("enter na falha: %q, quer o painel", b.Help().Desc)
+		}
+	}
+	if d := send(m, enter()); d.screen != ScreenDashboard || d.sum.panel != panelNone {
+		t.Fatalf("enter numa falha deve ir ao painel: screen=%v panel=%v", d.screen, d.sum.panel)
+	}
 	m = send(m, keyRune("l"))
 	if m.sum.panel != panelLog || !strings.Contains(m.View(), "log line 250") {
 		t.Fatalf("l numa falha deve abrir o log: panel=%v", m.sum.panel)
@@ -493,5 +505,70 @@ func TestRetryPlanOnlyFailedItems(t *testing.T) {
 	nm := send(m, keyRune("r"))
 	if nm.review.profile != m.sel.ToPlan().Profile || nm.review.profile == "" {
 		t.Fatalf("review.profile = %q", nm.review.profile)
+	}
+}
+
+// I3: um chsh:zsh que falhou volta no retry como troca de shell (SwitchToZsh), não como
+// instalação do zsh, e o plano refeito tem o passo do chsh.
+func TestRetryChshSwitchesShell(t *testing.T) {
+	p := linuxSystemd
+	p.Shell = "bash"
+	s := newSession(t, p)
+	m := send(New(s, nil, ScreenSummary), size(100, 30))
+	m.sel = NewSelection(s.Cat, s.P, nil, ModeWizard)
+	m.plan = &plan.Plan{Steps: []plan.Step{
+		{ID: "install:zsh", ItemID: "zsh", Kind: plan.KindInstall},
+		{ID: "chsh:zsh", ItemID: "zsh", Kind: plan.KindChsh},
+	}}
+	m.runRep = executor.Report{Done: []string{"install:zsh"}, Failed: []string{"chsh:zsh"}}
+	sel, ok := m.retrySelection()
+	if !ok || !sel.SwitchToZsh {
+		t.Fatalf("retry do chsh: ok=%v sel=%+v", ok, sel)
+	}
+	for _, id := range sel.Add {
+		if id == "zsh" {
+			t.Errorf("o chsh não deve virar Add:[zsh]: %+v", sel)
+		}
+	}
+	pl, _, err := s.Plan(context.Background(), sel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := pl.Step("chsh:zsh"); !ok {
+		t.Fatalf("o plano do retry não tem o chsh: %+v", pl.Steps)
+	}
+}
+
+// I5: a revisão mostra um único total (o do título); o rodapé não repete os contadores
+// da seleção, que podem divergir do plano.
+func TestReviewFooterHasNoCounters(t *testing.T) {
+	m := reviewFor(t, linuxSystemd)
+	if tags := m.counterTags(); tags != nil {
+		t.Fatalf("counterTags na revisão = %q", tags)
+	}
+	m = retryModel(t)
+	m = send(m, keyRune("r"))
+	foot := footOf(m.View())
+	for _, bad := range []string{"TO INSTALL", "CONFIGS"} {
+		if strings.Contains(foot, bad) {
+			t.Errorf("rodapé da revisão com contador %q: %q", bad, foot)
+		}
+	}
+}
+
+// I5: na revisão do "tentar de novo", q não pergunta pelas pendências da seleção do
+// wizard (o run já aconteceu): sai direto, como no resumo.
+func TestRetryReviewQuitIgnoresWizardPending(t *testing.T) {
+	m := retryModel(t)
+	if n, c := m.pending(); n+c == 0 {
+		t.Fatal("o teste precisa de uma seleção com pendências")
+	}
+	m = send(m, keyRune("r"))
+	if m.screen != ScreenReview || m.review.caller != ScreenSummary {
+		t.Fatalf("r não abriu a revisão do retry: %v", m.screen)
+	}
+	nm, cmd := m.Update(keyRune("q"))
+	if nm.(Model).confirmQuit || !isQuit(cmd) {
+		t.Fatalf("q na revisão do retry deveria sair direto (confirm=%v)", nm.(Model).confirmQuit)
 	}
 }

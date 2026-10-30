@@ -21,4 +21,4 @@
   │        $ mise use -g aqua:ajeetdsouza/zoxide@latest                      │  
   └──────────────────────────────────────────────────────────────────────────┘  
                                                                                 
-   ENTER  INSTALL ->   [27 TO INSTALL]  [6 CONFIGS]  ESC back  ? help  Q quit   
+   ENTER  INSTALL ->   ↑/K up  ↓/J down  D diff  ESC back  ? help  Q quit       
