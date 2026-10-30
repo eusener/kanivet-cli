@@ -1,4 +1,10 @@
-Dashboard
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [KANIVET]  DASHBOARD                                                                             │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+DASHBOARD
+
 Profile: —  ·  | checking for updates...
   Terminal             0/5 │ > [x] bat      [x] 1.0
   Shell                0/8 │   [ ] btop     [-]
@@ -11,20 +17,14 @@ Profile: —  ·  | checking for updates...
   Local PHP environmen 0/2 │   [ ] sd       [ ]
   Python and data      0/4 │
   Container engine     0/2 │
-  Containers and Kuber 0/3 │
-  Data and APIs        0/7 │
-  Managers             0/2 │
-                           │
-                           │ ───────────────────────────────────────────────────────────────────────
-                           │ bat
-                           │ cat with syntax highlighting and git integration
+  Containers and Kuber 0/3 │ ───────────────────────────────────────────────────────────────────────
+  Data and APIs        0/7 │ bat
+  Managers             0/2 │ cat with syntax highlighting and git integration
                            │ status: [x] installed 1.0
                            │ method: mise aqua:sharkdp/bat
                            │
                            │
                            │
                            │
-                           │
-                           │
 0 to install · 0 to update · 0 to remove
-space mark • u update • U update all • p profile • / search • a apply • ? help • q quit
+SPACE mark  U update  S-U update all  P profile  / search  A apply  ? help  Q quit

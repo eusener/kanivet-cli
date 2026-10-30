@@ -1,4 +1,8 @@
-Summary
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ [KANIVET]  [x] WELCOME [x] PROFILE [x] ITEMS [x] REVIEW [x] INSTALL      END │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+SUMMARY
 Done: 3 · Failed: 1 · Skipped: 0
 
 Failed steps (enter opens the log)
@@ -17,8 +21,4 @@ Next steps
 
 
 
-
-
-
-
-↑/k up • ↓/j down • enter open log • ? help • q quit
+↑/K up  ↓/J down  ENTER open log  ? help  Q quit

@@ -1,4 +1,10 @@
-Step 1/5 · Welcome
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [KANIVET]  [WELCOME] PROFILE ITEMS REVIEW INSTALL                                            1/5 │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+WELCOME
+
 kanivet-cli sets up your dev terminal. Nothing runs before you review the plan.
 
 system:            ubuntu 24.04 · amd64
@@ -20,11 +26,5 @@ package manager:   apt
 
 
 
-
-
-
-
-
-
 0 to install · 0 configs
-enter confirm • ? help • q quit
+ ENTER  START ->   ? help  Q quit

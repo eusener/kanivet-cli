@@ -1,4 +1,10 @@
-Step 3/5 · Terminal and shell (1/5)
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [KANIVET]  [x] WELCOME [x] PROFILE [ITEMS] REVIEW INSTALL                                    3/5 │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+TERMINAL AND SHELL · 1/5
+
 > [x] herdr                    [ ]
   [x] herdr agent icons        [ ]
   [x] herdr plugins            [ ]
@@ -11,10 +17,6 @@ Step 3/5 · Terminal and shell (1/5)
   [x] zoxide                   [ ]
   [ ] zsh                      [ ]
   [x] zsh-autosuggestions      [ ]
-  [x] zsh-syntax-highlighting  [ ]
-
-
-
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 herdr
 Terminal workspace manager for AI coding agents
@@ -24,7 +26,5 @@ method: script
 
 
 
-
-
 36 to install · 6 configs
-↑/k up • ↓/j down • space mark • ←/h left • / search • enter confirm • esc back • ? help • q quit
+↑/K up  ↓/J down  SPACE mark  ←/H left  / search  ENTER confirm  ESC back  ? help  Q quit

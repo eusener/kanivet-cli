@@ -109,7 +109,7 @@ func TestWizardFlowToReview(t *testing.T) {
 	if m.screen != ScreenReview {
 		t.Fatalf("screen = %v, want review", m.screen)
 	}
-	if !strings.Contains(m.View(), "Review") {
+	if !strings.Contains(m.View(), "REVIEW") {
 		t.Errorf("view da revisão:\n%s", m.View())
 	}
 }
@@ -166,7 +166,7 @@ func TestCategoriesGolden(t *testing.T) {
 	m := detected(t, newModel(t, linuxSystemd))
 	m = send(m, enter(), enter())
 	v := m.View()
-	if !strings.Contains(v, "Step 3/5 · Terminal and shell (1/5)") {
+	if !strings.Contains(v, "TERMINAL AND SHELL · 1/5") {
 		t.Errorf("título:\n%s", v)
 	}
 	golden(t, "categories.golden", trimView(v))

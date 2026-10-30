@@ -1,4 +1,10 @@
-Step 2/5 · Profile
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [KANIVET]  [x] WELCOME [PROFILE] ITEMS REVIEW INSTALL                                        2/5 │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+PROFILE
+
 > Backend / Systems — Rust, Go, .NET, Java, Podman and Kubernetes tools
   Start from scratch — Only the base: shell, modern CLI tools, git, LazyVim and the terminal
   Laravel / PHP — PHP via lerd (Linux) or Flock (macOS), Composer, Node and LazyVim for PHP
@@ -20,11 +26,5 @@ Podman, LazyVim
 
 
 
-
-
-
-
-
-
 0 to install · 0 configs
-↑/k up • ↓/j down • enter confirm • ? help • q quit
+↑/K up  ↓/J down  ENTER confirm  ? help  Q quit

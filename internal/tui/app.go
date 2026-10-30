@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -9,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/detect"
 	"github.com/eusener/kanivet-cli/internal/executor"
@@ -224,13 +226,35 @@ func (m Model) updateKey(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// View desenha título, corpo, barra de pendências e atalhos (sempre visíveis).
+// headerHeight é a altura do cabeçalho (caixa de 1 linha com a sombra); no modo plain
+// sem sombra sobra uma linha em branco para a altura não mudar.
+const headerHeight = 4
+
+// respiro devolve quantas linhas em branco separam cabeçalho, título e corpo. Em
+// alturas curtas elas somem primeiro (primeiro corte da spec).
+func (m Model) respiro() int {
+	if m.h >= 28 {
+		return 2
+	}
+	return 0
+}
+
+// bodyHeight é a altura que sobra ao corpo: tudo menos cabeçalho, título, respiro,
+// linha de pendências e rodapé.
+func (m Model) bodyHeight() int {
+	return max(m.h-headerHeight-1-m.respiro()-1-1, 1)
+}
+
+// View desenha cabeçalho, título, corpo, barra de pendências e rodapé numa grade do
+// tamanho exato do terminal; toda saída passa pelo canvas.
 func (m Model) View() string {
 	if m.w < minWidth || m.h < minHeight {
-		return i18n.T("tui.too_small", m.w, m.h, minWidth, minHeight)
+		msg := i18n.T("tui.too_small", m.w, m.h, minWidth, minHeight)
+		return m.th.Canvas(strings.Split(ansi.Wrap(msg, max(m.w, 1), ""), "\n"), m.w, m.h)
 	}
-	body := m.bodyLines(m.h - 3)
-	for len(body) < m.h-3 {
+	bh := m.bodyHeight()
+	body := m.bodyLines(bh)
+	for len(body) < bh {
 		body = append(body, "")
 	}
 	status := ""
@@ -244,16 +268,111 @@ func (m Model) View() string {
 		n, c := m.pending()
 		status = m.th.Accent.Render(i18n.T("tui.pending", n, c))
 	}
-	foot := m.help.ShortHelpView(m.bindings())
+	lines := m.header()
+	gap := make([]string, m.respiro()/2)
+	lines = append(lines, gap...)
+	lines = append(lines, m.th.Title.Render(strings.ToUpper(m.title())))
+	lines = append(lines, gap...)
+	lines = append(lines, body[:bh]...)
+	lines = append(lines, status, m.footer())
+	return m.th.Canvas(lines, m.w, m.h)
+}
+
+// trailStep devolve o passo atual da trilha (0 a 4) e se ela está concluída.
+func (m Model) trailStep() (step int, done bool) {
+	switch m.screen {
+	case ScreenWelcome:
+		return 0, false
+	case ScreenProfile:
+		return 1, false
+	case ScreenCategories:
+		return 2, false
+	case ScreenReview:
+		return 3, false
+	case ScreenExecute:
+		return 4, false
+	}
+	return 4, true
+}
+
+// header desenha a caixa de marca: tag KANIVET, trilha e N/5 (ou FIM) à direita.
+// O painel (Task 8) ainda mostra só o nome da tela no lugar da trilha.
+func (m Model) header() []string {
+	var mid, right string
+	if m.screen == ScreenDashboard {
+		mid = m.th.Title.Render(strings.ToUpper(i18n.T("tui.step.dashboard")))
+	} else {
+		step, done := m.trailStep()
+		mid = m.th.Trail(step, done)
+		right = fmt.Sprintf("%d/5", step+1)
+		if done {
+			right = strings.ToUpper(i18n.T("tui.trail.end"))
+		}
+		right = m.th.Subtle.Render(right)
+	}
+	inner := m.w - 4 // bordas e padding
+	if m.th.Paper {
+		inner-- // sombra
+	}
+	left := m.th.Tag("KANIVET", colSun) + "  " + mid
+	if fill := inner - lipgloss.Width(left) - lipgloss.Width(right); fill > 0 {
+		left += strings.Repeat(" ", fill)
+	}
+	// se faltar largura, corta a trilha e preserva o N/5
+	row := ansi.Truncate(left, max(inner-lipgloss.Width(right), 0), "") + right
+	out := strings.Split(m.th.Box(row, m.w, BoxOpts{}), "\n")
+	for len(out) < headerHeight {
+		out = append(out, "")
+	}
+	return out
+}
+
+// primaryAction devolve a ação principal da tela (tecla e rótulo do botão); ok é
+// false nas telas sem ação principal ou com ela indisponível.
+func (m Model) primaryAction() (key, label string, ok bool) {
+	switch m.screen {
+	case ScreenWelcome:
+		return "enter", i18n.T("tui.primary.start"), !m.detecting
+	case ScreenReview:
+		r := m.review
+		return "enter", i18n.T("tui.primary.install"), !(r.diffOpen || r.blocked() || r.loading || m.detecting || r.empty())
+	case ScreenSummary:
+		row, onRow := m.summaryRow()
+		return "enter", i18n.T("tui.primary.dashboard"), m.sum.panel == panelNone && !m.sum.confirm && !(onRow && row.failed)
+	}
+	return "", "", false
+}
+
+// keyCap põe a tecla em maiúsculas; letras já maiúsculas (U, F) viram shift+letra
+// para não colidir com a minúscula.
+func (m Model) keyCap(k string) string {
+	if len(k) == 1 && k[0] >= 'A' && k[0] <= 'Z' {
+		return pick(m.th.Nerd, "⇧", "S-") + k
+	}
+	return strings.ToUpper(k)
+}
+
+// footer desenha a ação principal à esquerda e os demais atalhos em ink-muted, com a
+// tecla em maiúsculas. Confirmações pendentes substituem o rodapé.
+func (m Model) footer() string {
 	if m.confirmQuit {
-		foot = m.th.Warn.Render(i18n.T("tui.quit_confirm"))
+		return m.th.Warn.Render(i18n.T("tui.quit_confirm"))
 	}
 	if m.screen == ScreenSummary && m.sum.confirm {
-		foot = m.th.Warn.Render(i18n.T("tui.summary.force_confirm", shorten(m.cursorTarget(), 40)))
+		return m.th.Warn.Render(i18n.T("tui.summary.force_confirm", shorten(m.cursorTarget(), 40)))
 	}
-	lines := append([]string{m.th.Title.Render(m.title())}, body[:m.h-3]...)
-	lines = append(lines, status, lipgloss.NewStyle().MaxWidth(m.w).Render(foot))
-	return strings.Join(lines, "\n")
+	var parts []string
+	k, label, hasPrimary := m.primaryAction()
+	if hasPrimary {
+		parts = append(parts, m.th.Button(k, label))
+	}
+	for _, b := range m.bindings() {
+		if !b.Enabled() || (hasPrimary && b.Help().Key == k) {
+			continue
+		}
+		parts = append(parts, m.th.Help.Render(m.keyCap(b.Help().Key)+" "+b.Help().Desc))
+	}
+	return ansi.Truncate(strings.Join(parts, "  "), m.w, "")
 }
 
 // pending devolve o que a barra mostra (itens a instalar, configs ligadas); o aviso ao sair usa o mesmo critério.
@@ -271,11 +390,11 @@ func (m Model) pending() (install, configs int) {
 func (m Model) title() string {
 	switch m.screen {
 	case ScreenWelcome:
-		return i18n.T("tui.step", 1, i18n.T("tui.step.welcome"))
+		return i18n.T("tui.step.welcome")
 	case ScreenProfile:
-		return i18n.T("tui.step", 2, i18n.T("tui.step.profile"))
+		return i18n.T("tui.step.profile")
 	case ScreenCategories:
-		return i18n.T("tui.step.page", pageTitle(m.page), m.page+1, len(categoryPages))
+		return i18n.T("tui.title.page", pageTitle(m.page), m.page+1, len(categoryPages))
 	case ScreenReview:
 		if m.review.resume && m.review.journal != nil {
 			return i18n.T("tui.resume_title", m.review.journal.RunID)

@@ -190,7 +190,7 @@ func (m Model) cursorTarget() string {
 
 // panelHeight é a altura do painel do resumo, nunca menor que 1: com altura negativa o viewport
 // deixa o YOffset passar do fim do conteúdo e o View seguinte entra em pânico.
-func (m Model) panelHeight() int { return max(m.h-4, 1) }
+func (m Model) panelHeight() int { return max(m.bodyHeight()-1, 1) }
 
 func (m Model) layoutSummary() Model {
 	m.sum.vp.Width, m.sum.vp.Height = m.w, m.panelHeight()

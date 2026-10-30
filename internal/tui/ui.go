@@ -137,7 +137,8 @@ func (t Theme) Trail(step int, done bool) string {
 		i18n.T("tui.trail.welcome"), i18n.T("tui.trail.profile"), i18n.T("tui.trail.items"),
 		i18n.T("tui.trail.review"), i18n.T("tui.trail.install"),
 	}
-	sep := t.Subtle.Render(" " + pick(t.Nerd, "─", "-") + " ")
+	// sem Nerd Font a marca é "[x]" (larga): um espaço basta, a trilha cabe em 80 colunas
+	sep := t.Subtle.Render(pick(t.Nerd, " ─ ", " "))
 	parts := make([]string, len(names))
 	for i, n := range names {
 		up := strings.ToUpper(n)

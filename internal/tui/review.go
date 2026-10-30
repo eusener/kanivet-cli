@@ -217,7 +217,7 @@ func (m Model) reviewHeader() []string {
 // layoutReview ajusta o viewport ao tamanho atual e mantém o cursor visível.
 func (m Model) layoutReview() Model {
 	r := m.review
-	body := m.h - 3
+	body := m.bodyHeight()
 	height := body - len(m.reviewHeader())
 	if r.empty() {
 		height -= 2

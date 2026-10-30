@@ -1,6 +1,10 @@
-Review the plan
-31 install · 0 update · 0 remove · 7 configure · 0 skip
-
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ [KANIVET]  [x] WELCOME [x] PROFILE [x] ITEMS [REVIEW] INSTALL            4/5 │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                                                                
+REVIEW THE PLAN                                                                 
+31 install · 0 update · 0 remove · 7 configure · 0 skip                         
+                                                                                
 > Install:                                                                      
     install:mise  (script)  — dependency of starship                            
         $ curl https://mise.run | bash                                          
@@ -16,9 +20,5 @@ Review the plan
         $ mise use -g github:atuinsh/atuin[matching=musl]@latest                
     install:zoxide  (mise)                                                      
         $ mise use -g aqua:ajeetdsouza/zoxide@latest                            
-    install:fzf  (mise)                                                         
-        $ mise use -g aqua:junegunn/fzf@latest                                  
-    install:eza  (mise)                                                         
-        $ mise use -g aqua:eza-community/eza@latest                             
-27 to install · 6 configs
-↑/k up • ↓/j down • d diff • enter confirm • esc back • ? help • q quit
+27 to install · 6 configs                                                       
+ ENTER  INSTALL ->   ↑/K up  ↓/J down  D diff  ESC back  ? help  Q quit         

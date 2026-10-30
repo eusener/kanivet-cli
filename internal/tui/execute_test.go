@@ -291,7 +291,7 @@ func TestExecutionSurvivesResize(t *testing.T) {
 	m, _ := executing(t)
 	m = send(m, ev("chsh:s1", state.StepRunning), line("chsh:s1", "working"))
 	m = send(m, size(70, 20))
-	if want := i18n.T("tui.too_small", 70, 20, minWidth, minHeight); m.View() != want {
+	if want := i18n.T("tui.too_small", 70, 20, minWidth, minHeight); !strings.HasPrefix(m.View(), want) {
 		t.Fatalf("View = %q, want too-small", m.View())
 	}
 	m = send(m, line("chsh:s1", strings.Repeat("x", 300)), size(120, 40))
