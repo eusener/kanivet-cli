@@ -152,7 +152,7 @@ decidiu que **todas entram neste mesmo trabalho**, junto com o visual:
 
 1. **Resumo**: `l` abre o log completo do passo sob o cursor; `r` monta e executa
    um novo plano só com os itens que falharam (mesmo caminho da revisão).
-2. **Painel**: categorias em abas; `tab`/`shift+tab` e `←`/`→` trocam de aba.
+2. **Painel**: categorias em abas; `tab`/`shift+tab` trocam de aba (`←`/`→` continuam trocando a versão do item).
    O foco lateral de categorias da Fase 2 deixa de existir.
 3. **Execução**: tempo decorrido total e duração de cada passo concluído.
 4. **Painel**: data de instalação (vem de `state.InstalledItem.At`) e versão
