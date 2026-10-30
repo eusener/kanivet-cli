@@ -379,3 +379,66 @@ func TestUninstallDirConfigRestoresOriginal(t *testing.T) {
 		t.Fatalf("customized config must be backed up: %q", b)
 	}
 }
+
+// hookLog registra os comandos que passaram pelo hook interativo.
+type hookLog struct {
+	mu    sync.Mutex
+	calls []string
+	res   runner.Result
+}
+
+func (h *hookLog) run(_ context.Context, c runner.Cmd) runner.Result {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.calls = append(h.calls, c.Shown())
+	return h.res
+}
+
+func TestInteractiveHookHandlesSudo(t *testing.T) {
+	e := newEnv(t, item("a"), item("b"))
+	var steps []plan.Step
+	for _, id := range []string{"a", "b"} {
+		s := install(id, "x")
+		s.Cmds = []runner.Cmd{{Argv: []string{"apt-get", "install", "-y", id}, Sudo: true}}
+		s.NeedsSudo = true
+		steps = append(steps, s)
+	}
+	h := &hookLog{}
+	_, _ = e.ex.Execute(context.Background(), &plan.Plan{Steps: steps}, Options{RunInteractive: h.run})
+	if len(h.calls) != 1 || h.calls[0] != "sudo -v" {
+		t.Fatalf("hook calls: %v", h.calls)
+	}
+	for _, c := range e.fake.Strings() {
+		if c == "sudo -v" {
+			t.Fatalf("sudo -v must not reach the runner: %v", e.fake.Strings())
+		}
+	}
+}
+
+func TestInteractiveHookHandlesChsh(t *testing.T) {
+	e := newEnv(t, item("zsh"))
+	pl := &plan.Plan{Steps: []plan.Step{
+		{ID: "chsh:zsh", ItemID: "zsh", Kind: plan.KindChsh, Cmds: []runner.Cmd{{Shell: "chsh", Stdin: true}}},
+	}}
+	h := &hookLog{}
+	rep, _ := e.ex.Execute(context.Background(), pl, Options{RunInteractive: h.run})
+	if len(h.calls) != 1 || h.calls[0] != "chsh" || len(rep.Done) != 1 {
+		t.Fatalf("hook %v rep %+v", h.calls, rep)
+	}
+	for _, c := range e.fake.Strings() {
+		if c == "chsh" {
+			t.Fatalf("chsh must not reach the runner: %v", e.fake.Strings())
+		}
+	}
+}
+
+func TestInteractiveHookFailureSkipsSudoSteps(t *testing.T) {
+	e := newEnv(t, item("a"))
+	s := install("a", "x")
+	s.NeedsSudo = true
+	h := &hookLog{res: runner.Result{ExitCode: 1}}
+	rep, _ := e.ex.Execute(context.Background(), &plan.Plan{Steps: []plan.Step{s}}, Options{RunInteractive: h.run})
+	if len(rep.Skipped) != 1 || rep.Skipped[0] != "install:a" {
+		t.Fatalf("%+v", rep)
+	}
+}

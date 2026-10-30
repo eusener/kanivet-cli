@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/eusener/kanivet-cli/internal/detect"
 	"github.com/eusener/kanivet-cli/internal/i18n"
 )
 
@@ -16,12 +17,12 @@ func statusCmd(e *Env) *cobra.Command {
 		Use:   "status",
 		Short: i18n.T("cli.status"),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			st, err := e.loadState()
+			sess, err := e.open()
 			if err != nil {
 				return err
 			}
 			ctx := context.Background()
-			d := e.detector(st)
+			d := &detect.Detector{R: e.R, P: e.P, Owner: sess.St}
 			statuses := d.Detect(ctx, e.Cat, nil)
 			if checkUpdates {
 				d.CheckUpdates(ctx, e.Cat, statuses)

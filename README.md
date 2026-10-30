@@ -64,6 +64,28 @@ Regras principais:
   carregados por um único bloco `# >>> kanivet-cli >>>` no fim do rc.
 - **Idioma.** Inglês por padrão; pt-BR quando `LANG`/`LC_ALL` começa com `pt`.
 
+**Interface.** `kanivet-cli` sem subcomando, num terminal (stdin e stdout TTY),
+abre a TUI: o wizard na primeira vez (boas-vindas, perfil, categorias, revisão,
+execução e resumo) e o dashboard depois que já há itens ou perfil no estado. Se
+houver uma execução inacabada, a TUI abre direto na revisão dos passos
+pendentes: `enter` retoma e `esc` descarta (o journal não é apagado, o próximo
+run o substitui). Sem TTY, imprime a ajuda. Atalhos: setas ou `hjkl` movem,
+`space` marca, `enter` confirma ou avança, `esc` volta, `/` busca, `?` mostra a
+ajuda, `q` sai (confirma se houver mudanças pendentes) e `ctrl+c` sai ou, durante
+a execução, interrompe. Na revisão, `d` mostra o diff do arquivo; no dashboard,
+`a` aplica, `u`/`U` atualizam, `p` troca de perfil; na execução, `f` volta a
+seguir o log. O rodapé sempre mostra os atalhos da tela. Mínimo de 80×24;
+`NO_COLOR` desliga as cores.
+
+Teste manual num terminal real (antes de um release):
+
+1. wizard completo no perfil blank;
+2. senha do sudo pedida e aceita no meio da execução;
+3. `ctrl+c` durante um `brew install` e depois `kanivet-cli` oferecendo a
+   retomada;
+4. resize abaixo de 80×24;
+5. `NO_COLOR=1 kanivet-cli`.
+
 Testes: `go test ./...` e, com Docker, `test/integration/run.sh <ubuntu|debian|fedora|arch|opensuse> [perfil]`.
 
 ## Comandos

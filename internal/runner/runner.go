@@ -64,9 +64,9 @@ type ExecRunner struct {
 	Grace time.Duration
 }
 
-// execArgv monta o argv real. Comandos com sudo que não leem o terminal usam
+// ExecArgv monta o argv real (a TUI o usa no tea.ExecProcess). Comandos com sudo que não leem o terminal usam
 // "sudo -n": se a credencial expirou, falham na hora em vez de travar num prompt invisível.
-func execArgv(c Cmd) []string {
+func ExecArgv(c Cmd) []string {
 	argv := c.Argv
 	if c.Shell != "" {
 		argv = []string{"sh", "-c", c.Shell}
@@ -88,7 +88,7 @@ func procAttr(c Cmd) *syscall.SysProcAttr {
 }
 
 func (r ExecRunner) Run(ctx context.Context, c Cmd, out io.Writer) Result {
-	argv := execArgv(c)
+	argv := ExecArgv(c)
 	if len(argv) == 0 {
 		return Result{ExitCode: -1, Err: errors.New("empty command")}
 	}

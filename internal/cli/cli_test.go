@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/plan"
 	"github.com/eusener/kanivet-cli/internal/runner"
 	"github.com/eusener/kanivet-cli/internal/state"
@@ -171,5 +172,34 @@ func TestPtBRMessages(t *testing.T) {
 	h.env.Getenv["LANG"] = "pt_BR.UTF-8"
 	if code := h.run("install", "fzf"); code != 2 || !strings.Contains(h.errOut.String(), "modo não interativo") {
 		t.Fatalf("exit %d: %s", code, h.errOut)
+	}
+}
+
+func TestRootWithoutTTYPrintsHelp(t *testing.T) {
+	h := newHarness(t)
+	h.env.IsTTY = false
+	code := Run(h.env, nil)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, h.errOut)
+	}
+	if !strings.Contains(h.out.String(), "Usage") {
+		t.Fatalf("sem ajuda:\n%s", h.out)
+	}
+}
+
+func TestRootWithTTYOpensTUI(t *testing.T) {
+	h := newHarness(t)
+	called := false
+	h.env.RunTUI = func(s *app.Session, env map[string]string) error {
+		called = s != nil && s.St != nil
+		return nil
+	}
+	if code := Run(h.env, nil); code != 0 || !called {
+		t.Fatalf("exit %d called=%v: %s", code, called, h.errOut)
+	}
+	h.env.IsTTY = false
+	called = false
+	if code := Run(h.env, nil); code != 0 || called {
+		t.Fatalf("sem TTY a TUI não abre: exit %d called=%v", code, called)
 	}
 }

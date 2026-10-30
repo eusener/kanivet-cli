@@ -1,0 +1,30 @@
+Step 2/5 · Profile
+> Backend / Systems — Rust, Go, .NET, Java, Podman and Kubernetes tools
+  Start from scratch — Only the base: shell, modern CLI tools, git, LazyVim and the terminal
+  Laravel / PHP — PHP via lerd (Linux) or Flock (macOS), Composer, Node and LazyVim for PHP
+  Machine Learning / Data — Python, uv, Ruff, JupyterLab and CUDA when there is an NVIDIA GPU
+  Web (JS/TS) — Node, pnpm and Bun, HTTP and task tools, LazyVim for TypeScript
+────────────────────────────────────────────────────────────────────────────────────────────────────
+Items in this profile:
+starship, zsh-autosuggestions, zsh-syntax-highlighting, direnv, atuin, zoxide, fzf, eza, bat, fd,
+ripgrep, dust, duf, btop, procs, sd, yazi, lazygit, delta, gh, jq, kitty, herdr, herdr plugins,
+JetBrainsMono Nerd Font, herdr agent icons, Rust, Go, .NET, Java, kubectl, k9s, lazydocker, just,
+Podman, LazyVim
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+0 to install · 0 configs
+↑/k up • ↓/j down • enter confirm • ? help • q quit

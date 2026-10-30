@@ -1,0 +1,30 @@
+  [x] atuin                    [x] 18.3.0
+> [x] direnv                   [^] 2.32.0
+  [x] fzf                      [e] 0.56.3
+  [ ] starship                 [-]
+  [ ] zoxide                   [ ]
+  [ ] zsh                      [ ]
+  [ ] zsh-autosuggestions      [ ]
+  [ ] zsh-syntax-highlighting  [ ]
+  [ ] bat                      [ ]
+  [ ] btop                     [ ]
+  [ ] duf                      [ ]
+  [ ] dust                     [ ]
+  [ ] eza                      [ ]
+  [ ] fd                       [ ]
+  [ ] procs                    [ ]
+  [ ] ripgrep                  [ ]
+  [ ] sd                       [ ]
+────────────────────────────────────────────────────────────────────────────────────────────────────
+direnv
+Per-directory environment variables (.envrc)
+status: [^] outdated 2.32.0
+method: mise aqua:direnv/direnv
+
+
+
+
+
+
+
+
