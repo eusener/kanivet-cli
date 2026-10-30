@@ -79,7 +79,11 @@ func (r reviewState) rowKey(i int) string {
 
 // beginReview entra na revisão vindo de from e dispara o cálculo do plano.
 func (m Model) beginReview(from Screen) (Model, tea.Cmd) {
-	sel := m.sel.ToPlan()
+	return m.beginReviewWith(from, m.sel.ToPlan())
+}
+
+// beginReviewWith entra na revisão com uma seleção explícita (o "tentar de novo" do resumo).
+func (m Model) beginReviewWith(from Screen, sel plan.Selection) (Model, tea.Cmd) {
 	m.screen = ScreenReview
 	m.planSeq++
 	req := m.planSeq
@@ -454,8 +458,8 @@ func (m Model) updateReview(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.screen = r.caller
 			return m, nil
 		}
-		if r.caller == ScreenDashboard {
-			m.screen = ScreenDashboard
+		if r.caller == ScreenDashboard || r.caller == ScreenSummary {
+			m.screen = r.caller
 			return m, nil
 		}
 		m.screen = ScreenCategories

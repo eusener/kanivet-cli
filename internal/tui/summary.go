@@ -2,13 +2,16 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/executor"
@@ -113,69 +116,270 @@ func (m Model) nextSteps() []string {
 	return append(out, notes...)
 }
 
+// stepItem acha o passo no plano do run (m.exec.steps primeiro, depois m.plan).
+func (m Model) stepItem(id string) (plan.Step, bool) {
+	if i, ok := m.exec.index[id]; ok && i < len(m.exec.steps) {
+		return m.exec.steps[i], true
+	}
+	if m.plan != nil {
+		return m.plan.Step(id)
+	}
+	return plan.Step{}, false
+}
+
+// retrySelection monta a seleção do "tentar de novo": só os itens dos passos que falharam e
+// que ainda são selecionáveis, com o perfil, as versões e as configs da seleção atual.
+func (m Model) retrySelection() (plan.Selection, bool) {
+	var out plan.Selection
+	if m.sel == nil {
+		return out, false
+	}
+	cur := m.sel.ToPlan()
+	out.Profile, out.Versions, out.Configs = cur.Profile, cur.Versions, cur.Configs
+	seen := map[string]bool{}
+	for _, id := range m.runRep.Failed {
+		st, ok := m.stepItem(id)
+		if !ok || st.ItemID == "" || seen[st.ItemID] || st.Kind == plan.KindUninstall {
+			continue
+		}
+		if sel, _ := m.sel.Selectable(st.ItemID); !sel {
+			continue
+		}
+		seen[st.ItemID] = true
+		if st.Kind == plan.KindUpdate {
+			out.Update = append(out.Update, st.ItemID)
+		} else {
+			out.Add = append(out.Add, st.ItemID)
+		}
+	}
+	return out, len(out.Add)+len(out.Update) > 0
+}
+
+// canRetry diz se o "tentar de novo" tem o que tentar.
+func (m Model) canRetry() bool {
+	_, ok := m.retrySelection()
+	return ok
+}
+
+func (m Model) interrupted() bool {
+	return m.exec.interrupted || errors.Is(m.runErr, context.Canceled)
+}
+
+// summaryHeading é o título grande com o resultado do run.
+func (m Model) summaryHeading() string {
+	var t string
+	switch {
+	case m.interrupted():
+		t = i18n.T("tui.summary.title_interrupted")
+	case len(m.runRep.Failed) > 0 || m.runErr != nil:
+		t = i18n.T("tui.summary.title_failed")
+	default:
+		t = i18n.T("tui.summary.title_ok", fmtDur(m.exec.elapsedNow()))
+	}
+	return ansi.Truncate(m.th.Title.Render(strings.ToUpper(t)), m.contentWidth(), "…")
+}
+
+// summaryTags são as tags de totais; as que não couberem caem do fim.
+func (m Model) summaryTags() string {
+	r := m.runRep
+	inst, cfg := 0, 0
+	for _, id := range r.Done {
+		if st, ok := m.stepItem(id); ok {
+			switch st.Kind {
+			case plan.KindInstall, plan.KindUpdate:
+				inst++
+			case plan.KindConfig:
+				cfg++
+			}
+		}
+	}
+	tags := []string{
+		m.th.Tag(i18n.T("tui.summary.tag.installed", inst), colMint),
+		m.th.Tag(i18n.T("tui.summary.tag.configs", cfg), colSky),
+	}
+	if n := len(r.Failed); n > 0 {
+		tags = append(tags, m.th.Tag(i18n.T("tui.summary.tag.failed", n), colCoral))
+	}
+	if n := len(r.Skipped); n > 0 {
+		tags = append(tags, m.th.Tag(i18n.T("tui.summary.tag.skipped", n), colPeach))
+	}
+	if n := len(r.Conflicts); n > 0 {
+		tags = append(tags, m.th.Tag(i18n.T("tui.summary.tag.conflicts", n), colSun))
+	}
+	sp := m.th.S().Render(" ")
+	for len(tags) > 1 && lipgloss.Width(strings.Join(tags, sp)) > m.contentWidth() {
+		tags = tags[:len(tags)-1]
+	}
+	return ansi.Truncate(strings.Join(tags, sp), m.contentWidth(), "")
+}
+
+// failReason é o motivo da falha: o erro do passo, ou o caminho do log quando não há.
+func (m Model) failReason(id string) string {
+	if n := strings.Join(strings.Fields(m.exec.notes[id]), " "); n != "" {
+		return n
+	}
+	if p := m.failLog(id); p != "" {
+		return i18n.T("summary.log", p)
+	}
+	return ""
+}
+
+// failName é o nome mostrado do passo que falhou: o do item, ou o id do passo.
+func (m Model) failName(id string) string {
+	if st, ok := m.stepItem(id); ok && st.ItemID != "" {
+		if it := m.s.Cat.Items[st.ItemID]; it != nil {
+			if n := it.Name.Get(); n != "" {
+				return n
+			}
+		}
+		return st.ItemID
+	}
+	return id
+}
+
+// sumRow desenha uma linha de caixa do resumo: glifo, nome (maiúsculas se selecionada) e o resto em ink-muted.
+func (m Model) sumRow(glyph, name, rest string, sel bool, in int) string {
+	base := m.th.R.NewStyle()
+	muted := m.th.Ink(colInkMuted)
+	if sel {
+		base, muted = m.th.Selected, m.th.Selected
+		name = strings.ToUpper(name)
+	}
+	lead := base.Render(" ")
+	if glyph != "" {
+		g := m.th.Danger.Render(glyph)
+		if sel {
+			g = base.Render(glyph)
+		}
+		lead += g + base.Render(" ")
+	}
+	room := max(in-lipgloss.Width(lead)-1, 0)
+	text := name
+	if rest != "" {
+		text += "  " + rest
+	}
+	text = ansi.Truncate(text, room, "…")
+	head := ansi.Truncate(name, room, "…")
+	if lipgloss.Width(text) > lipgloss.Width(head) {
+		text = base.Render(head) + muted.Render(ansi.Cut(text, lipgloss.Width(head), lipgloss.Width(text)))
+	} else {
+		text = base.Render(text)
+	}
+	line := lead + text
+	if sel {
+		line += base.Render(strings.Repeat(" ", max(in-lipgloss.Width(line), 0)))
+	}
+	return ansi.Truncate(line, in, "")
+}
+
+// keyHint é "L VER LOG" com a tecla em negrito, para o cartão de falhas.
+func (m Model) keyHint(k, desc string) string {
+	return m.th.Ink(colInkStrong).Bold(true).Render(strings.ToUpper(k)) + m.th.Ink(colInkStrong).Render(" "+strings.ToUpper(desc))
+}
+
+// window devolve o início de uma janela de room linhas sobre n, com cur visível (cur<0: início).
+func window(n, cur, room int) int {
+	if n <= room || cur < 0 {
+		return 0
+	}
+	return min(max(cur-room/2, 0), n-room)
+}
+
 func (m Model) summaryLines(height int) []string {
 	if m.sum.panel != panelNone {
 		head := m.th.Title.Render(m.sum.title)
 		return append([]string{ansi.Truncate(head, m.contentWidth(), "…")}, strings.Split(m.sum.vp.View(), "\n")...)
 	}
+	cw := m.contentWidth()
+	in := m.th.BoxInner(cw)
+	oh := m.th.BoxOverhead()
+	gap := m.respiro() / 2
 	r := m.runRep
-	var lines []string
-	cursorLine := 0
-	add := func(s string) { lines = append(lines, ansi.Truncate(s, m.contentWidth(), "…")) }
-	add(m.th.Accent.Render(i18n.T("summary.counts", len(r.Done), len(r.Failed), len(r.Skipped))))
-	if m.runErr != nil {
-		add(m.th.Danger.Render(m.runErr.Error()))
-	}
-	row := 0
-	mark := func() string {
-		defer func() { row++ }()
-		if row == m.sum.cursor {
-			cursorLine = len(lines)
-			return "> "
+	lines := []string{m.summaryHeading()}
+	blank := func() {
+		for i := 0; i < gap; i++ {
+			lines = append(lines, "")
 		}
-		return "  "
 	}
-	if len(r.Failed) > 0 {
-		add("")
-		add(m.th.Title.Render(i18n.T("tui.summary.failures")))
-		for _, id := range r.Failed {
-			p := mark()
-			add(p + m.th.Danger.Render(m.th.StepIcon(state.StepFailed)) + " " + id)
-			add("      " + m.th.Subtle.Render(i18n.T("summary.log", shorten(m.failLog(id), m.contentWidth()-14))))
+	blank()
+	lines = append(lines, m.summaryTags())
+	blank()
+	if m.runErr != nil && !m.interrupted() {
+		lines = append(lines, m.th.Danger.Render(ansi.Truncate(m.runErr.Error(), cw, "…")))
+	}
+
+	next := m.nextSteps()
+	F, C := len(r.Failed), len(r.Conflicts)
+	fr, cr, nr := F, C, len(next)
+	boxes := func() int {
+		h, n := 0, 0
+		if F > 0 {
+			h += fr + 1 + oh
+			n++
 		}
-		add(m.th.Warn.Render(i18n.T("summary.retry")))
+		if C > 0 {
+			h += cr + oh
+			n++
+		}
+		if nr > 0 {
+			h += nr + oh
+			n++
+		}
+		return h + max(n-1, 0)*gap
 	}
-	if len(r.Conflicts) > 0 {
-		add("")
-		add(m.th.Title.Render(i18n.T("tui.summary.conflicts")))
-		for _, c := range r.Conflicts {
-			p := mark()
-			text := p + shorten(c.Target, m.contentWidth()-24)
+	for height > 0 && len(lines)+boxes() > height { // corta primeiro os próximos passos, depois conflitos e falhas
+		switch {
+		case nr > 0:
+			nr--
+		case cr > 1:
+			cr--
+		case fr > 1:
+			fr--
+		default:
+			height = 0
+		}
+	}
+	box := func(body string, o BoxOpts) {
+		lines = append(lines, strings.Split(m.th.Box(body, cw, o), "\n")...)
+	}
+	if F > 0 {
+		top := window(F, min(m.sum.cursor, F-1), fr)
+		var rows []string
+		for i := top; i < top+fr; i++ {
+			id := r.Failed[i]
+			rows = append(rows, m.sumRow(m.th.StepIcon(state.StepFailed), m.failName(id), m.failReason(id), m.sum.cursor == i, in))
+		}
+		hints := " " + m.keyHint(m.keys.Log.Help().Key, m.keys.Log.Help().Desc)
+		if m.canRetry() {
+			hints += "   " + m.keyHint(m.keys.Retry.Help().Key, m.keys.Retry.Help().Desc)
+		}
+		rows = append(rows, ansi.Truncate(hints, in, "…"))
+		box(strings.Join(rows, "\n"), BoxOpts{Title: i18n.T("tui.summary.failed_box"), Fill: colCoral, Fg: colInkStrong, Flush: true})
+		blank()
+	}
+	if C > 0 {
+		top := window(C, m.sum.cursor-F, cr)
+		var rows []string
+		for i := top; i < top+cr; i++ {
+			c := r.Conflicts[i]
+			rest := ""
 			switch {
 			case m.sum.forcing && m.cursorTarget() == c.Target:
-				text += " " + m.th.Subtle.Render(i18n.T("tui.summary.forcing"))
+				rest = i18n.T("tui.summary.forcing")
 			case m.sum.outcome[c.Target] != "":
-				text += " " + m.th.OK.Render(m.sum.outcome[c.Target])
+				rest = m.sum.outcome[c.Target]
 			}
-			add(text)
+			rows = append(rows, m.sumRow("", shorten(c.Target, max(in-4-lipgloss.Width(rest), 8)), rest, m.sum.cursor == F+i, in))
 		}
+		box(strings.Join(rows, "\n"), BoxOpts{Title: i18n.T("tui.summary.conflicts"), Flush: true})
+		blank()
 	}
-	if next := m.nextSteps(); len(next) > 0 {
-		add("")
-		add(m.th.Title.Render(i18n.T("tui.summary.next")))
-		for _, n := range next {
-			add("  " + n)
+	if nr > 0 {
+		var rows []string
+		for i, n := range next[:nr] {
+			rows = append(rows, ansi.Truncate(m.th.Ink(colInkStrong).Bold(true).Render(strconv.Itoa(i+1))+"  "+n, max(in-2, 1), "…"))
 		}
-	}
-	if len(lines) > height && height > 0 { // janela que mantém o cursor visível
-		top := cursorLine - height/2
-		if top > len(lines)-height {
-			top = len(lines) - height
-		}
-		if top < 0 {
-			top = 0
-		}
-		lines = lines[top : top+height]
+		box(strings.Join(rows, "\n"), BoxOpts{Title: i18n.T("tui.summary.next")})
 	}
 	return lines
 }
@@ -315,6 +519,14 @@ func (m Model) updateSummary(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.sum.cursor < len(m.summaryRows())-1 {
 			m.sum.cursor++
 		}
+	case key.Matches(km, m.keys.Log):
+		if onRow && row.failed {
+			return m.openLog(m.runRep.Failed[row.idx]), nil
+		}
+	case key.Matches(km, m.keys.Retry):
+		if sel, ok := m.retrySelection(); ok {
+			return m.beginReviewWith(ScreenSummary, sel)
+		}
 	case key.Matches(km, m.keys.Enter):
 		if onRow && row.failed {
 			return m.openLog(m.runRep.Failed[row.idx]), nil
@@ -342,11 +554,14 @@ func (m Model) summaryBindings() []key.Binding {
 	conflict := onRow && !row.failed
 	diff.SetEnabled(conflict)
 	force.SetEnabled(conflict)
+	logKey, retry := m.keys.Log, m.keys.Retry
+	logKey.SetEnabled(onRow && row.failed)
+	retry.SetEnabled(m.canRetry())
 	enter := m.keys.Enter
 	if onRow && row.failed {
 		enter.SetHelp("enter", i18n.T("tui.summary.key_log"))
 	} else {
 		enter.SetHelp("enter", i18n.T("tui.summary.key_dashboard"))
 	}
-	return []key.Binding{m.keys.Up, m.keys.Down, enter, diff, force, m.keys.Help, m.keys.Quit}
+	return []key.Binding{m.keys.Up, m.keys.Down, enter, logKey, retry, diff, force, m.keys.Help, m.keys.Quit}
 }

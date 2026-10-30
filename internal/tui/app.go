@@ -260,7 +260,7 @@ func (m Model) View() string {
 	}
 	bh := m.bodyHeight()
 	// nas telas de itens e de revisão o título (com as tags) é a primeira linha do próprio corpo
-	ownTitle := (m.screen == ScreenCategories || m.screen == ScreenReview || m.screen == ScreenExecute) && !m.showHelp
+	ownTitle := (m.screen == ScreenCategories || m.screen == ScreenReview || m.screen == ScreenExecute || (m.screen == ScreenSummary && m.sum.panel == panelNone)) && !m.showHelp
 	if ownTitle {
 		bh += 1 + m.respiro()/2
 	}

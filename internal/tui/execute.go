@@ -205,6 +205,7 @@ func (m Model) startRun() (Model, tea.Cmd) {
 		}
 	}
 	m.exec = e
+	m.runRep, m.runJ, m.runErr, m.sum = executor.Report{}, nil, nil, summaryState{} // o resumo seguinte mostra só este run
 	m.screen = ScreenExecute
 
 	// Na retomada, o plano pendente continua o journal existente (os passos feitos não rodam de novo).

@@ -2,23 +2,23 @@
   │ [KANIVET]  x WELCOME x PROFILE x ITEMS x REVIEW x INSTALL            END │
   └──────────────────────────────────────────────────────────────────────────┘
 
-  SUMMARY
-  Done: 3 · Failed: 1 · Skipped: 0
-
-  Failed steps (enter opens the log)
-  > [x] install:node
-        log: /state/runs/R1/logs/node.log
-  Fix the problem and run kanivet-cli install again to retry the failed items.
-
-  Configs you changed (kept as is)
-    /home/u/.config/fzf/fzfrc
-
-  Next steps
-    Open a new terminal to load the shell changes.
-    fzf: Run fzf --help once.
-
+  FINISHED WITH FAILURES
+  [1 INSTALLED] [1 CONFIGS] [1 FAILED] [1 KEPT]
+  ┌─ FAILED ─────────────────────────────────────────────────────────────────┐
+  │ [x] NODE.JS  log: /state/runs/R1/logs/node.log                           │
+  │ L VIEW LOG                                                               │
+  └──────────────────────────────────────────────────────────────────────────┘
+  ┌─ CONFIGS YOU CHANGED (KEPT AS IS) ───────────────────────────────────────┐
+  │ /home/u/.config/fzf/fzfrc                                                │
+  └──────────────────────────────────────────────────────────────────────────┘
+  ┌─ NEXT STEPS ─────────────────────────────────────────────────────────────┐
+  │ 1  Open a new terminal to load the shell changes.                        │
+  │ 2  fzf: Run fzf --help once.                                             │
+  └──────────────────────────────────────────────────────────────────────────┘
 
 
 
 
-  ↑/K up  ↓/J down  ENTER open log  ? help  Q quit
+
+
+  ↑/K up  ↓/J down  ENTER open log  L view log  ? help  Q quit

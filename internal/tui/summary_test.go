@@ -11,9 +11,12 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/catalog"
 	"github.com/eusener/kanivet-cli/internal/configs"
+	"github.com/eusener/kanivet-cli/internal/detect"
 	"github.com/eusener/kanivet-cli/internal/executor"
 	"github.com/eusener/kanivet-cli/internal/i18n"
 	"github.com/eusener/kanivet-cli/internal/plan"
@@ -261,4 +264,194 @@ func viewNoPanic(t *testing.T, m Model) {
 		}
 	}()
 	_ = m.View()
+}
+
+// retryModel monta um resumo com 2 falhas (node, lerd) e 3 sucessos (fzf, flock, mise).
+func retryModel(t *testing.T) Model {
+	t.Helper()
+	m, _ := summaryModel(t)
+	m.sel = NewSelection(m.s.Cat, m.s.P, nil, ModeWizard)
+	m.sel.ApplyProfile("laravel")
+	steps := []plan.Step{}
+	for _, id := range []string{"fzf", "flock", "mise", "node", "lerd"} {
+		steps = append(steps, plan.Step{ID: "install:" + id, ItemID: id, Kind: plan.KindInstall})
+	}
+	m.plan = &plan.Plan{Steps: steps}
+	m.runRep = executor.Report{
+		Done:   []string{"install:fzf", "install:flock", "install:mise"},
+		Failed: []string{"install:node", "install:lerd"},
+	}
+	m.sum = summaryState{}
+	return m
+}
+
+func TestSummaryLogKey(t *testing.T) {
+	m, _ := summaryModel(t)
+	m = send(m, keyRune("l"))
+	if m.sum.panel != panelLog || !strings.Contains(m.View(), "log line 250") {
+		t.Fatalf("l numa falha deve abrir o log: panel=%v", m.sum.panel)
+	}
+	m = send(m, esc(), keyRune("j"), keyRune("l")) // no conflito, l não faz nada
+	if m.sum.panel != panelNone {
+		t.Fatal("l fora de uma falha não abre o log")
+	}
+}
+
+func TestRetryBuildsSelectionOfFailed(t *testing.T) {
+	m := retryModel(t)
+	sel, ok := m.retrySelection()
+	if !ok {
+		t.Fatal("retrySelection ok = false")
+	}
+	if got := strings.Join(sel.Add, ","); got != "node,lerd" {
+		t.Fatalf("Add = %v, quer só os 2 que falharam", sel.Add)
+	}
+	if len(sel.Remove)+len(sel.Uninstall) != 0 {
+		t.Fatalf("sem remoções: %+v", sel)
+	}
+	if want := m.sel.ToPlan().Profile; sel.Profile != want || want == "" {
+		t.Fatalf("Profile = %q, quer %q", sel.Profile, want)
+	}
+}
+
+func TestRetryKeepsVersions(t *testing.T) {
+	m := retryModel(t)
+	m.sel.versions["node"] = "24"
+	want := m.sel.ToPlan().Versions
+	sel, _ := m.retrySelection()
+	if len(want) == 0 || fmt.Sprint(sel.Versions) != fmt.Sprint(want) {
+		t.Fatalf("Versions = %v, quer %v", sel.Versions, want)
+	}
+}
+
+func TestRetryEntersReview(t *testing.T) {
+	m := retryModel(t)
+	m = send(m, keyRune("r"))
+	if m.screen != ScreenReview || m.review.caller != ScreenSummary {
+		t.Fatalf("screen=%v caller=%v", m.screen, m.review.caller)
+	}
+	if !m.review.loading {
+		t.Fatal("a revisão deve calcular o plano")
+	}
+	m = send(m, esc()) // esc volta ao resumo
+	if m.screen != ScreenSummary || len(m.runRep.Failed) != 2 {
+		t.Fatalf("esc deve voltar ao resumo intacto: screen=%v", m.screen)
+	}
+}
+
+func TestRetryDisabledWithoutFailures(t *testing.T) {
+	enabled := func(m Model) bool {
+		for _, b := range m.summaryBindings() {
+			if b.Help().Key == "r" {
+				return b.Enabled()
+			}
+		}
+		return false
+	}
+	m := retryModel(t)
+	if !enabled(m) {
+		t.Fatal("r deve estar habilitado com falhas")
+	}
+	m.runRep.Failed = nil
+	if enabled(m) {
+		t.Fatal("r habilitado sem falhas")
+	}
+	if m = send(m, keyRune("r")); m.screen != ScreenSummary {
+		t.Fatalf("r sem falhas mudou a tela: %v", m.screen)
+	}
+
+	m = retryModel(t)
+	m.sel.SetStatuses(map[string]detect.ItemStatus{
+		"node": {ID: "node", Status: detect.StatusUnsupported},
+		"lerd": {ID: "lerd", Status: detect.StatusUnsupported},
+	})
+	if enabled(m) {
+		t.Fatal("r habilitado com falhas todas inselecionáveis")
+	}
+	if m = send(m, keyRune("r")); m.screen != ScreenSummary {
+		t.Fatalf("r mudou a tela: %v", m.screen)
+	}
+	// uma só inselecionável: o retry leva só a outra
+	m = retryModel(t)
+	m.sel.SetStatuses(map[string]detect.ItemStatus{"node": {ID: "node", Status: detect.StatusUnsupported}})
+	if sel, ok := m.retrySelection(); !ok || strings.Join(sel.Add, ",") != "lerd" {
+		t.Fatalf("Add = %v", sel.Add)
+	}
+}
+
+func TestRetryResetsRunState(t *testing.T) {
+	m := retryModel(t)
+	m.runErr = fmt.Errorf("boom")
+	m.sum.cursor = 1
+	m.review = reviewState{caller: ScreenSummary, pl: &plan.Plan{Steps: []plan.Step{{ID: "install:node", ItemID: "node", Kind: plan.KindInstall}}}}
+	m.screen, m.detecting = ScreenReview, false
+	m = send(m, enter())
+	t.Cleanup(m.exec.cancel)
+	if m.screen != ScreenExecute {
+		t.Fatalf("screen = %v", m.screen)
+	}
+	if len(m.runRep.Failed)+len(m.runRep.Done) != 0 || m.runErr != nil || m.runJ != nil || m.sum.cursor != 0 {
+		t.Fatalf("o run novo deve zerar o resultado: %+v %v", m.runRep, m.runErr)
+	}
+	if len(m.exec.steps) != 1 || m.exec.took == nil {
+		t.Fatalf("exec não refeito: %+v", m.exec.steps)
+	}
+}
+
+func TestSummaryTitles(t *testing.T) {
+	m, _ := summaryModel(t)
+	if v := m.View(); !strings.Contains(v, "FINISHED WITH FAILURES") {
+		t.Fatalf("sem título de falha:\n%s", v)
+	}
+	m.runRep.Failed, m.runRep.Conflicts = nil, nil
+	m.exec.elapsed = 3*time.Minute + 42*time.Second
+	if v := m.View(); !strings.Contains(v, "DONE IN 3M42S") {
+		t.Fatalf("sem título de sucesso:\n%s", v)
+	}
+	m.exec.interrupted = true
+	if v := m.View(); !strings.Contains(v, "INTERRUPTED") {
+		t.Fatalf("sem título de interrupção:\n%s", v)
+	}
+}
+
+func TestSummaryPtBRLongFits(t *testing.T) {
+	m := retryModel(t)
+	i18n.SetLang(i18n.PtBR)
+	defer i18n.SetLang(i18n.En)
+	m.keys = DefaultKeys() // os rótulos das teclas nascem na língua ativa
+	m.exec.notes = map[string]string{"install:node": strings.Repeat("sem binário para linux/arm64 ", 8)[:200]}
+	m.runRep.Conflicts = []configs.Conflict{{Target: "/home/u/" + strings.Repeat("diretorio/", 20) + "arquivo", Diff: "x"}}
+	m.th = paperTheme()
+	for _, sz := range [][2]int{{80, 24}, {100, 30}, {120, 40}} {
+		m = send(m, size(sz[0], sz[1]))
+		v := m.View()
+		assertPainted(t, v, sz[0], sz[1])
+		for _, want := range []string{"TERMINOU COM FALHAS", "VER LOG", "TENTAR DE NOVO", "…"} {
+			if !strings.Contains(ansi.Strip(v), want) {
+				t.Errorf("%dx%d sem %q:\n%s", sz[0], sz[1], want, ansi.Strip(v))
+			}
+		}
+	}
+	plain := retryModel(t)
+	plain.th = NewTheme(map[string]string{"NO_COLOR": "1"}, false)
+	plain = send(plain, size(80, 24))
+	for i, ln := range strings.Split(plain.View(), "\n") {
+		if lipgloss.Width(ln) != 80 {
+			t.Errorf("plain linha %d largura %d", i, lipgloss.Width(ln))
+		}
+	}
+}
+
+func TestSummaryPainted(t *testing.T) {
+	for _, lang := range []i18n.Lang{i18n.En, i18n.PtBR} {
+		i18n.SetLang(lang)
+		m, _ := summaryModel(t)
+		i18n.SetLang(lang)
+		m.th = paperTheme()
+		for _, sz := range [][2]int{{80, 24}, {100, 30}, {140, 50}} {
+			m = send(m, size(sz[0], sz[1]))
+			assertPainted(t, m.View(), sz[0], sz[1])
+		}
+	}
+	i18n.SetLang(i18n.En)
 }
