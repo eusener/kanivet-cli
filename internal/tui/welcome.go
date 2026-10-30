@@ -5,7 +5,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/backend"
@@ -58,10 +57,7 @@ func (m Model) welcomeLines() []string {
 	}
 	boxW := min(cw, 52)
 	inner := m.boxInner(boxW)
-	muted := lipgloss.NewStyle()
-	if m.th.Color {
-		muted = muted.Foreground(colInkMuted)
-	}
+	muted := m.th.Ink(colInkMuted)
 	label := func(k string) string {
 		return muted.Render(fmt.Sprintf("%-10s", strings.ToUpper(i18n.T(k))))
 	}

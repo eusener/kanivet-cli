@@ -25,6 +25,10 @@ const (
 	colLogFg     = lipgloss.Color("#e8e2dc")
 )
 
+// palette são as cores cujas sequências SGR o tema guarda prontas.
+var palette = []lipgloss.Color{colPaper, colCard, colInk, colInkStrong, colInkMuted, colSky, colSun,
+	colPeach, colMint, colCoral, colOK, colErr, colLogBg, colLogFg}
+
 // Theme agrupa os estilos e a escolha de ícones da TUI.
 type Theme struct {
 	Title, Subtle, Accent, Selected, Danger, Warn, OK, Border, Help lipgloss.Style
@@ -34,6 +38,9 @@ type Theme struct {
 	// (16 cores, NO_COLOR) o tema é "plain".
 	Paper bool
 	R     *lipgloss.Renderer
+	// seqs guarda, por cor da paleta, as SGR de fundo e de texto no perfil do renderer
+	// (montado no NewThemeWith e só lido depois).
+	seqs map[lipgloss.Color][2]string
 }
 
 // NewTheme monta o tema com o renderer padrão do lipgloss.
@@ -41,17 +48,28 @@ func NewTheme(env map[string]string, nerd bool) Theme {
 	return NewThemeWith(lipgloss.DefaultRenderer(), env, nerd)
 }
 
+// inkColor diz se c é uma das tintas neutras (ink, ink-strong, ink-muted): no modo de 16
+// cores elas viram preto (30/90), ilegível num terminal escuro, e por isso não são usadas.
+func inkColor(c lipgloss.TerminalColor) bool {
+	return c == colInk || c == colInkStrong || c == colInkMuted
+}
+
 // NewThemeWith monta o tema para o renderer dado. Com NO_COLOR não vazio em
-// env, os estilos não têm cor.
+// env, os estilos não têm cor. Com 16 cores, as tintas neutras dão lugar a negrito
+// e esmaecido sobre a cor padrão do terminal; só ok/erro mantêm a cor.
 func NewThemeWith(r *lipgloss.Renderer, env map[string]string, nerd bool) Theme {
 	t := Theme{Nerd: nerd, Color: env["NO_COLOR"] == "", R: r}
 	p := r.ColorProfile()
 	t.Paper = t.Color && (p == termenv.TrueColor || p == termenv.ANSI256)
+	t.seqs = make(map[lipgloss.Color][2]string, len(palette))
+	for _, c := range palette {
+		t.seqs[c] = [2]string{sgr(p, c, true), sgr(p, c, false)}
+	}
 	fg := func(c lipgloss.TerminalColor) lipgloss.Style {
 		if !t.Color {
 			return t.S()
 		}
-		return t.S().Foreground(c)
+		return t.Ink(c.(lipgloss.Color)).Inherit(t.S())
 	}
 	t.Title = fg(colInkStrong).Bold(true)
 	t.Subtle = fg(colInkMuted)
@@ -60,7 +78,7 @@ func NewThemeWith(r *lipgloss.Renderer, env map[string]string, nerd bool) Theme 
 	if t.Paper {
 		t.Selected = t.Selected.Background(colSky)
 	} else {
-		t.Selected = t.Selected.Reverse(true)
+		t.Selected = t.S().Bold(true).Reverse(true)
 	}
 	t.Danger = fg(colErr)
 	t.Warn = fg(colInk).Bold(true)
@@ -70,11 +88,21 @@ func NewThemeWith(r *lipgloss.Renderer, env map[string]string, nerd bool) Theme 
 	return t
 }
 
-// S devolve um estilo novo do renderer, com o fundo creme quando Paper.
+// sgr devolve a sequência SGR que liga a cor c (fundo ou texto) no perfil p.
+func sgr(p termenv.Profile, c lipgloss.Color, bg bool) string {
+	seq := p.Color(string(c))
+	if seq == nil {
+		return ""
+	}
+	return "\x1b[" + seq.Sequence(bg) + "m"
+}
+
+// S devolve um estilo novo do renderer; no modo Paper, com o fundo creme e a tinta
+// padrão (sem ela o texto cairia na cor padrão do terminal).
 func (t Theme) S() lipgloss.Style {
 	s := t.R.NewStyle()
 	if t.Paper {
-		s = s.Background(colPaper)
+		s = s.Background(colPaper).Foreground(colInk)
 	}
 	return s
 }

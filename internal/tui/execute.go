@@ -482,7 +482,11 @@ func (m Model) stepRow(id string, sel bool, w int) string {
 	if e.status[id] == state.StepFailed {
 		tag = " " + m.th.Tag(i18n.T("tui.execute.failed"), colCoral)
 	}
-	lead := base.Render(" ") + m.stepGlyph(id, sel) + base.Render(" ")
+	glyph := m.stepGlyph(id, sel)
+	if sel {
+		glyph = base.Render(glyph) // na linha do cursor o ícone fica sobre o sky, não sobre o branco
+	}
+	lead := base.Render(" ") + glyph + base.Render(" ")
 	rw := 0
 	if right != "" {
 		rw = lipgloss.Width(right) + 2 // espaço antes e depois da duração

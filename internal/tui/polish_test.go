@@ -60,6 +60,7 @@ func checkScreens(t *testing.T, w, h int) {
 		t.Run(name, func(t *testing.T) {
 			v := m.View()
 			assertPainted(t, v, w, h)
+			assertInked(t, v)
 			plain := ansi.Strip(v)
 			if !strings.Contains(plain, "KANIVET") {
 				t.Errorf("sem KANIVET:\n%s", plain)
@@ -171,6 +172,7 @@ func TestHelpOverlayPainted(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				v := m.View()
 				assertPainted(t, v, sz[0], sz[1])
+				assertInked(t, v)
 				plain := ansi.Strip(v)
 				if !strings.Contains(strings.ToUpper(plain), "SHORTCUTS") || !strings.Contains(plain, "KANIVET") {
 					t.Errorf("ajuda sem título:\n%s", plain)
@@ -206,6 +208,58 @@ func TestQuitConfirmOverlayPainted(t *testing.T) {
 		foot := strings.Split(plain, "\n")[23]
 		if strings.Contains(strings.ToUpper(foot), "ENTER") || !strings.Contains(foot, "Q ") {
 			t.Errorf("rodapé do diálogo deveria mostrar só q/outra tecla: %q", foot)
+		}
+	}
+}
+
+// fgCodes devolve os códigos de cor de texto de 16 cores (30-37, 90-97) que as SGR da
+// string ligam, pulando os argumentos de 38/48/58.
+func fgCodes(s string) []int {
+	var out []int
+	for _, mt := range sgrSeq.FindAllStringSubmatch(s, -1) {
+		p := strings.Split(mt[1], ";")
+		for k := 0; k < len(p); k++ {
+			n, _ := strconv.Atoi(p[k])
+			switch {
+			case n == 38 || n == 48 || n == 58:
+				if k+1 < len(p) && p[k+1] == "2" {
+					k += 4
+				} else if k+1 < len(p) && p[k+1] == "5" {
+					k += 2
+				}
+			case n >= 30 && n <= 37, n >= 90 && n <= 97:
+				out = append(out, n)
+			}
+		}
+	}
+	return out
+}
+
+// Com 16 cores as tintas neutras não viram preto (30) nem cinza-escuro (90): num terminal
+// escuro ficariam ilegíveis. A linha selecionada usa só negrito e vídeo invertido.
+func TestANSI16NoBlackInk(t *testing.T) {
+	th := themeWithProfile(termenv.ANSI, nil)
+	if c := fgCodes(th.Selected.Render("x")); len(c) > 0 {
+		t.Errorf("Selected com cor de texto %v: %q", c, th.Selected.Render("x"))
+	}
+	for name, m := range allScreens(t) {
+		m = withTheme(m, th)
+		m = send(m, size(80, 24))
+		for _, extra := range []string{"", "?"} {
+			if extra == "?" {
+				if name == "execute" {
+					continue
+				}
+				m = send(m, keyRune("?"))
+			}
+			t.Run(name+extra, func(t *testing.T) {
+				v := m.View()
+				for _, c := range fgCodes(v) {
+					if c == 30 || c == 90 {
+						t.Fatalf("cor de texto %d (preto) no modo de 16 cores:\n%q", c, v)
+					}
+				}
+			})
 		}
 	}
 }

@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -20,18 +19,68 @@ type BoxOpts struct {
 	Flush bool
 }
 
-var resetRe = regexp.MustCompile(`\x1b\[(?:0?|49)m`)
-
 // bgSeq devolve a sequência SGR que liga o fundo c no perfil do renderer.
 func (t Theme) bgSeq(c lipgloss.Color) string {
-	return "\x1b[" + t.R.ColorProfile().Color(string(c)).Sequence(true) + "m"
+	if s, ok := t.seqs[c]; ok {
+		return s[0]
+	}
+	return sgr(t.R.ColorProfile(), c, true)
 }
 
-// repaint reaplica o fundo c depois de cada reset SGR (ESC[0m, ESC[m, ESC[49m),
-// para que segmentos estilizados não deixem buracos.
-func (t Theme) repaint(s string, c lipgloss.Color) string {
-	bg := t.bgSeq(c)
-	return resetRe.ReplaceAllStringFunc(s, func(m string) string { return m + bg })
+// fgSeq devolve a sequência SGR que liga a cor de texto c no perfil do renderer.
+func (t Theme) fgSeq(c lipgloss.Color) string {
+	if s, ok := t.seqs[c]; ok {
+		return s[1]
+	}
+	return sgr(t.R.ColorProfile(), c, false)
+}
+
+// resetLen devolve o tamanho do reset SGR que começa em s[i:] (ESC[0m, ESC[m, ESC[39m ou
+// ESC[49m), ou 0 se não houver um ali.
+func resetLen(s string, i int) int {
+	r := s[i+2:]
+	switch {
+	case strings.HasPrefix(r, "m"):
+		return 3
+	case strings.HasPrefix(r, "0m"):
+		return 4
+	case strings.HasPrefix(r, "39m"), strings.HasPrefix(r, "49m"):
+		return 5
+	}
+	return 0
+}
+
+// repaint reaplica o fundo bg e a tinta fg depois de cada reset SGR, para que segmentos
+// estilizados não deixem buracos nem texto na cor padrão do terminal.
+func (t Theme) repaint(s string, bg, fg lipgloss.Color) string {
+	i := strings.Index(s, "\x1b[")
+	if i < 0 {
+		return s
+	}
+	restore := t.bgSeq(bg) + t.fgSeq(fg)
+	var b strings.Builder
+	b.Grow(len(s) + 8*len(restore))
+	last := 0
+	for i >= 0 {
+		if n := resetLen(s, i); n > 0 {
+			b.WriteString(s[last : i+n])
+			b.WriteString(restore)
+			last = i + n
+			i += n
+		} else {
+			i += 2
+		}
+		j := strings.Index(s[i:], "\x1b[")
+		if j < 0 {
+			break
+		}
+		i += j
+	}
+	if last == 0 {
+		return s
+	}
+	b.WriteString(s[last:])
+	return b.String()
 }
 
 // fit corta ou completa com espaços até a largura exata w.
@@ -68,10 +117,7 @@ func (t Theme) Box(body string, width int, o BoxOpts) string {
 	if t.Paper {
 		b = lipgloss.ThickBorder()
 	}
-	edge := t.S()
-	if t.Color {
-		edge = edge.Foreground(colInk)
-	}
+	edge := t.S() // no Paper já vem com a tinta; nas 16 cores a borda fica na cor padrão
 	inner := t.R.NewStyle().Width(bw-2).Padding(0, 1)
 	if o.Flush {
 		inner = t.R.NewStyle().Width(bw - 2)
@@ -82,7 +128,7 @@ func (t Theme) Box(body string, width int, o BoxOpts) string {
 	var rows []string
 	for _, ln := range strings.Split(inner.Render(body), "\n") {
 		if t.Paper {
-			ln = t.repaint(ln, fill)
+			ln = t.repaint(ln, fill, fg)
 		}
 		rows = append(rows, edge.Render(b.Left)+ln+edge.Render(b.Right))
 	}
@@ -237,18 +283,24 @@ func (t Theme) Canvas(lines []string, w, h int) string {
 		}
 		ln = padTo(ln, w)
 		if t.Paper {
-			ln = t.bgSeq(colPaper) + t.repaint(ln, colPaper) + "\x1b[0m"
+			ln = t.bgSeq(colPaper) + t.fgSeq(colInk) + t.repaint(ln, colPaper, colInk) + "\x1b[0m"
 		}
 		out[i] = ln
 	}
 	return strings.Join(out, "\n")
 }
 
-// Ink devolve um estilo sem o fundo creme (para texto dentro de caixas).
+// Ink devolve um estilo sem o fundo creme (para texto dentro de caixas). Fora do Paper
+// as tintas neutras não viram cor (seriam preto em 16 cores): ink-muted fica esmaecido
+// e as demais ficam na cor padrão do terminal.
 func (t Theme) Ink(c lipgloss.Color) lipgloss.Style {
 	s := t.R.NewStyle()
-	if t.Color {
+	switch {
+	case !t.Color:
+	case t.Paper || !inkColor(c):
 		s = s.Foreground(c)
+	case c == colInkMuted:
+		s = s.Faint(true)
 	}
 	return s
 }

@@ -173,7 +173,7 @@ func clampLines(s string, w, n int) []string {
 
 func (m Model) profileCard(pr catalog.Profile, selected bool, w, descLines int) string {
 	inner := m.boxInner(w)
-	name := lipgloss.NewStyle().Bold(true).Render(strings.ToUpper(ansi.Truncate(pr.Name.Get(), max(inner-4, 1), "…")))
+	name := m.th.R.NewStyle().Bold(true).Render(strings.ToUpper(ansi.Truncate(pr.Name.Get(), max(inner-4, 1), "…")))
 	body := []string{m.th.Check(selected, true) + " " + name}
 	desc := clampLines(pr.Description.Get(), inner, descLines)
 	for len(desc) < descLines {
