@@ -139,6 +139,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.onPlan(msg), nil
 	case eventMsg:
 		return m.onEvent(msg)
+	case eventBatchMsg:
+		return m.onBatch(msg)
 	case eventsClosedMsg:
 		done := m.exec.done
 		return m, func() tea.Msg { return <-done }

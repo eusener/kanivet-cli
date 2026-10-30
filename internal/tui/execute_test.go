@@ -523,3 +523,63 @@ func BenchmarkExecuteView(b *testing.B) {
 		_ = m.View()
 	}
 }
+
+// I6: o waitEvent entrega de uma vez todos os eventos já disponíveis no canal (um só
+// Update e um só View por lote), e o lote é aplicado como os eventos avulsos.
+func TestWaitEventBatchesAvailableEvents(t *testing.T) {
+	m, _ := executing(t)
+	ch := make(chan executor.Event, 16)
+	m.exec.events = ch
+	ch <- executor.Event{StepID: "chsh:s1", Status: state.StepRunning}
+	for i := 0; i < 9; i++ {
+		ch <- executor.Event{StepID: "chsh:s1", Line: fmt.Sprintf("l%d", i)}
+	}
+	msg := waitEvent(ch)()
+	b, ok := msg.(eventBatchMsg)
+	if !ok || len(b.evs) != 10 || b.closed {
+		t.Fatalf("esperava um lote com os 10 eventos, veio %T %+v", msg, msg)
+	}
+	nm, next := m.Update(msg)
+	m = nm.(Model)
+	if got := m.exec.logs["chsh:s1"].last(9); len(got) != 9 || got[8] != "l8" || m.exec.status["chsh:s1"] != state.StepRunning {
+		t.Fatalf("lote não aplicado: %v %v", got, m.exec.status)
+	}
+	if next == nil {
+		t.Fatal("o lote deve re-agendar a leitura")
+	}
+	// canal fechado no meio do lote: aplica o que veio e passa a esperar o resultado
+	ch <- executor.Event{StepID: "chsh:s1", Status: state.StepDone}
+	close(ch)
+	b, ok = waitEvent(ch)().(eventBatchMsg)
+	if !ok || len(b.evs) != 1 || !b.closed {
+		t.Fatalf("lote final: %+v", b)
+	}
+	done := make(chan runDoneMsg, 1)
+	done <- runDoneMsg{}
+	m.exec.done = done
+	nm, next = m.Update(b)
+	if nm.(Model).exec.status["chsh:s1"] != state.StepDone {
+		t.Fatal("o último evento não foi aplicado")
+	}
+	if _, ok := next().(runDoneMsg); !ok {
+		t.Fatal("depois do canal fechado o cmd deve esperar o runDoneMsg")
+	}
+}
+
+// I6: last(n) devolve as n últimas linhas na ordem, também com o anel já girado.
+func TestLogRingLast(t *testing.T) {
+	r := &logRing{}
+	for i := 0; i < logCap+7; i++ {
+		r.add(fmt.Sprint(i))
+	}
+	got := r.last(3)
+	if strings.Join(got, ",") != fmt.Sprintf("%d,%d,%d", logCap+4, logCap+5, logCap+6) {
+		t.Fatalf("last(3) = %v", got)
+	}
+	if all := r.lines(); len(all) != logCap || all[0] != "7" {
+		t.Fatalf("lines() = %d, primeira %q", len(all), all[0])
+	}
+	if got := (&logRing{buf: []string{"a", "b"}}).last(5); strings.Join(got, ",") != "a,b" {
+		t.Fatalf("last além do tamanho = %v", got)
+	}
+}

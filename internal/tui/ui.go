@@ -83,15 +83,40 @@ func (t Theme) repaint(s string, bg, fg lipgloss.Color) string {
 	return b.String()
 }
 
-// fit corta ou completa com espaços até a largura exata w.
+// padTo corta ou completa com espaços até a largura exata w.
 func padTo(s string, w int) string {
-	if lipgloss.Width(s) > w {
+	n := ansi.StringWidth(s)
+	if n > w {
 		s = ansi.Truncate(s, w, "")
+		n = ansi.StringWidth(s)
 	}
-	if n := w - lipgloss.Width(s); n > 0 {
-		s += strings.Repeat(" ", n)
+	if n < w {
+		s += strings.Repeat(" ", w-n)
 	}
 	return s
+}
+
+type measured struct {
+	s string
+	w int
+}
+
+// fitLines separa body em linhas com a largura de cada uma; ok=false quando alguma
+// passa de w (ou há tab), e então o lipgloss precisa quebrar o texto.
+func fitLines(body string, w int) ([]measured, bool) {
+	if w < 1 || strings.Contains(body, "\t") {
+		return nil, false
+	}
+	parts := strings.Split(body, "\n")
+	out := make([]measured, len(parts))
+	for i, p := range parts {
+		n := ansi.StringWidth(p)
+		if n > w {
+			return nil, false
+		}
+		out[i] = measured{p, n}
+	}
+	return out, true
 }
 
 // Box desenha body numa caixa de largura total width (sombra incluída). Com
@@ -118,19 +143,37 @@ func (t Theme) Box(body string, width int, o BoxOpts) string {
 		b = lipgloss.ThickBorder()
 	}
 	edge := t.S() // no Paper já vem com a tinta; nas 16 cores a borda fica na cor padrão
-	inner := t.R.NewStyle().Width(bw-2).Padding(0, 1)
+	side := 1 // recuo lateral do corpo
 	if o.Flush {
-		inner = t.R.NewStyle().Width(bw - 2)
+		side = 0
 	}
-	if t.Paper {
-		inner = inner.Background(fill).Foreground(fg)
-	}
+	left, right := edge.Render(b.Left), edge.Render(b.Right)
 	var rows []string
-	for _, ln := range strings.Split(inner.Render(body), "\n") {
+	if lines, ok := fitLines(body, bw-2-2*side); ok {
+		// caminho rápido: nada a quebrar, só completar cada linha até a largura
+		prefix, suffix := "", ""
 		if t.Paper {
-			ln = t.repaint(ln, fill, fg)
+			prefix, suffix = t.bgSeq(fill)+t.fgSeq(fg), "\x1b[0m"
 		}
-		rows = append(rows, edge.Render(b.Left)+ln+edge.Render(b.Right))
+		pad := strings.Repeat(" ", side)
+		for _, l := range lines {
+			ln := pad + l.s + strings.Repeat(" ", bw-2-2*side-l.w) + pad
+			if t.Paper {
+				ln = prefix + t.repaint(ln, fill, fg) + suffix
+			}
+			rows = append(rows, left+ln+right)
+		}
+	} else {
+		inner := t.R.NewStyle().Width(bw-2).Padding(0, side)
+		if t.Paper {
+			inner = inner.Background(fill).Foreground(fg)
+		}
+		for _, ln := range strings.Split(inner.Render(body), "\n") {
+			if t.Paper {
+				ln = t.repaint(ln, fill, fg)
+			}
+			rows = append(rows, left+ln+right)
+		}
 	}
 	top := b.Top
 	title := ""
@@ -154,14 +197,15 @@ func (t Theme) Box(body string, width int, o BoxOpts) string {
 	}
 	// Caixa deslocada 1 coluna à direita; a sombra ocupa a coluna 0 (da 2ª
 	// linha em diante) e uma linha extra embaixo.
+	shade, blank := edge.Render("▐"), t.S().Render(" ")
 	for i := range rows {
-		lead := edge.Render("▐")
+		lead := shade
 		if i == 0 {
-			lead = t.S().Render(" ")
+			lead = blank
 		}
 		rows[i] = lead + rows[i]
 	}
-	last := edge.Render("▝"+strings.Repeat("▀", width-2)) + t.S().Render(" ")
+	last := edge.Render("▝"+strings.Repeat("▀", width-2)) + blank
 	return strings.Join(append(rows, last), "\n")
 }
 

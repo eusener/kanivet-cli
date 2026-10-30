@@ -28,6 +28,13 @@ const logCap = 500
 // eventMsg é um evento do executor entregue ao Update.
 type eventMsg executor.Event
 
+// eventBatchMsg são os eventos que já estavam no canal, entregues de uma vez; closed diz
+// que o canal fechou logo depois deles.
+type eventBatchMsg struct {
+	evs    []executor.Event
+	closed bool
+}
+
 // eventsClosedMsg avisa que o executor terminou e fechou o canal de eventos.
 type eventsClosedMsg struct{}
 
@@ -114,11 +121,13 @@ func (r *logRing) last(n int) []string {
 	if r == nil {
 		return nil
 	}
-	all := append(append([]string{}, r.buf[r.start:]...), r.buf[:r.start]...)
-	if n < len(all) {
-		all = all[len(all)-n:]
+	n = min(max(n, 0), len(r.buf))
+	out := make([]string, n)
+	// a linha i (0 = mais antiga) está em buf[(start+i) % len]; copia só as n do fim
+	for i := range out {
+		out[i] = r.buf[(r.start+len(r.buf)-n+i)%len(r.buf)]
 	}
-	return all
+	return out
 }
 
 func (r *logRing) lines() []string { return r.last(logCap) }
@@ -174,14 +183,34 @@ func (e execState) terminal(id string) bool {
 	return false
 }
 
-// waitEvent lê um evento do executor; o Update o re-agenda a cada eventMsg.
+// maxBatch limita quantos eventos um lote leva (o View seguinte fica curto).
+const maxBatch = 1024
+
+// waitEvent espera um evento do executor e leva junto todos os que já estão no canal: um
+// lote vira um só Update e um só View, e o executor não fica bloqueado no envio enquanto
+// a tela redesenha evento por evento. O Update o re-agenda a cada mensagem.
 func waitEvent(ch <-chan executor.Event) tea.Cmd {
 	return func() tea.Msg {
 		ev, ok := <-ch
 		if !ok {
 			return eventsClosedMsg{}
 		}
-		return eventMsg(ev)
+		batch := []executor.Event{ev}
+		for len(batch) < maxBatch {
+			select {
+			case ev, ok := <-ch:
+				if !ok {
+					return eventBatchMsg{evs: batch, closed: true}
+				}
+				batch = append(batch, ev)
+			default:
+				if len(batch) == 1 {
+					return eventMsg(batch[0])
+				}
+				return eventBatchMsg{evs: batch}
+			}
+		}
+		return eventBatchMsg{evs: batch}
 	}
 }
 
@@ -220,10 +249,26 @@ func (m Model) startRun() (Model, tea.Cmd) {
 }
 
 func (m Model) onEvent(ev eventMsg) (Model, tea.Cmd) {
-	e := m.exec
-	next := waitEvent(e.events)
+	m.exec = m.exec.apply(executor.Event(ev))
+	return m, waitEvent(m.exec.events)
+}
+
+// onBatch aplica um lote de eventos; se o canal fechou, passa a esperar o resultado do run.
+func (m Model) onBatch(b eventBatchMsg) (Model, tea.Cmd) {
+	for _, ev := range b.evs {
+		m.exec = m.exec.apply(ev)
+	}
+	if b.closed {
+		done := m.exec.done
+		return m, func() tea.Msg { return <-done }
+	}
+	return m, waitEvent(m.exec.events)
+}
+
+// apply registra um evento do executor (linha de log e/ou mudança de status).
+func (e execState) apply(ev executor.Event) execState {
 	if _, ok := e.index[ev.StepID]; !ok {
-		return m, next
+		return e
 	}
 	if ev.Line != "" {
 		r := e.logs[ev.StepID]
@@ -267,8 +312,7 @@ func (m Model) onEvent(ev eventMsg) (Model, tea.Cmd) {
 	if e.follow && e.current != "" {
 		e.cursor = e.index[e.current]
 	}
-	m.exec = e
-	return m, next
+	return e
 }
 
 func (m Model) onRunDone(msg runDoneMsg) (Model, tea.Cmd) {
