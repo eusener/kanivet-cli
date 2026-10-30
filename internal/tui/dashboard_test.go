@@ -325,3 +325,50 @@ func TestDashPaintedProfileModal(t *testing.T) {
 		assertPainted(t, mm.View(), sz[0], sz[1])
 	}
 }
+
+func TestWizardTabTogglesConfigPanel(t *testing.T) {
+	m := send(detected(t, newModel(t, linuxSystemd)), enter(), enter())
+	if m.screen != ScreenCategories {
+		t.Fatalf("esperava as categorias, está em %v", m.screen)
+	}
+	for i := 0; len(m.list.configs()) == 0; i++ {
+		if i > 100 {
+			t.Fatal("nenhum item com configs na primeira página")
+		}
+		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
+	}
+	if m.list.panel {
+		t.Fatal("o painel começa sem foco")
+	}
+	if m = send(m, tabKey()); !m.list.panel {
+		t.Fatal("o primeiro tab deve focar o painel de configs")
+	}
+	if m = send(m, tabKey()); m.list.panel {
+		t.Fatal("o segundo tab deve devolver o foco à lista")
+	}
+}
+
+func TestDashTabGoesToGlobalSearch(t *testing.T) {
+	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
+	m = send(m, keyRune("/"))
+	if !m.dashList().Filtering() {
+		t.Fatal("a busca global deve estar digitando")
+	}
+	cat := m.dash.cat
+	m = send(m, tabKey())
+	if m.dash.cat != cat || m.dash.global == nil || !m.dashList().Filtering() {
+		t.Fatalf("tab na busca não troca de aba: cat=%d->%d", cat, m.dash.cat)
+	}
+}
+
+func TestDashTabIgnoredInProfileModal(t *testing.T) {
+	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
+	m = send(m, keyRune("p"))
+	cat := m.dash.cat
+	for _, k := range []tea.Msg{tabKey(), shiftTabKey()} {
+		m = send(m, k)
+		if m.dash.cat != cat || !m.dash.modal {
+			t.Fatalf("tab com o modal aberto não faz nada: cat=%d modal=%v", m.dash.cat, m.dash.modal)
+		}
+	}
+}
