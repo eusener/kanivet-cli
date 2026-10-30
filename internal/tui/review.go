@@ -23,6 +23,7 @@ type planMsg struct {
 	pl     *plan.Plan
 	groups []app.Group
 	err    error
+	req    int // pedido que gerou o plano: um planMsg de uma revisão anterior é descartado
 }
 
 type rowStyle int
@@ -61,6 +62,7 @@ type reviewState struct {
 	// retomada: o plano são só os passos pendentes de journal, que o enter continua
 	resume  bool
 	journal *state.Journal
+	req     int // o planMsg esperado (ver planMsg.req)
 }
 
 // rowKey devolve o id do passo da linha (vazio nas linhas sem passo).
@@ -75,7 +77,9 @@ func (r reviewState) rowKey(i int) string {
 func (m Model) beginReview(from Screen) (Model, tea.Cmd) {
 	sel := m.sel.ToPlan()
 	m.screen = ScreenReview
-	m.review = reviewState{caller: from, profile: sel.Profile, loading: true}
+	m.planSeq++
+	req := m.planSeq
+	m.review = reviewState{caller: from, profile: sel.Profile, loading: true, req: req}
 	s := m.s
 	return m, func() tea.Msg {
 		pl, _, err := s.Plan(context.Background(), sel)
@@ -83,12 +87,12 @@ func (m Model) beginReview(from Screen) (Model, tea.Cmd) {
 		if err == nil {
 			groups = s.GroupPlan(pl)
 		}
-		return planMsg{pl: pl, groups: groups, err: err}
+		return planMsg{pl: pl, groups: groups, err: err, req: req}
 	}
 }
 
 func (m Model) onPlan(msg planMsg) Model {
-	if m.screen != ScreenReview {
+	if m.screen != ScreenReview || msg.req != m.review.req {
 		return m
 	}
 	r := m.review
@@ -222,8 +226,10 @@ func (m Model) layoutReview() Model {
 		height = 1
 	}
 	r.vp.Width, r.vp.Height = m.w, height
-	r.diff.Width, r.diff.Height = m.w, body-1
+	r.diff.Width, r.diff.Height = m.w, max(body-1, 1) // altura < 1 deixa o YOffset passar do fim (pânico no View)
+	r.diff.SetYOffset(r.diff.YOffset)
 	r.vp.SetContent(m.renderRows(r))
+	r.vp.SetYOffset(r.vp.YOffset)
 	switch {
 	case r.cursor < r.vp.YOffset:
 		r.vp.SetYOffset(r.cursor)
@@ -325,7 +331,8 @@ func (m Model) updateReview(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return back()
 	case key.Matches(km, m.keys.Enter):
 		switch {
-		case r.loading || r.blocked():
+		// m.detecting: na retomada a revisão abre com o detectCmd ainda rodando; o run espera por ele
+		case r.loading || r.blocked() || m.detecting:
 		case r.empty():
 			return back()
 		default:
@@ -421,7 +428,7 @@ func (m Model) reviewBindings() []key.Binding {
 		return []key.Binding{m.keys.Up, m.keys.Down, m.keys.Back, m.keys.Quit}
 	}
 	enter := m.keys.Enter
-	if r.blocked() || r.loading {
+	if r.blocked() || r.loading || m.detecting {
 		enter.SetEnabled(false)
 	}
 	if r.empty() {

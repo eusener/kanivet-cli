@@ -58,6 +58,7 @@ type Model struct {
 	showHelp    bool
 	confirmQuit bool
 	review      reviewState
+	planSeq     int        // contador dos pedidos de plano (planMsg.req)
 	plan        *plan.Plan // plano confirmado na revisão
 	exec        execState
 	sum         summaryState
@@ -144,7 +145,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.onInteractive(msg)
 	case interactiveDoneMsg:
 		m.exec.busy = false
-		return m.nextInteractive()
+		// o ReleaseTerminal do ExecProcess desliga o mouse e o RestoreTerminal não o religa
+		nm, c := m.nextInteractive()
+		return nm, tea.Batch(tea.EnableMouseCellMotion, c)
 	case tea.MouseMsg:
 		if m.screen == ScreenSummary && m.sum.panel != panelNone {
 			var c tea.Cmd

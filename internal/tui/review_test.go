@@ -102,6 +102,7 @@ func reviewWith(t *testing.T, s *app.Session, sel plan.Selection) Model {
 	i18n.SetLang(i18n.En)
 	m := New(s, nil, ScreenReview)
 	m = send(m, size(100, 30))
+	m.detecting = false // fora da retomada, a revisão só abre depois da detecção
 	pl, _, err := s.Plan(context.Background(), sel)
 	m.review = reviewState{caller: ScreenCategories, loading: true}
 	return send(m, planMsg{pl: pl, groups: planGroups(s, pl, err), err: err})
@@ -298,5 +299,50 @@ func TestReviewDiffReadErrorIsNotFakeDiff(t *testing.T) {
 	m = send(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
 	if m.review.diffOpen || !strings.Contains(m.View(), "Cannot read") {
 		t.Fatalf("esperava nota de erro:\n%s", m.View())
+	}
+}
+
+// I5: o diff da revisão também sobrevive a um resize minúsculo seguido de rolagem.
+func TestReviewDiffSurvivesTinyResize(t *testing.T) {
+	s := testSession(t)
+	m := reviewWith(t, s, plan.Selection{Add: []string{"fzf"}})
+	for i, r := range m.review.rows {
+		if r.stepID == "config:fzf-defaults" && r.file {
+			m.review.cursor = i
+		}
+	}
+	m = send(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	if !m.review.diffOpen {
+		t.Fatal("diff deveria abrir")
+	}
+	m = send(m, size(80, 2))
+	for i := 0; i < 40; i++ {
+		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
+	}
+	m = send(m, size(100, 30))
+	viewNoPanic(t, m)
+	d := m.review.diff
+	if d.Height < 1 || d.YOffset > d.TotalLineCount() {
+		t.Fatalf("diff fora dos limites: height=%d yoffset=%d total=%d", d.Height, d.YOffset, d.TotalLineCount())
+	}
+}
+
+// M2: enter, esc, mudar a seleção, enter — o plano da primeira ida chegando depois não pode
+// sobrescrever a revisão da segunda.
+func TestStalePlanMsgIsDropped(t *testing.T) {
+	m := detected(t, newModel(t, linuxSystemd))
+	m = send(m, enter())
+	m = pickProfile(t, m, "blank")
+	m, first := m.beginReview(ScreenCategories)
+	m = send(m, esc())
+	m.sel.Toggle("bun")
+	m, second := m.beginReview(ScreenCategories)
+	m = deliverPlan(t, m, second)
+	if _, ok := m.review.pl.Step("install:bun"); !ok {
+		t.Fatal("o plano novo deveria instalar bun")
+	}
+	m = deliverPlan(t, m, first)
+	if _, ok := m.review.pl.Step("install:bun"); !ok || m.review.loading {
+		t.Fatal("um planMsg velho sobrescreveu a revisão")
 	}
 }

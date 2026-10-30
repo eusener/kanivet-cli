@@ -35,7 +35,13 @@ func (m Model) updateProfile(km tea.KeyMsg) Model {
 	case key.Matches(km, m.keys.Back):
 		m.screen = ScreenWelcome
 	case key.Matches(km, m.keys.Enter) && !m.detecting && n > 0:
-		m.sel.ApplyProfile(m.profileID())
+		// outro perfil substitui a seleção (não soma ao anterior); o mesmo mantém as mudanças
+		if id := m.profileID(); m.sel.profile != id {
+			if m.sel.profile != "" {
+				m.sel = NewSelection(m.s.Cat, m.s.P, m.sel.st, ModeWizard)
+			}
+			m.sel.ApplyProfile(id)
+		}
 		m.screen, m.page = ScreenCategories, 0
 		m.list = m.newList()
 	}

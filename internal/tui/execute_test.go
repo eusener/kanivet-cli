@@ -195,7 +195,7 @@ func TestInteractiveRequestsSerialized(t *testing.T) {
 	}
 	nm, cmd3 := m.Update(done)
 	m = nm.(Model)
-	if cmd3 == nil {
+	if !dispatched(cmd3) {
 		t.Fatal("segundo pedido não foi despachado depois do primeiro")
 	}
 	select {
@@ -204,7 +204,7 @@ func TestInteractiveRequestsSerialized(t *testing.T) {
 	default:
 	}
 	nm, cmd4 := m.Update(interactiveCallback(r2)(nil))
-	if cmd4 != nil || nm.(Model).exec.busy {
+	if dispatched(cmd4) || nm.(Model).exec.busy {
 		t.Fatal("fila deveria estar vazia e livre")
 	}
 }
@@ -253,7 +253,7 @@ func TestCtrlCDuringExecution(t *testing.T) {
 	}
 	nm, cmd = m.Update(interactiveCallback(busy)(nil)) // o que estava no exec termina
 	m = nm.(Model)
-	if cmd != nil {
+	if dispatched(cmd) {
 		t.Fatal("nada pode ser despachado depois da interrupção")
 	}
 	// Um novo pedido interativo depois da interrupção é respondido sem ceder o terminal.
@@ -354,4 +354,48 @@ func TestRunDoneGoesToSummary(t *testing.T) {
 	if m.FinalMessage() != "" {
 		t.Fatalf("FinalMessage sem interrupção = %q", m.FinalMessage())
 	}
+}
+
+// msgsOf roda o cmd (e os de um Batch/Sequence) e devolve as mensagens produzidas.
+func msgsOf(cmd tea.Cmd) []tea.Msg {
+	if cmd == nil {
+		return nil
+	}
+	switch r := cmd().(type) {
+	case tea.BatchMsg:
+		var out []tea.Msg
+		for _, c := range r {
+			out = append(out, msgsOf(c)...)
+		}
+		return out
+	default:
+		return []tea.Msg{r}
+	}
+}
+
+// M3: o ReleaseTerminal do ExecProcess desliga o mouse e o RestoreTerminal não religa.
+func TestInteractiveDoneReenablesMouse(t *testing.T) {
+	m, _ := executing(t)
+	m.exec.busy = true
+	nm, cmd := m.Update(interactiveDoneMsg{})
+	if nm.(Model).exec.busy {
+		t.Fatal("busy deveria voltar a false")
+	}
+	want := tea.EnableMouseCellMotion()
+	for _, msg := range msgsOf(cmd) {
+		if msg == want {
+			return
+		}
+	}
+	t.Fatalf("interactiveDoneMsg deve religar o mouse; msgs = %v", msgsOf(cmd))
+}
+
+// dispatched diz se o cmd faz algo além de religar o mouse (ex.: um novo ExecProcess).
+func dispatched(cmd tea.Cmd) bool {
+	for _, msg := range msgsOf(cmd) {
+		if msg != nil && msg != tea.EnableMouseCellMotion() {
+			return true
+		}
+	}
+	return false
 }

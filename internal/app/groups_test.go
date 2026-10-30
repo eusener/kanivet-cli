@@ -83,3 +83,34 @@ func TestGroupPlanSudoSkipOrphansWarnings(t *testing.T) {
 		}
 	}
 }
+
+func TestGroupPlanListsZshrcWhenChsh(t *testing.T) {
+	f := newFixture(t)
+	f.s.P.Shell = "bash"
+	zshrc := filepath.Join(f.s.P.Home, ".zshrc")
+	if err := os.WriteFile(zshrc, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pl := &plan.Plan{Steps: []plan.Step{
+		{ID: plan.ShellStepID, Kind: plan.KindShell},
+		{ID: "chsh:zsh", ItemID: "zsh", Kind: plan.KindChsh},
+	}}
+	g := findGroup(t, f.s.GroupPlan(pl), GroupConfig)
+	var rcs []FileLine
+	for _, fl := range g.Lines[0].Files {
+		if fl.Rc {
+			rcs = append(rcs, fl)
+		}
+	}
+	if len(rcs) != 2 || rcs[0].Path != f.s.RcPath() || rcs[1].Path != zshrc || !rcs[1].Exists {
+		t.Fatalf("com chsh, o ~/.zshrc também recebe o bloco e precisa aparecer: %+v", g.Lines[0].Files)
+	}
+	// sem chsh, só o rc do shell atual
+	pl.Steps = pl.Steps[:1]
+	g = findGroup(t, f.s.GroupPlan(pl), GroupConfig)
+	for _, fl := range g.Lines[0].Files {
+		if fl.Path == zshrc {
+			t.Fatalf("sem chsh o ~/.zshrc não é tocado: %+v", g.Lines[0].Files)
+		}
+	}
+}

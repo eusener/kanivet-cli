@@ -41,14 +41,20 @@ func initialModel(s *app.Session, env map[string]string) (Model, error) {
 }
 
 // signalFilter é o tea.WithFilter: durante o run, InterruptMsg (SIGINT) e QuitMsg (SIGTERM,
-// SIGHUP) viram interruptMsg, para o executor não ficar órfão com filhos vivos.
+// SIGHUP) viram interruptMsg, para o executor não ficar órfão com filhos vivos. Com o terminal
+// cedido a um comando interativo, o SIGINT é descartado (o filho já o recebeu).
 func signalFilter(tm tea.Model, msg tea.Msg) tea.Msg {
 	m, ok := tm.(Model)
 	if !ok || m.screen != ScreenExecute || !m.exec.running {
 		return msg
 	}
 	switch msg.(type) {
-	case tea.InterruptMsg, tea.QuitMsg:
+	case tea.InterruptMsg:
+		if m.exec.busy { // terminal cedido (sudo/chsh): o ctrl+c é do filho, como no ignoreSignals do Bubble Tea
+			return nil
+		}
+		return interruptMsg{}
+	case tea.QuitMsg:
 		return interruptMsg{}
 	}
 	return msg
@@ -65,30 +71,47 @@ func (m Model) stopRun() {
 	}
 }
 
+// runSignals são os sinais que a TUI trata durante todo o p.Run (o handler do Bubble Tea fica
+// desligado: ele para de ouvir depois do primeiro sinal, e um segundo SIGINT/SIGTERM no meio do
+// run mataria o processo com o terminal cru e os filhos órfãos).
+var runSignals = []os.Signal{syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP}
+
+// signalMsg traduz o sinal como o Bubble Tea faria: SIGINT vira InterruptMsg, os outros QuitMsg.
+func signalMsg(s os.Signal) tea.Msg {
+	if s == syscall.SIGINT {
+		return tea.InterruptMsg{}
+	}
+	return tea.QuitMsg{}
+}
+
+// forwardSignals encaminha cada sinal (não só o primeiro) até stop fechar; o filtro decide o que fazer.
+func forwardSignals(sigs <-chan os.Signal, send func(tea.Msg), stop <-chan struct{}) {
+	for {
+		select {
+		case s := <-sigs:
+			send(signalMsg(s))
+		case <-stop:
+			return
+		}
+	}
+}
+
 // Run abre a TUI no terminal, liga o hook interativo e, ao sair, imprime a mensagem final.
 func Run(s *app.Session, env map[string]string) error {
 	m, err := initialModel(s, env)
 	if err != nil {
 		return err
 	}
-	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithFilter(signalFilter))
+	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithFilter(signalFilter), tea.WithoutSignalHandler())
 	m.SetProgram(p)
 
-	// O Bubble Tea trata SIGINT e SIGTERM; o SIGHUP (terminal fechado) entra como QuitMsg
-	// e passa pelo filtro como os outros.
-	hup := make(chan os.Signal, 1)
-	signal.Notify(hup, syscall.SIGHUP)
+	// Os sinais ficam assinados até o run ter sido drenado (stopRun): nenhum deles pode matar o
+	// processo no meio do caminho.
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, runSignals...)
 	stop := make(chan struct{})
-	go func() {
-		select {
-		case <-hup:
-			p.Send(tea.QuitMsg{})
-		case <-stop:
-		}
-	}()
+	go forwardSignals(sigs, p.Send, stop)
 	final, err := p.Run()
-	signal.Stop(hup)
-	close(stop)
 
 	if fm, ok := final.(Model); ok {
 		fm.stopRun()
@@ -96,6 +119,8 @@ func Run(s *app.Session, env map[string]string) error {
 			fmt.Fprintln(os.Stdout, msg)
 		}
 	}
+	signal.Stop(sigs)
+	close(stop)
 	if errors.Is(err, tea.ErrInterrupted) { // SIGINT fora de um run: sai como o q
 		return nil
 	}

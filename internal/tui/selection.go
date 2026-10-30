@@ -98,7 +98,7 @@ func (s *Selection) ApplyProfile(id string) {
 			continue
 		}
 		for _, it := range pr.Items {
-			s.mark(it)
+			s.markAdditive(it)
 		}
 		excl := map[string]string{}
 		for cat, it := range pr.Exclusive {
@@ -108,9 +108,31 @@ func (s *Selection) ApplyProfile(id string) {
 			excl[cat] = it
 		}
 		for _, it := range excl {
-			s.mark(it)
+			s.markAdditive(it)
 		}
 	}
+}
+
+// markAdditive é o mark do perfil. No dashboard ele é aditivo: numa categoria exclusiva que já
+// tem outro item marcado (nosso ou externo) nada muda, senão o irmão desmarcado viraria desinstalação.
+func (s *Selection) markAdditive(id string) {
+	if it := s.c.Items[id]; it != nil && s.mode == ModeDashboard && isExclusive(s.c, it.Category) {
+		for oid := range s.marked {
+			if o := s.c.Items[oid]; oid != id && o != nil && o.Category == it.Category {
+				return
+			}
+		}
+	}
+	s.mark(id)
+}
+
+func isExclusive(c *catalog.Catalog, cat string) bool {
+	for _, k := range c.Categories {
+		if k.ID == cat {
+			return k.Exclusive
+		}
+	}
+	return false
 }
 
 // mark marca um item selecionável, desmarcando os da mesma categoria exclusiva.

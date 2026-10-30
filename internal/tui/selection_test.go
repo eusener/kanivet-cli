@@ -154,3 +154,27 @@ func TestConfigsOnCountsMarkedItemsConfigs(t *testing.T) {
 		t.Errorf("desligar config deveria reduzir: %d -> %d", on, s.ConfigsOn())
 	}
 }
+
+func TestDashboardApplyProfileKeepsMarkedExclusive(t *testing.T) {
+	s := newSel(t, linuxSystemd, map[string]detect.ItemStatus{
+		"astronvim": {ID: "astronvim", Status: detect.StatusInstalled},
+		"docker":    {ID: "docker", Status: detect.StatusExternal},
+	}, ModeDashboard)
+	s.ApplyProfile("web")
+	if u := s.ToPlan().Uninstall; len(u) != 0 {
+		t.Fatalf("aplicar perfil no dashboard não pode desinstalar: %v", u)
+	}
+	if !s.Marked("astronvim") || s.Marked("lazyvim") {
+		t.Fatalf("astronvim=%v lazyvim=%v: a exclusiva já marcada fica", s.Marked("astronvim"), s.Marked("lazyvim"))
+	}
+	s.ApplyProfile("backend")
+	if !s.Marked("docker") || s.Marked("podman") || len(s.ToPlan().Uninstall) != 0 {
+		t.Fatalf("docker=%v podman=%v uninstall=%v", s.Marked("docker"), s.Marked("podman"), s.ToPlan().Uninstall)
+	}
+	// sem nada marcado na categoria, a exclusiva do perfil entra normalmente
+	s = newSel(t, linuxSystemd, nil, ModeDashboard)
+	s.ApplyProfile("web")
+	if !s.Marked("lazyvim") {
+		t.Fatal("categoria vazia: lazyvim deveria ser marcado")
+	}
+}

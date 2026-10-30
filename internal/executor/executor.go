@@ -260,7 +260,7 @@ func (r *run) step(ctx context.Context, s plan.Step) {
 			return
 		}
 		r.mu.Lock()
-		delete(r.e.St.Items, s.ItemID)
+		r.e.St.DeleteItem(s.ItemID)
 		for _, f := range s.Files {
 			remove := r.e.Ap.Remove
 			if f.Dir {
@@ -359,7 +359,7 @@ func (r *run) withLock(name string, fn func() runner.Result) runner.Result {
 func (r *run) own(s plan.Step) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.e.St.Items[s.ItemID] = state.InstalledItem{Backend: s.Backend, Package: s.Package, At: time.Now().UTC()}
+	r.e.St.SetItem(s.ItemID, state.InstalledItem{Backend: s.Backend, Package: s.Package, At: time.Now().UTC()})
 	_ = r.e.St.Save()
 }
 

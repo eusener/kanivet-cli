@@ -176,3 +176,31 @@ func TestSessionRunPassesInteractiveHook(t *testing.T) {
 		}
 	}
 }
+
+// I2: a detecção da sessão (o detectCmd da TUI) pode rodar junto com um run, que grava St.Items.
+// Rode com -race: o detector precisa ler o estado sob o mesmo lock das escritas do executor.
+func TestStatusesConcurrentWithRun(t *testing.T) {
+	f := newFixture(t)
+	pl, _, err := f.s.Plan(context.Background(), plan.Selection{Profile: "laravel"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				f.s.Statuses(context.Background(), plan.Selection{})
+			}
+		}
+	}()
+	if _, _, err := f.s.Run(context.Background(), pl, nil, RunOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	close(stop)
+	<-done
+}

@@ -245,3 +245,42 @@ func TestKeyClosingHelpIsConsumed(t *testing.T) {
 		t.Fatalf("screen = %v", m.screen)
 	}
 }
+
+// pickProfile, na tela de perfil, leva o cursor até id e confirma.
+func pickProfile(t *testing.T, m Model, id string) Model {
+	t.Helper()
+	if m.screen != ScreenProfile {
+		t.Fatalf("screen = %v, want profile", m.screen)
+	}
+	for m.profCursor > 0 {
+		m = send(m, tea.KeyMsg{Type: tea.KeyUp})
+	}
+	for m.profileID() != id {
+		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
+	}
+	return send(m, enter())
+}
+
+func TestWizardChangingProfileReplacesSelection(t *testing.T) {
+	m := detected(t, newModel(t, linuxSystemd))
+	m = send(m, enter())
+	m = pickProfile(t, m, "ml")
+	if !m.sel.Marked("jupyter") {
+		t.Fatal("ml deveria marcar jupyter")
+	}
+	m = send(m, enter(), esc(), esc()) // uma página adiante, volta, volta ao perfil
+	m = pickProfile(t, m, "web")
+	if m.sel.Marked("jupyter") || m.sel.Marked("uv") {
+		t.Fatalf("trocar de perfil deve substituir a seleção: jupyter=%v uv=%v", m.sel.Marked("jupyter"), m.sel.Marked("uv"))
+	}
+	if !m.sel.Marked("node") {
+		t.Fatal("web deveria marcar node")
+	}
+	// o mesmo perfil de novo mantém as mudanças do usuário
+	m.sel.Toggle("node")
+	m = send(m, esc())
+	m = pickProfile(t, m, "web")
+	if m.sel.Marked("node") {
+		t.Fatal("reentrar no mesmo perfil não pode desfazer a escolha do usuário")
+	}
+}

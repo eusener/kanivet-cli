@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -32,6 +33,10 @@ type State struct {
 	Items   map[string]InstalledItem `json:"items"`
 	Configs map[string]AppliedConfig `json:"configs"` // chave = Target absoluto
 	Path    string                   `json:"-"`
+
+	// mu protege Items: o detector da sessão (detecção da TUI) pode ler o estado enquanto o
+	// executor o grava. As escritas passam por SetItem/DeleteItem.
+	mu sync.RWMutex
 }
 
 func DefaultDir(home string) string { return filepath.Join(home, ".local", "state", "kanivet-cli") }
@@ -62,8 +67,24 @@ func Load(path string) (*State, error) {
 func (s *State) Save() error { return writeJSONAtomic(s.Path, s) }
 
 func (s *State) Owned(id string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	_, ok := s.Items[id]
 	return ok
+}
+
+// SetItem registra um item instalado por nós.
+func (s *State) SetItem(id string, it InstalledItem) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Items[id] = it
+}
+
+// DeleteItem esquece um item.
+func (s *State) DeleteItem(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.Items, id)
 }
 
 // writeJSONAtomic grava num temporário, faz fsync e renomeia por cima do destino.

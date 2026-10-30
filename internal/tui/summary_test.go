@@ -237,3 +237,28 @@ func TestSummaryForceOnlyTouchesConfirmedFile(t *testing.T) {
 	}
 	_ = msg
 }
+
+// I5: encolher a janela abaixo de 4 linhas, rolar e voltar não pode estourar o viewport.
+func TestSummaryPanelSurvivesTinyResize(t *testing.T) {
+	m, _ := summaryModel(t)
+	m = m.openLog("install:node")
+	m = send(m, size(80, 2))
+	for i := 0; i < 40; i++ {
+		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
+	}
+	m = send(m, size(100, 30))
+	viewNoPanic(t, m)
+	if m.sum.vp.Height < 1 || m.sum.vp.YOffset > m.sum.vp.TotalLineCount() {
+		t.Fatalf("viewport fora dos limites: height=%d yoffset=%d total=%d", m.sum.vp.Height, m.sum.vp.YOffset, m.sum.vp.TotalLineCount())
+	}
+}
+
+func viewNoPanic(t *testing.T, m Model) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("View entrou em pânico: %v", r)
+		}
+	}()
+	_ = m.View()
+}

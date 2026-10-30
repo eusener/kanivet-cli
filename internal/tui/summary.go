@@ -188,14 +188,19 @@ func (m Model) cursorTarget() string {
 	return ""
 }
 
+// panelHeight é a altura do painel do resumo, nunca menor que 1: com altura negativa o viewport
+// deixa o YOffset passar do fim do conteúdo e o View seguinte entra em pânico.
+func (m Model) panelHeight() int { return max(m.h-4, 1) }
+
 func (m Model) layoutSummary() Model {
-	m.sum.vp.Width, m.sum.vp.Height = m.w, m.h-4
+	m.sum.vp.Width, m.sum.vp.Height = m.w, m.panelHeight()
+	m.sum.vp.SetYOffset(m.sum.vp.YOffset) // reajusta o deslocamento à nova altura
 	return m
 }
 
 func (m Model) openPanel(p summaryPanel, title, content string) Model {
 	m.sum.panel, m.sum.title = p, title
-	m.sum.vp = viewport.New(m.w, m.h-4)
+	m.sum.vp = viewport.New(m.w, m.panelHeight())
 	m.sum.vp.SetContent(content)
 	if p == panelLog {
 		m.sum.vp.GotoBottom() // o fim do log é o que interessa

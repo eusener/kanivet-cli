@@ -2,7 +2,10 @@ package tui
 
 import (
 	"context"
+	"os"
+	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -94,9 +97,33 @@ func TestWithoutUnfinishedStartsAtStartScreen(t *testing.T) {
 	}
 }
 
+// I2: com a detecção inicial ainda rodando, o enter da retomada não pode começar o run
+// (o detectCmd e o executor tocariam o estado ao mesmo tempo).
+func TestResumeReviewIgnoresEnterWhileDetecting(t *testing.T) {
+	s, _ := unfinishedSession(t)
+	m := resumeModel(t, s)
+	if !m.detecting {
+		t.Fatal("a retomada abre com a detecção em curso")
+	}
+	nm, cmd := m.Update(enter())
+	m = nm.(Model)
+	if m.screen != ScreenReview || cmd != nil {
+		t.Fatalf("enter durante a detecção: screen=%v cmd=%v, want review sem cmd", m.screen, cmd != nil)
+	}
+	for _, b := range m.bindings() {
+		if b.Help().Key == "enter" && b.Enabled() {
+			t.Fatal("o atalho enter deveria sumir enquanto detecta")
+		}
+	}
+	m = send(m, detectMsg{})
+	if nm, _ := m.Update(enter()); nm.(Model).screen != ScreenExecute {
+		t.Fatalf("depois da detecção o enter retoma: screen=%v", nm.(Model).screen)
+	}
+}
+
 func TestResumeRunsWithExistingJournal(t *testing.T) {
 	s, j := unfinishedSession(t)
-	m := resumeModel(t, s)
+	m := send(resumeModel(t, s), detectMsg{})
 	nm, cmd := m.Update(enter())
 	m = nm.(Model)
 	if m.screen != ScreenExecute {
@@ -206,4 +233,73 @@ func TestStopRunCancelsAndDrains(t *testing.T) {
 	}
 	m.exec.running = false
 	m.stopRun() // sem run em curso é um no-op
+}
+
+// M1: o Bubble Tea para de ouvir depois do primeiro sinal; um segundo SIGINT/SIGTERM no meio do
+// run mataria o processo (terminal cru, filhos órfãos). O nosso encaminhador segue ouvindo.
+func TestForwardSignalsKeepsListening(t *testing.T) {
+	sigs := make(chan os.Signal, 4)
+	for _, s := range []os.Signal{syscall.SIGINT, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP} {
+		sigs <- s
+	}
+	var got []tea.Msg
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		forwardSignals(sigs, func(msg tea.Msg) {
+			got = append(got, msg)
+			if len(got) == 4 {
+				close(stop)
+			}
+		}, stop)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("forwardSignals parou de ouvir: %v", got)
+	}
+	want := []tea.Msg{tea.InterruptMsg{}, tea.InterruptMsg{}, tea.QuitMsg{}, tea.QuitMsg{}}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("msgs = %v, want %v", got, want)
+		}
+	}
+	if !slices.Contains(runSignals, os.Signal(syscall.SIGINT)) || !slices.Contains(runSignals, os.Signal(syscall.SIGTERM)) || !slices.Contains(runSignals, os.Signal(syscall.SIGHUP)) {
+		t.Fatalf("runSignals = %v, want SIGINT, SIGTERM e SIGHUP", runSignals)
+	}
+}
+
+// M1: o segundo sinal no meio do run passa pelo mesmo caminho e o interrupt é idempotente.
+func TestSecondSignalDuringRunIsIdempotent(t *testing.T) {
+	m, _ := executing(t)
+	cancelled := 0
+	m.exec.cancel = func() { cancelled++ }
+	for _, sig := range []tea.Msg{tea.InterruptMsg{}, tea.QuitMsg{}, tea.InterruptMsg{}} {
+		msg := signalFilter(m, sig)
+		if _, ok := msg.(interruptMsg); !ok {
+			t.Fatalf("%T durante o run virou %T", sig, msg)
+		}
+		nm, cmd := m.Update(msg)
+		m = nm.(Model)
+		if isQuit(cmd) {
+			t.Fatal("sinal repetido não pode sair antes do runDoneMsg")
+		}
+	}
+	if cancelled != 1 {
+		t.Fatalf("cancel = %d, want 1", cancelled)
+	}
+}
+
+// Com o terminal cedido (sudo/chsh), o ctrl+c vai para o filho: o SIGINT que também chega aqui
+// é ignorado, como o Bubble Tea fazia.
+func TestFilterDropsSigintWhileInteractive(t *testing.T) {
+	m, _ := executing(t)
+	m.exec.busy = true
+	if got := signalFilter(m, tea.InterruptMsg{}); got != nil {
+		t.Fatalf("SIGINT com o terminal cedido virou %T, want descartado", got)
+	}
+	if _, ok := signalFilter(m, tea.QuitMsg{}).(interruptMsg); !ok {
+		t.Fatal("SIGTERM com o terminal cedido ainda interrompe o run")
+	}
 }

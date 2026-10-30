@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/eusener/kanivet-cli/internal/i18n"
@@ -61,7 +62,7 @@ func (s *Session) GroupPlan(pl *plan.Plan) []Group {
 		g := Group{Kind: d.kind, Title: d.title}
 		for _, st := range pl.Steps {
 			if d.match(st) {
-				g.Lines = append(g.Lines, s.stepLine(st))
+				g.Lines = append(g.Lines, s.stepLine(pl, st))
 			}
 		}
 		if len(g.Lines) > 0 {
@@ -88,7 +89,7 @@ func (s *Session) GroupPlan(pl *plan.Plan) []Group {
 	return out
 }
 
-func (s *Session) stepLine(st plan.Step) Line {
+func (s *Session) stepLine(pl *plan.Plan, st plan.Step) Line {
 	text := st.ID
 	if st.Backend != "" {
 		text += "  (" + st.Backend + ")"
@@ -106,13 +107,26 @@ func (s *Session) stepLine(st plan.Step) Line {
 		l.Files = append(l.Files, FileLine{Path: target, Remove: f.Remove, Exists: err == nil})
 	}
 	if st.Kind == plan.KindShell {
-		rc := s.RcPath()
-		_, err := os.Stat(rc)
-		l.Files = append(l.Files,
-			FileLine{Path: "~/.config/kanivet-cli/shell/init.{zsh,bash}"},
-			FileLine{Path: rc, Exists: err == nil, Rc: true})
+		l.Files = append(l.Files, FileLine{Path: "~/.config/kanivet-cli/shell/init.{zsh,bash}"})
+		for _, rc := range s.rcFiles(pl) {
+			_, err := os.Stat(rc)
+			l.Files = append(l.Files, FileLine{Path: rc, Exists: err == nil, Rc: true})
+		}
 	}
 	return l
+}
+
+// rcFiles lista os rc que o passo de shell toca: o do shell atual e, com chsh no plano,
+// também o ~/.zshrc (o executor grava o bloco nele para o shell novo).
+func (s *Session) rcFiles(pl *plan.Plan) []string {
+	out := []string{s.RcPath()}
+	zshrc := filepath.Join(s.P.Home, ".zshrc")
+	for _, st := range pl.Steps {
+		if st.Kind == plan.KindChsh && zshrc != out[0] {
+			return append(out, zshrc)
+		}
+	}
+	return out
 }
 
 // compact mostra só a primeira linha de um comando de várias linhas.
