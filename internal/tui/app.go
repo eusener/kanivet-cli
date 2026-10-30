@@ -384,6 +384,9 @@ func (m Model) keyCap(k string) string {
 // footer desenha a ação principal à esquerda e os demais atalhos em ink-muted, com a
 // tecla em maiúsculas. Confirmações pendentes substituem o rodapé.
 func (m Model) footer() string {
+	if m.confirmQuit {
+		return ansi.Truncate(m.th.Help.Render(i18n.T("tui.dialog.quit_footer")), m.contentWidth(), "…")
+	}
 	if m.screen == ScreenSummary && m.sum.confirm {
 		// o alvo encolhe para o [y/N] nunca ser cortado
 		room := m.contentWidth() - lipgloss.Width(i18n.T("tui.summary.force_confirm", ""))
@@ -563,10 +566,8 @@ func (m Model) overlay(body string, title string) []string {
 	h := m.bodyHeight()
 	dw := m.dialogWidth()
 	maxRows := max(h-m.th.BoxOverhead(), 1)
-	var rows []string
-	for _, l := range strings.Split(body, "\n") {
-		rows = append(rows, ansi.Truncate(l, m.th.BoxInner(dw)-2, "…"))
-	}
+	// o texto do diálogo quebra em linhas (nunca é cortado); só o que passa da altura vira "…"
+	rows := strings.Split(ansi.Wrap(body, max(m.th.BoxInner(dw)-2, 1), ""), "\n")
 	if len(rows) > maxRows {
 		rows = append(rows[:maxRows-1], "…")
 	}
