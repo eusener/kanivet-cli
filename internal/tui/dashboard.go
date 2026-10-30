@@ -199,14 +199,6 @@ func (m Model) updateDashModal(km tea.KeyMsg) Model {
 	return m
 }
 
-func (m Model) dashStatus() string {
-	if m.sel == nil {
-		return ""
-	}
-	i, u, r := m.sel.Pending()
-	return m.th.Accent.Render(i18n.T("tui.dash.pending", i, u, r))
-}
-
 func (m Model) dashBindings() []key.Binding {
 	if m.dash.modal {
 		return []key.Binding{m.keys.Up, m.keys.Down, m.keys.Enter, m.keys.Back, m.keys.Quit}
@@ -294,7 +286,7 @@ func (m Model) dashLines(height int) []string {
 		return append(out, m.profileLines(height-1)...)
 	}
 	rows := height - 1
-	rightW := m.w - catPaneW - 3
+	rightW := m.contentWidth() - catPaneW - 3
 	left := m.catLines(rows)
 	right := strings.Split(m.dashList().View(rightW, rows), "\n")
 	sep := m.th.Border.Render(" │ ")

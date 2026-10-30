@@ -417,14 +417,14 @@ func (m Model) executeLines(height int) []string {
 	if rows < 1 {
 		return []string{head}
 	}
-	lw := m.w / 3
+	lw := m.contentWidth() / 3
 	if lw < 24 {
 		lw = 24
 	}
 	if lw > 44 {
 		lw = 44
 	}
-	rw := m.w - lw - 3
+	rw := m.contentWidth() - lw - 3
 	if rw < 1 {
 		rw = 1
 	}
@@ -479,22 +479,14 @@ func (m Model) executeLines(height int) []string {
 }
 
 // progressLine é a barra do rodapé: concluídos/total e o tempo decorrido.
-func (m Model) progressLine() string {
+// progressBar desenha só a barra de progresso (o texto vai ao rodapé, em tag).
+func (m Model) progressBar() string {
 	e := m.exec
-	total := len(e.steps)
 	ratio := 0.0
-	if total > 0 {
+	if total := len(e.steps); total > 0 {
 		ratio = float64(e.finished) / float64(total)
 	}
-	el := e.elapsed
-	if e.running {
-		el = time.Since(e.started)
-	}
-	txt := " " + i18n.T("tui.execute.progress", e.finished, total, el.Round(time.Second).String())
 	bar := e.bar
-	bar.Width = m.w - ansi.StringWidth(txt)
-	if bar.Width < 10 {
-		bar.Width = 10
-	}
-	return ansi.Truncate(bar.ViewAs(ratio)+txt, m.w, "")
+	bar.Width = max(m.contentWidth(), 10)
+	return ansi.Truncate(bar.ViewAs(ratio), m.contentWidth(), "")
 }

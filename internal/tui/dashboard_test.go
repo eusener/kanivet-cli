@@ -64,7 +64,7 @@ func TestDashboardPendingBar(t *testing.T) {
 		t.Fatalf("a busca global deve achar jq, achou %q", m.dashList().Current())
 	}
 	m = send(m, keyRune(" "))
-	if v := m.View(); !strings.Contains(v, "1 to install · 0 to update · 1 to remove") {
+	if v := m.View(); !hasAll(v, "1 to install", "0 to update", "1 to remove") {
 		t.Fatalf("barra errada:\n%s", v)
 	}
 }
@@ -74,11 +74,11 @@ func TestDashboardUpdateAllMarksOutdated(t *testing.T) {
 		"bat": st("bat", detect.StatusOutdated), "fd": st("fd", detect.StatusOutdated), "sd": st("sd", detect.StatusInstalled),
 	})
 	m = send(m, keyRune("U"))
-	if v := m.View(); !strings.Contains(v, "0 to install · 2 to update · 0 to remove") {
+	if v := m.View(); !hasAll(v, "0 to install", "2 to update", "0 to remove") {
 		t.Fatalf("U deve marcar os 2 desatualizados:\n%s", v)
 	}
 	m = send(m, keyRune("U"))
-	if v := m.View(); !strings.Contains(v, "0 to update") {
+	if v := m.View(); !hasAll(v, "0 to update") {
 		t.Fatalf("U de novo desfaz:\n%s", v)
 	}
 }
@@ -91,7 +91,7 @@ func TestDashboardUpdateKeyMarksCurrentOutdated(t *testing.T) {
 		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
 	}
 	m = send(m, keyRune("u"))
-	if !strings.Contains(m.View(), "0 to install · 1 to update") {
+	if !hasAll(m.View(), "0 to install", "1 to update") {
 		t.Fatalf("u deve marcar bat:\n%s", m.View())
 	}
 }
@@ -173,7 +173,7 @@ func TestDashboardUpdatesMsgAppliesStatuses(t *testing.T) {
 	out := map[string]detect.ItemStatus{"bat": st("bat", detect.StatusOutdated)}
 	m = send(m, updatesMsg{statuses: out, gen: m.dash.gen})
 	m = send(m, keyRune("U"))
-	if !strings.Contains(m.View(), "1 to update") {
+	if !hasAll(m.View(), "1 to update") {
 		t.Fatalf("o resultado da verificação deve chegar à seleção:\n%s", m.View())
 	}
 	stale := map[string]detect.ItemStatus{}
@@ -181,4 +181,14 @@ func TestDashboardUpdatesMsgAppliesStatuses(t *testing.T) {
 	if len(m2.statuses) == 0 {
 		t.Fatal("resultado de uma geração antiga deve ser ignorado")
 	}
+}
+
+// hasAll diz se v tem cada texto como tag de contador (as tags saem em maiúsculas).
+func hasAll(v string, texts ...string) bool {
+	for _, t := range texts {
+		if !strings.Contains(v, strings.ToUpper(t)) {
+			return false
+		}
+	}
+	return true
 }

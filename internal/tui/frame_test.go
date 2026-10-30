@@ -20,9 +20,11 @@ func TestViewPaintedEveryScreen(t *testing.T) {
 		"dashboard": dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)}),
 	}
 	for name, m := range screens {
-		m = send(m, size(100, 30))
 		m.th = paperTheme()
-		t.Run(name, func(t *testing.T) { assertPainted(t, m.View(), 100, 30) })
+		for _, sz := range [][2]int{{100, 30}, {80, 24}} {
+			mm := send(m, size(sz[0], sz[1]))
+			t.Run(name, func(t *testing.T) { assertPainted(t, mm.View(), sz[0], sz[1]) })
+		}
 	}
 }
 

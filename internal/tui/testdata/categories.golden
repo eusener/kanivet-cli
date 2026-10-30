@@ -1,30 +1,30 @@
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [KANIVET]  [x] WELCOME [x] PROFILE [ITEMS] REVIEW INSTALL                                    3/5 │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ [KANIVET]  x WELCOME x PROFILE [ITEMS] REVIEW INSTALL                                    3/5 │
+  └──────────────────────────────────────────────────────────────────────────────────────────────┘
 
 
-TERMINAL AND SHELL · 1/5
+  TERMINAL AND SHELL · 1/5
 
-> [x] herdr                    [ ]
-  [x] herdr agent icons        [ ]
-  [x] herdr plugins            [ ]
-  [x] kitty                    [ ]
-  [x] JetBrainsMono Nerd Font  [ ]
-  [x] atuin                    [ ]
-  [x] direnv                   [ ]
-  [x] fzf                      [ ]
-  [x] starship                 [ ]
-  [x] zoxide                   [ ]
-  [ ] zsh                      [ ]
-  [x] zsh-autosuggestions      [ ]
-────────────────────────────────────────────────────────────────────────────────────────────────────
-herdr
-Terminal workspace manager for AI coding agents
-status: [ ] not installed
-method: script
-  [x] Vesper theme, in-app toasts, plugin shortcuts and lazygit popup
+  > [x] herdr                    [ ]
+    [x] herdr agent icons        [ ]
+    [x] herdr plugins            [ ]
+    [x] kitty                    [ ]
+    [x] JetBrainsMono Nerd Font  [ ]
+    [x] atuin                    [ ]
+    [x] direnv                   [ ]
+    [x] fzf                      [ ]
+    [x] starship                 [ ]
+    [x] zoxide                   [ ]
+    [ ] zsh                      [ ]
+    [x] zsh-autosuggestions      [ ]
+    [x] zsh-syntax-highlighting  [ ]
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  herdr
+  Terminal workspace manager for AI coding agents
+  status: [ ] not installed
+  method: script
+    [x] Vesper theme, in-app toasts, plugin shortcuts and lazygit popup
 
 
 
-36 to install · 6 configs
-↑/K up  ↓/J down  SPACE mark  ←/H left  / search  ENTER confirm  ESC back  ? help  Q quit
+  [36 TO INSTALL]  [6 CONFIGS]  ←/H left  / search  ENTER confirm  ESC back  ? help  Q quit

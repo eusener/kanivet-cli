@@ -56,15 +56,15 @@ func (m Model) profileLines(height int) []string {
 			prefix = "> "
 		}
 		line := prefix + pr.Name.Get() + " — " + pr.Description.Get()
-		line = lipgloss.NewStyle().MaxWidth(m.w).Render(line)
+		line = lipgloss.NewStyle().MaxWidth(m.contentWidth()).Render(line)
 		if i == m.profCursor {
 			line = m.th.Selected.Render(line)
 		}
 		out = append(out, line)
 	}
-	out = append(out, m.th.Border.Render(strings.Repeat("─", m.w)), m.th.Subtle.Render(i18n.T("tui.profile.preview")+":"))
+	out = append(out, m.th.Border.Render(strings.Repeat("─", m.contentWidth())), m.th.Subtle.Render(i18n.T("tui.profile.preview")+":"))
 	room := max(height-len(out), 1)
-	prev := strings.Split(lipgloss.NewStyle().Width(m.w).Render(strings.Join(m.previewNames(), ", ")), "\n")
+	prev := strings.Split(lipgloss.NewStyle().Width(m.contentWidth()).Render(strings.Join(m.previewNames(), ", ")), "\n")
 	if len(prev) > room {
 		prev = prev[:room]
 	}

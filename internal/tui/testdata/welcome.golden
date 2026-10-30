@@ -1,18 +1,15 @@
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [KANIVET]  [WELCOME] PROFILE ITEMS REVIEW INSTALL                                            1/5 │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ [KANIVET]  [WELCOME] PROFILE ITEMS REVIEW INSTALL                                        1/5 │
+  └──────────────────────────────────────────────────────────────────────────────────────────────┘
 
 
-WELCOME
+  WELCOME
 
-kanivet-cli sets up your dev terminal. Nothing runs before you review the plan.
+  kanivet-cli sets up your dev terminal. Nothing runs before you review the plan.
 
-system:            ubuntu 24.04 · amd64
-shell:             zsh
-package manager:   apt
-
-
-
+  system:            ubuntu 24.04 · amd64
+  shell:             zsh
+  package manager:   apt
 
 
 
@@ -26,5 +23,8 @@ package manager:   apt
 
 
 
-0 to install · 0 configs
- ENTER  START ->   ? help  Q quit
+
+
+
+
+   ENTER  START ->   [0 TO INSTALL]  [0 CONFIGS]  ? help  Q quit

@@ -116,12 +116,12 @@ func (m Model) nextSteps() []string {
 func (m Model) summaryLines(height int) []string {
 	if m.sum.panel != panelNone {
 		head := m.th.Title.Render(m.sum.title)
-		return append([]string{ansi.Truncate(head, m.w, "…")}, strings.Split(m.sum.vp.View(), "\n")...)
+		return append([]string{ansi.Truncate(head, m.contentWidth(), "…")}, strings.Split(m.sum.vp.View(), "\n")...)
 	}
 	r := m.runRep
 	var lines []string
 	cursorLine := 0
-	add := func(s string) { lines = append(lines, ansi.Truncate(s, m.w, "…")) }
+	add := func(s string) { lines = append(lines, ansi.Truncate(s, m.contentWidth(), "…")) }
 	add(m.th.Accent.Render(i18n.T("summary.counts", len(r.Done), len(r.Failed), len(r.Skipped))))
 	if m.runErr != nil {
 		add(m.th.Danger.Render(m.runErr.Error()))
@@ -141,7 +141,7 @@ func (m Model) summaryLines(height int) []string {
 		for _, id := range r.Failed {
 			p := mark()
 			add(p + m.th.Danger.Render(m.th.StepIcon(state.StepFailed)) + " " + id)
-			add("      " + m.th.Subtle.Render(i18n.T("summary.log", shorten(m.failLog(id), m.w-14))))
+			add("      " + m.th.Subtle.Render(i18n.T("summary.log", shorten(m.failLog(id), m.contentWidth()-14))))
 		}
 		add(m.th.Warn.Render(i18n.T("summary.retry")))
 	}
@@ -150,7 +150,7 @@ func (m Model) summaryLines(height int) []string {
 		add(m.th.Title.Render(i18n.T("tui.summary.conflicts")))
 		for _, c := range r.Conflicts {
 			p := mark()
-			text := p + shorten(c.Target, m.w-24)
+			text := p + shorten(c.Target, m.contentWidth()-24)
 			switch {
 			case m.sum.forcing && m.cursorTarget() == c.Target:
 				text += " " + m.th.Subtle.Render(i18n.T("tui.summary.forcing"))
@@ -193,14 +193,14 @@ func (m Model) cursorTarget() string {
 func (m Model) panelHeight() int { return max(m.bodyHeight()-1, 1) }
 
 func (m Model) layoutSummary() Model {
-	m.sum.vp.Width, m.sum.vp.Height = m.w, m.panelHeight()
+	m.sum.vp.Width, m.sum.vp.Height = m.contentWidth(), m.panelHeight()
 	m.sum.vp.SetYOffset(m.sum.vp.YOffset) // reajusta o deslocamento à nova altura
 	return m
 }
 
 func (m Model) openPanel(p summaryPanel, title, content string) Model {
 	m.sum.panel, m.sum.title = p, title
-	m.sum.vp = viewport.New(m.w, m.panelHeight())
+	m.sum.vp = viewport.New(m.contentWidth(), m.panelHeight())
 	m.sum.vp.SetContent(content)
 	if p == panelLog {
 		m.sum.vp.GotoBottom() // o fim do log é o que interessa
@@ -230,7 +230,7 @@ func (m Model) openLog(stepID string) Model {
 	if err != nil {
 		return m.openPanel(panelLog, path, i18n.T("tui.summary.log_error", path, err.Error()))
 	}
-	return m.openPanel(panelLog, i18n.T("tui.summary.log_title", path, logTail), diffContent(text, m.w))
+	return m.openPanel(panelLog, i18n.T("tui.summary.log_title", path, logTail), diffContent(text, m.contentWidth()))
 }
 
 // forcePlan acha a config do catálogo dona do arquivo e monta um plano de um passo que reaplica só esse arquivo
@@ -323,7 +323,7 @@ func (m Model) updateSummary(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(km, m.keys.Diff):
 		if onRow && !row.failed {
 			c := m.runRep.Conflicts[row.idx]
-			return m.openPanel(panelDiff, i18n.T("tui.summary.diff_title", c.Target), diffContent(c.Diff, m.w)), nil
+			return m.openPanel(panelDiff, i18n.T("tui.summary.diff_title", c.Target), diffContent(c.Diff, m.contentWidth())), nil
 		}
 	case key.Matches(km, m.keys.Force):
 		if onRow && !row.failed && !s.forcing && m.sum.outcome[m.cursorTarget()] == "" {

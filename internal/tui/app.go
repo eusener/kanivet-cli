@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -230,6 +231,12 @@ func (m Model) updateKey(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 // sem sombra sobra uma linha em branco para a altura não mudar.
 const headerHeight = 4
 
+// margin é a margem lateral (colunas) em cada lado de toda a tela.
+const margin = 2
+
+// contentWidth é a largura que cabeçalho, corpo e rodapé podem usar.
+func (m Model) contentWidth() int { return max(m.w-2*margin, 1) }
+
 // respiro devolve quantas linhas em branco separam cabeçalho, título e corpo. Em
 // alturas curtas elas somem primeiro (primeiro corte da spec).
 func (m Model) respiro() int {
@@ -240,12 +247,12 @@ func (m Model) respiro() int {
 }
 
 // bodyHeight é a altura que sobra ao corpo: tudo menos cabeçalho, título, respiro,
-// linha de pendências e rodapé.
+// e rodapé.
 func (m Model) bodyHeight() int {
-	return max(m.h-headerHeight-1-m.respiro()-1-1, 1)
+	return max(m.h-headerHeight-1-m.respiro()-1, 1)
 }
 
-// View desenha cabeçalho, título, corpo, barra de pendências e rodapé numa grade do
+// View desenha cabeçalho, título, corpo e rodapé (com contadores em tags) numa grade do
 // tamanho exato do terminal; toda saída passa pelo canvas.
 func (m Model) View() string {
 	if m.w < minWidth || m.h < minHeight {
@@ -253,29 +260,43 @@ func (m Model) View() string {
 		return m.th.Canvas(strings.Split(ansi.Wrap(msg, max(m.w, 1), ""), "\n"), m.w, m.h)
 	}
 	bh := m.bodyHeight()
+	if m.screen == ScreenExecute {
+		bh-- // a última linha é a barra de progresso
+	}
 	body := m.bodyLines(bh)
 	for len(body) < bh {
 		body = append(body, "")
 	}
-	status := ""
-	switch {
-	case m.screen == ScreenExecute:
-		status = m.progressLine()
-	case m.screen == ScreenSummary: // o resumo (Task 10) não mostra pendências
-	case m.screen == ScreenDashboard:
-		status = m.dashStatus()
-	case m.sel != nil:
-		n, c := m.pending()
-		status = m.th.Accent.Render(i18n.T("tui.pending", n, c))
-	}
 	lines := m.header()
 	gap := make([]string, m.respiro()/2)
 	lines = append(lines, gap...)
-	lines = append(lines, m.th.Title.Render(strings.ToUpper(m.title())))
+	lines = append(lines, m.th.Title.Render(m.upperTitle()))
 	lines = append(lines, gap...)
 	lines = append(lines, body[:bh]...)
-	lines = append(lines, status, m.footer())
-	return m.th.Canvas(lines, m.w, m.h)
+	if m.screen == ScreenExecute { // a barra de progresso fecha o corpo; o texto vai ao rodapé
+		lines = append(lines, m.progressBar())
+	}
+	lines = append(lines, m.footer())
+	var framed []string
+	pad := strings.Repeat(" ", margin)
+	for _, l := range lines {
+		for _, ln := range strings.Split(l, "\n") {
+			framed = append(framed, pad+ln)
+		}
+	}
+	return m.th.Canvas(framed, m.w, m.h)
+}
+
+// upperTitle põe o título em maiúsculas, menos o ID do run da retomada.
+func (m Model) upperTitle() string {
+	t := m.title()
+	if m.screen == ScreenReview && m.review.resume && m.review.journal != nil {
+		id := m.review.journal.RunID
+		if i := strings.Index(t, id); i >= 0 {
+			return strings.ToUpper(t[:i]) + id + strings.ToUpper(t[i+len(id):])
+		}
+	}
+	return strings.ToUpper(t)
 }
 
 // trailStep devolve o passo atual da trilha (0 a 4) e se ela está concluída.
@@ -310,7 +331,7 @@ func (m Model) header() []string {
 		}
 		right = m.th.Subtle.Render(right)
 	}
-	inner := m.w - 4 // bordas e padding
+	inner := m.contentWidth() - 4 // bordas e padding
 	if m.th.Paper {
 		inner-- // sombra
 	}
@@ -320,7 +341,7 @@ func (m Model) header() []string {
 	}
 	// se faltar largura, corta a trilha e preserva o N/5
 	row := ansi.Truncate(left, max(inner-lipgloss.Width(right), 0), "") + right
-	out := strings.Split(m.th.Box(row, m.w, BoxOpts{}), "\n")
+	out := strings.Split(m.th.Box(row, m.contentWidth(), BoxOpts{}), "\n")
 	for len(out) < headerHeight {
 		out = append(out, "")
 	}
@@ -359,20 +380,73 @@ func (m Model) footer() string {
 		return m.th.Warn.Render(i18n.T("tui.quit_confirm"))
 	}
 	if m.screen == ScreenSummary && m.sum.confirm {
-		return m.th.Warn.Render(i18n.T("tui.summary.force_confirm", shorten(m.cursorTarget(), 40)))
+		// o alvo encolhe para o [y/N] nunca ser cortado
+		room := m.contentWidth() - lipgloss.Width(i18n.T("tui.summary.force_confirm", ""))
+		return m.th.Warn.Render(i18n.T("tui.summary.force_confirm", shorten(m.cursorTarget(), max(min(room, 40), 8))))
 	}
-	var parts []string
+	var head []string
 	k, label, hasPrimary := m.primaryAction()
 	if hasPrimary {
-		parts = append(parts, m.th.Button(k, label))
+		head = append(head, m.th.Button(k, label))
 	}
+	head = append(head, m.counterTags()...)
+	type hint struct {
+		text string
+		keep bool
+	}
+	var hints []hint
 	for _, b := range m.bindings() {
 		if !b.Enabled() || (hasPrimary && b.Help().Key == k) {
 			continue
 		}
-		parts = append(parts, m.th.Help.Render(m.keyCap(b.Help().Key)+" "+b.Help().Desc))
+		hints = append(hints, hint{m.th.Help.Render(m.keyCap(b.Help().Key) + " " + b.Help().Desc), b.Help().Key == "?" || b.Help().Key == "q"})
 	}
-	return ansi.Truncate(strings.Join(parts, "  "), m.w, "")
+	join := func() string {
+		parts := append([]string{}, head...)
+		for _, h := range hints {
+			parts = append(parts, h.text)
+		}
+		return strings.Join(parts, "  ")
+	}
+	// sem largura, descarta os atalhos menos importantes; ajuda e sair ficam
+	for lipgloss.Width(join()) > m.contentWidth() {
+		dropped := false
+		for i, h := range hints {
+			if !h.keep {
+				hints = append(hints[:i], hints[i+1:]...)
+				dropped = true
+				break
+			}
+		}
+		if !dropped {
+			break
+		}
+	}
+	return ansi.Truncate(join(), m.contentWidth(), "")
+}
+
+// counterTags devolve os contadores da tela como tags para o rodapé.
+func (m Model) counterTags() []string {
+	switch {
+	case m.screen == ScreenExecute:
+		e := m.exec
+		el := e.elapsed
+		if e.running {
+			el = time.Since(e.started)
+		}
+		return []string{m.th.Tag(i18n.T("tui.execute.progress", e.finished, len(e.steps), el.Round(time.Second).String()), colSky)}
+	case m.screen == ScreenSummary || m.sel == nil:
+		return nil
+	case m.screen == ScreenDashboard:
+		i, u, r := m.sel.Pending()
+		return []string{
+			m.th.Tag(i18n.T("tui.tag.install", i), colSky),
+			m.th.Tag(i18n.T("tui.tag.update", u), colPeach),
+			m.th.Tag(i18n.T("tui.tag.remove", r), colCoral),
+		}
+	}
+	n, c := m.pending()
+	return []string{m.th.Tag(i18n.T("tui.tag.install", n), colSky), m.th.Tag(i18n.T("tui.tag.configs", c), colMint)}
 }
 
 // pending devolve o que a barra mostra (itens a instalar, configs ligadas); o aviso ao sair usa o mesmo critério.
@@ -424,7 +498,7 @@ func (m Model) bodyLines(height int) []string {
 	case ScreenProfile:
 		return m.profileLines(height)
 	case ScreenCategories:
-		return strings.Split(m.list.View(m.w, height), "\n")
+		return strings.Split(m.list.View(m.contentWidth(), height), "\n")
 	case ScreenReview:
 		return m.reviewLines(height)
 	case ScreenExecute:

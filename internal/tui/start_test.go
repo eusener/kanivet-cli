@@ -70,7 +70,7 @@ func TestResumeOpensPendingReview(t *testing.T) {
 		t.Fatalf("screen = %v resume=%v, want review de retomada", m.screen, m.review.resume)
 	}
 	v := m.View()
-	if title := strings.ToUpper(i18n.T("tui.resume_title", j.RunID)); !strings.Contains(v, title) {
+	if title := "RESUME UNFINISHED RUN " + j.RunID; !strings.Contains(v, title) {
 		t.Fatalf("sem título de retomada %q:\n%s", title, v)
 	}
 	var ids []string

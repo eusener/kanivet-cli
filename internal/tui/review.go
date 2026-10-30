@@ -225,8 +225,8 @@ func (m Model) layoutReview() Model {
 	if height < 1 {
 		height = 1
 	}
-	r.vp.Width, r.vp.Height = m.w, height
-	r.diff.Width, r.diff.Height = m.w, max(body-1, 1) // altura < 1 deixa o YOffset passar do fim (pânico no View)
+	r.vp.Width, r.vp.Height = m.contentWidth(), height
+	r.diff.Width, r.diff.Height = m.contentWidth(), max(body-1, 1) // altura < 1 deixa o YOffset passar do fim (pânico no View)
 	r.diff.SetYOffset(r.diff.YOffset)
 	r.vp.SetContent(m.renderRows(r))
 	r.vp.SetYOffset(r.vp.YOffset)
@@ -251,7 +251,7 @@ func (m Model) renderRows(r reviewState) string {
 		if row.file {
 			// as marcas (backup/rc/remover) nunca são cortadas: o caminho é que encolhe
 			fixed := lipgloss.Width(prefix) + 6 + lipgloss.Width(row.lead) + lipgloss.Width(row.post)
-			row.text = "      " + row.lead + shorten(row.path, m.w-fixed) + row.post
+			row.text = "      " + row.lead + shorten(row.path, m.contentWidth()-fixed) + row.post
 		}
 		switch row.style {
 		case rowTitle:
@@ -261,7 +261,7 @@ func (m Model) renderRows(r reviewState) string {
 		case rowSubtle:
 			st = m.th.Subtle
 		}
-		out[i] = lipgloss.NewStyle().MaxWidth(m.w).Render(prefix + st.Render(row.text))
+		out[i] = lipgloss.NewStyle().MaxWidth(m.contentWidth()).Render(prefix + st.Render(row.text))
 	}
 	return strings.Join(out, "\n")
 }
@@ -284,7 +284,7 @@ func (m Model) reviewLines(height int) []string {
 			msgs = []string{r.err.Error()}
 		}
 		box := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.NoColor{}).
-			Width(m.w - 2).Render(m.th.Danger.Render(i18n.T("tui.review.error") + "\n" + strings.Join(msgs, "\n")))
+			Width(m.contentWidth() - 2).Render(m.th.Danger.Render(i18n.T("tui.review.error") + "\n" + strings.Join(msgs, "\n")))
 		return strings.Split(box, "\n")
 	}
 	lines := m.reviewHeader()
@@ -415,7 +415,7 @@ func (m Model) openDiff() Model {
 		}
 		text = configs.Diff(string(cur), string(next))
 	}
-	r.diff.SetContent(diffContent(text, m.w))
+	r.diff.SetContent(diffContent(text, m.contentWidth()))
 	r.diff.GotoTop()
 	r.diffOpen, r.diffPath = true, target
 	m.review = r

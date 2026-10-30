@@ -144,7 +144,7 @@ func (t Theme) Trail(step int, done bool) string {
 		up := strings.ToUpper(n)
 		switch {
 		case done || i < step:
-			parts[i] = t.OK.Render(pick(t.Nerd, "✓", "[x]")) + " " + t.Subtle.Render(up)
+			parts[i] = t.OK.Render(pick(t.Nerd, "✓", "x")) + " " + t.Subtle.Render(up)
 		case i == step:
 			parts[i] = t.Tag(n, colSky)
 		default:

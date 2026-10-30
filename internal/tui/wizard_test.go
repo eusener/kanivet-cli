@@ -109,7 +109,7 @@ func TestWizardFlowToReview(t *testing.T) {
 	if m.screen != ScreenReview {
 		t.Fatalf("screen = %v, want review", m.screen)
 	}
-	if !strings.Contains(m.View(), "REVIEW") {
+	if !strings.Contains(m.View(), "REVIEW THE PLAN") {
 		t.Errorf("view da revisão:\n%s", m.View())
 	}
 }
@@ -210,9 +210,10 @@ func TestFooterCountsAndQuitAgree(t *testing.T) {
 	if n == 0 || c == 0 {
 		t.Fatalf("esperava pendências, n=%d c=%d", n, c)
 	}
-	want := fmt.Sprintf("%d to install · %d configs", n, c)
-	if !strings.Contains(m.View(), want) {
-		t.Errorf("faltou %q em:\n%s", want, m.View())
+	for _, want := range []string{fmt.Sprintf("%d to install", n), fmt.Sprintf("%d configs", c)} {
+		if !strings.Contains(m.View(), strings.ToUpper(want)) {
+			t.Errorf("faltou a tag %q em:\n%s", strings.ToUpper(want), m.View())
+		}
 	}
 	m = send(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
 	if !m.confirmQuit || !strings.Contains(m.View(), "Quit with pending changes") {
