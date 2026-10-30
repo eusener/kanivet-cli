@@ -1,0 +1,23 @@
+id: delta
+category: git
+name: "delta"
+description: {en: "Syntax-highlighted git diffs (set as git pager)", pt-BR: "Diffs do git com destaque de sintaxe (vira o pager do git)"}
+homepage: https://github.com/dandavison/delta
+platforms: [macos, linux]
+detect:
+  command: "delta --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: git-delta
+    when: {os: macos}
+  - backend: mise
+    package: aqua:dandavison/delta
+post_install:
+  - |
+    if [ -z "$(git config --global --get core.pager)" ]; then
+      git config --global core.pager delta &&
+      git config --global interactive.diffFilter 'delta --color-only' &&
+      git config --global delta.navigate true &&
+      git config --global merge.conflictStyle zdiff3
+    fi

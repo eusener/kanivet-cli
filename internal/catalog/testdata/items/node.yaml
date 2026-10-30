@@ -1,0 +1,11 @@
+id: node
+category: shell
+name: Node.js
+description: JavaScript runtime
+platforms: [macos, linux]
+depends_on: [mise]
+detect: {command: node --version, version_regex: 'v([\d.]+)'}
+install:
+  - backend: mise
+    package: node
+    version: "22"

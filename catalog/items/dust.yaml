@@ -1,0 +1,15 @@
+id: dust
+category: replacements
+name: "dust"
+description: {en: "Visual disk usage (du)", pt-BR: "Uso de disco visual (du)"}
+homepage: https://github.com/bootandy/dust
+platforms: [macos, linux]
+detect:
+  command: "dust --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: dust
+    when: {os: macos}
+  - backend: mise
+    package: aqua:bootandy/dust

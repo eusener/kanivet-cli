@@ -1,0 +1,10 @@
+id: lerd
+category: php-local
+name: lerd
+description: Local PHP environment with Podman
+platforms: [macos, linux]
+provides: [php]
+detect: {command: lerd --version}
+install:
+  - backend: script
+    url: https://lerd.sh/install.sh

@@ -1,0 +1,21 @@
+id: mise
+category: managers
+name: mise
+description: {en: "Version manager for languages and CLI tools", pt-BR: "Gerenciador de versões de linguagens e ferramentas CLI"}
+homepage: https://mise.jdx.dev
+platforms: [macos, linux]
+detect:
+  command: mise --version
+  version_regex: '([\d]+\.[\d]+\.[\d]+)'
+install:
+  - backend: brew
+    package: mise
+    when: {os: macos}
+  - backend: script
+    url: https://mise.run
+shell:
+  init_order: 10
+  init:
+    any: |
+      eval "$(mise activate {{shell}})"
+      eval "$(mise hook-env -s {{shell}})"

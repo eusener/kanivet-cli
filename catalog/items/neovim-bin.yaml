@@ -1,0 +1,15 @@
+id: neovim-bin
+category: editors
+name: "Neovim"
+description: {en: "Neovim editor (used by the Neovim distributions)", pt-BR: "Editor Neovim (usado pelas distribuições Neovim)"}
+platforms: [macos, linux]
+min_version: "0.10"
+detect:
+  command: "nvim --version"
+  version_regex: "NVIM v([\\d.]+)"
+install:
+  - backend: brew
+    package: neovim
+    when: {os: macos}
+  - backend: mise
+    package: aqua:neovim/neovim

@@ -1,0 +1,7 @@
+FROM opensuse/tumbleweed
+RUN zypper -n install bash ca-certificates curl git gzip jq sudo tar unzip xz && zypper clean -a
+# No Tumbleweed as regras ficam em /usr/etc/sudoers.d
+RUN useradd -m -s /bin/bash dev && mkdir -p /usr/etc/sudoers.d && echo 'dev ALL=(ALL) NOPASSWD:ALL' | tee /etc/sudoers.d/dev > /usr/etc/sudoers.d/dev
+USER dev
+WORKDIR /home/dev
+ENV LANG=C.UTF-8

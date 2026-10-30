@@ -1,0 +1,17 @@
+id: lazydocker
+category: containers
+name: "lazydocker"
+description: {en: "TUI for Docker and Podman", pt-BR: "TUI para Docker e Podman"}
+platforms: [macos, linux]
+shell:
+  aliases:
+    lzd: lazydocker
+detect:
+  command: "lazydocker --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: lazydocker
+    when: {os: macos}
+  - backend: mise
+    package: aqua:jesseduffield/lazydocker

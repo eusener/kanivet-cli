@@ -1,0 +1,15 @@
+id: gh
+category: git
+name: "gh"
+description: {en: "GitHub CLI: PRs, issues and Actions", pt-BR: "GitHub CLI: PRs, issues e Actions"}
+homepage: https://github.com/cli/cli
+platforms: [macos, linux]
+detect:
+  command: "gh --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: gh
+    when: {os: macos}
+  - backend: mise
+    package: aqua:cli/cli

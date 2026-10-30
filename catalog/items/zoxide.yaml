@@ -1,0 +1,18 @@
+id: zoxide
+category: shell
+name: "zoxide"
+description: {en: "Jump to frequent directories with z", pt-BR: "Pula para pastas frequentes com z"}
+homepage: https://github.com/ajeetdsouza/zoxide
+platforms: [macos, linux]
+detect:
+  command: "zoxide --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: zoxide
+    when: {os: macos}
+  - backend: mise
+    package: aqua:ajeetdsouza/zoxide
+shell:
+  init:
+    any: 'eval "$(zoxide init {{shell}})"'

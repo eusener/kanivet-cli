@@ -1,0 +1,23 @@
+id: flock
+category: php-local
+name: "Flock"
+description: {en: "Native local Laravel environment (no containers)", pt-BR: "Ambiente Laravel local nativo (sem containers)"}
+homepage: https://flockphp.com
+platforms: [macos, linux]
+requires: {min_macos: "15", macos_arch: [arm64], distros: ["ubuntu>=24.04", fedora]}
+provides: [php, composer]
+notes: {en: "On macOS the installer opens for you to finish. Then run `flk install`. Uses ports 80/443.", pt-BR: "No macOS o instalador abre para você concluir. Depois rode `flk install`. Usa as portas 80/443."}
+detect:
+  command: "command -v flk"
+install:
+  - backend: script
+    inline: "cd \"$HOME/Downloads\" && curl -fLJO https://flockphp.com/download/macos/latest && open \"$(ls -t | head -1)\""
+    when: {os: macos}
+  - backend: script
+    inline: "T=$(mktemp -d) && curl -fL https://flockphp.com/download/linux-deb/latest -o \"$T/flock.deb\" && sudo apt-get install -y \"$T/flock.deb\"; rc=$?; rm -rf \"$T\"; exit $rc"
+    when: {os: linux, pkg_manager: apt}
+    needs_sudo: true
+  - backend: script
+    inline: "T=$(mktemp -d) && curl -fL https://flockphp.com/download/linux-rpm/latest -o \"$T/flock.rpm\" && sudo dnf install -y \"$T/flock.rpm\"; rc=$?; rm -rf \"$T\"; exit $rc"
+    when: {os: linux, pkg_manager: dnf}
+    needs_sudo: true

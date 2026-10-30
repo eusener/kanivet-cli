@@ -1,0 +1,11 @@
+id: neovim-plain
+category: neovim
+name: "Plain Neovim"
+description: {en: "Neovim without a distribution (bring your own config)", pt-BR: "Neovim sem distribuição (use a sua config)"}
+platforms: [macos, linux]
+depends_on: [neovim-bin]
+detect:
+  command: "nvim --version"
+install:
+  - backend: script
+    inline: "true"

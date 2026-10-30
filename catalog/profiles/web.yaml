@@ -1,0 +1,7 @@
+id: web
+name: {en: "Web (JS/TS)", pt-BR: "Web (JS/TS)"}
+description: {en: "Node, pnpm and Bun, HTTP and task tools, LazyVim for TypeScript", pt-BR: "Node, pnpm e Bun, ferramentas de HTTP e tarefas, LazyVim para TypeScript"}
+items: [starship, zsh-autosuggestions, zsh-syntax-highlighting, direnv, atuin, zoxide, fzf, eza, bat, fd, ripgrep, dust, duf, btop, procs, sd, yazi, lazygit, delta, gh, jq, kitty, herdr, herdr-plugins, nerd-font-jetbrains, herdr-icon-font, node, pnpm, bun, xh, just, watchexec]
+exclusive: {neovim: lazyvim}
+extras:
+  lazyvim: [lang.typescript, lang.tailwind, lang.json]

@@ -1,0 +1,16 @@
+id: php
+category: languages
+name: "PHP"
+description: {en: "PHP CLI (skipped when lerd or Flock provides it)", pt-BR: "PHP CLI (pulado quando o lerd ou o Flock fornece)"}
+homepage: https://www.php.net
+platforms: [macos, linux]
+provided_by: [lerd, flock]
+detect:
+  command: "php --version"
+  version_regex: "PHP ([\\d.]+)"
+install:
+  - backend: brew
+    package: shivammathur/php/php@8.4
+    when: {os: macos}
+  - backend: script
+    inline: "ARCH=$(uname -m); [ \"$ARCH\" = arm64 ] && ARCH=aarch64; BASE=https://dl.static-php.dev/static-php-cli/common; F=$(curl -fsSL \"$BASE/\" | grep -o \"php-8\\.4\\.[0-9]*-cli-linux-$ARCH\\.tar\\.gz\" | sort -V | tail -1) && [ -n \"$F\" ] && mkdir -p \"$HOME/.local/bin\" && curl -fsSL \"$BASE/$F\" | tar -xz -C \"$HOME/.local/bin\" php"

@@ -1,0 +1,14 @@
+id: uv
+category: python-data
+name: "uv"
+description: {en: "Extremely fast Python package and project manager", pt-BR: "Gerenciador de pacotes e projetos Python extremamente rápido"}
+platforms: [macos, linux]
+detect:
+  command: "uv --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: uv
+    when: {os: macos}
+  - backend: mise
+    package: aqua:astral-sh/uv

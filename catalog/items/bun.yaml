@@ -1,0 +1,12 @@
+id: bun
+category: languages
+name: "Bun"
+description: {en: "JavaScript runtime, bundler and package manager", pt-BR: "Runtime JavaScript, bundler e gerenciador de pacotes"}
+platforms: [macos, linux]
+detect:
+  command: "bun --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: mise
+    package: bun
+    version: "latest"

@@ -1,0 +1,26 @@
+id: fzf
+category: shell
+name: "fzf"
+description: {en: "Fuzzy finder: ctrl+t files, alt+c directories", pt-BR: "Busca fuzzy: ctrl+t arquivos, alt+c pastas"}
+homepage: https://github.com/junegunn/fzf
+platforms: [macos, linux]
+min_version: "0.48"
+detect:
+  command: "fzf --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: fzf
+    when: {os: macos}
+  - backend: mise
+    package: aqua:junegunn/fzf
+shell:
+  init_order: 55
+  env:
+    FZF_DEFAULT_COMMAND: fd --type f --hidden --exclude .git
+    FZF_CTRL_T_COMMAND: fd --type f --hidden --exclude .git
+    FZF_ALT_C_COMMAND: fd --type d --hidden --exclude .git
+    FZF_CTRL_T_OPTS: "--preview 'bat --color=always --style=numbers --line-range=:300 {}'"
+    FZF_ALT_C_OPTS: "--preview 'eza --tree --level=2 --icons=always --color=always {}'"
+  init:
+    any: 'eval "$(fzf --{{shell}})"'

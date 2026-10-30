@@ -1,0 +1,13 @@
+id: python
+category: languages
+name: "Python"
+description: {en: "Python (prebuilt, per-project versions with mise)", pt-BR: "Python (pré-compilado, versão por projeto com o mise)"}
+homepage: https://www.python.org
+platforms: [macos, linux]
+detect:
+  command: "python3 --version"
+  version_regex: "Python ([\\d.]+)"
+install:
+  - backend: mise
+    package: python
+    version: "3.13"

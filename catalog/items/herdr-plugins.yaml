@@ -1,0 +1,23 @@
+id: herdr-plugins
+category: terminal
+name: herdr plugins
+description: {en: "herdr-bar, auto-title, radar and reviewr, plus integrations for the AI agents found", pt-BR: "herdr-bar, auto-title, radar e reviewr, mais as integrações dos agentes de IA encontrados"}
+platforms: [macos, linux]
+requires: {graphical: true}
+depends_on: [herdr, go, node]
+detect:
+  command: 'grep -q herdr-bar "$HOME/.config/herdr/plugins.json" 2>/dev/null'
+install:
+  - backend: herdr-plugin
+    args:
+      - herdr-bar=jeffarese/herdr-bar@a88c7b06c7a0f354d6120d465b0caa56fbde3fbf
+      - herdr.auto-title=kryptamine/herdr-auto-title@8a43d5503146d835ca223cd1f408840ee68465dd
+      - hhdebb.herdr-radar=hhdebb/herdr-radar@79a81bbddc017a4349713e282b1a01ee360c46de
+      - persiyanov.reviewr=persiyanov/herdr-reviewr@a253b1bfe4b34182af3204b7fcc42ccfed1b87d9
+post_install:
+  - |
+    for spec in claude:claude codex:codex copilot:copilot droid:droid opencode:opencode cursor:cursor-agent cursor:cursor antigravity-cli:antigravity-cli; do
+      a=${spec%%:*}; b=${spec#*:}
+      if command -v "$b" >/dev/null 2>&1; then herdr integration install "$a" || true; fi
+    done
+    herdr server reload-config >/dev/null 2>&1 || true

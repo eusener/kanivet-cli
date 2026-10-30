@@ -1,0 +1,5 @@
+id: laravel
+name: Laravel / PHP
+description: Laravel
+items: [fzf]
+exclusive: {php-local: lerd}

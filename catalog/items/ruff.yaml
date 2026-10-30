@@ -1,0 +1,14 @@
+id: ruff
+category: python-data
+name: "Ruff"
+description: {en: "Extremely fast Python linter and formatter", pt-BR: "Linter e formatador Python extremamente rápido"}
+platforms: [macos, linux]
+detect:
+  command: "ruff --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: ruff
+    when: {os: macos}
+  - backend: mise
+    package: aqua:astral-sh/ruff

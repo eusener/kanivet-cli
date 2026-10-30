@@ -1,0 +1,31 @@
+id: kitty
+category: terminal
+name: kitty
+description: {en: "Fast, GPU-based terminal emulator", pt-BR: "Emulador de terminal rápido, acelerado por GPU"}
+homepage: https://sw.kovidgoyal.net/kitty/
+platforms: [macos, linux]
+requires: {graphical: true}
+detect:
+  command: 'command -v kitty >/dev/null 2>&1 || [ -d /Applications/kitty.app ] || [ -d "$HOME/Applications/kitty.app" ] || [ -d "$HOME/.local/kitty.app" ]'
+install:
+  - backend: brew
+    package: cask:kitty
+    when: {os: macos}
+  - backend: script
+    url: https://sw.kovidgoyal.net/kitty/installer.sh
+    args: [launch=n]
+post_install:
+  - |
+    if [ "$(uname)" = Linux ] && [ -d "$HOME/.local/kitty.app" ]; then
+      mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" &&
+      ln -sf "$HOME/.local/kitty.app/bin/kitty" "$HOME/.local/kitty.app/bin/kitten" "$HOME/.local/bin/" &&
+      cp "$HOME"/.local/kitty.app/share/applications/kitty*.desktop "$HOME/.local/share/applications/" &&
+      sed -i "s|Icon=kitty|Icon=$HOME/.local/kitty.app/share/icons/hicolor/256x256/apps/kitty.png|g; s|Exec=kitty|Exec=$HOME/.local/kitty.app/bin/kitty|g" "$HOME"/.local/share/applications/kitty*.desktop
+    fi
+configs:
+  - id: kitty-config
+    description: {en: "JetBrainsMono Nerd Font, tabs on top, translucent background, new tabs in the current directory", pt-BR: "JetBrainsMono Nerd Font, abas no topo, fundo translúcido, abas novas no diretório atual"}
+    default: true
+    files:
+      - template: configs/kitty/kitty.conf
+        target: "{{.XDG_CONFIG}}/kitty/kitty.conf"

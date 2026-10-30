@@ -1,0 +1,7 @@
+id: ml
+name: {en: "Machine Learning / Data", pt-BR: "Machine Learning / Dados"}
+description: {en: "Python, uv, Ruff, JupyterLab and CUDA when there is an NVIDIA GPU", pt-BR: "Python, uv, Ruff, JupyterLab e CUDA quando há GPU NVIDIA"}
+items: [starship, zsh-autosuggestions, zsh-syntax-highlighting, direnv, atuin, zoxide, fzf, eza, bat, fd, ripgrep, dust, duf, btop, procs, sd, yazi, lazygit, delta, gh, jq, kitty, herdr, herdr-plugins, nerd-font-jetbrains, herdr-icon-font, python, uv, ruff, jupyter, cuda, yq]
+exclusive: {neovim: lazyvim}
+extras:
+  lazyvim: [lang.python, lang.json, lang.yaml]

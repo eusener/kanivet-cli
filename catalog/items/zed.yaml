@@ -1,0 +1,14 @@
+id: zed
+category: editors
+name: "Zed"
+description: {en: "Fast graphical code editor", pt-BR: "Editor de código gráfico e rápido"}
+platforms: [macos, linux]
+requires: {graphical: true}
+detect:
+  command: "command -v zed >/dev/null 2>&1 || [ -d /Applications/Zed.app ] || [ -x \"$HOME/.local/bin/zed\" ]"
+install:
+  - backend: brew
+    package: cask:zed
+    when: {os: macos}
+  - backend: script
+    url: https://zed.dev/install.sh

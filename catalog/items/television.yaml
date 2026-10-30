@@ -1,0 +1,15 @@
+id: television
+category: navigation
+name: "television"
+description: {en: "Fuzzy finder with channels (files, git, env...)", pt-BR: "Busca fuzzy com canais (arquivos, git, env...)"}
+homepage: https://github.com/alexpasmantier/television
+platforms: [macos, linux]
+detect:
+  command: "tv --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: television
+    when: {os: macos}
+  - backend: mise
+    package: aqua:alexpasmantier/television

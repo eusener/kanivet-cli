@@ -1,0 +1,61 @@
+onboarding = false
+
+[ui]
+
+# >>> herdr-radar tab-bar block
+tab_bar_right_separator = " · "
+tab_bar_right = [
+  { type = 'command', command = 'cat "{{.HOME}}/.local/state/herdr/plugins/hhdebb.herdr-radar/tabbar${HERDR_SESSION:+-$HERDR_SESSION}.txt"', interval_seconds = 6, timeout_seconds = 2 },
+]
+# <<< herdr-radar tab-bar block
+
+status_indicators = "symbols"
+show_agent_labels_on_pane_borders = true
+agent_panel_sort = "spaces"
+prompt_new_tab_name = false
+hide_tab_bar_when_single_tab = true
+# tab_bar_right e [ui.sidebar.*] são gerenciados pelo plugin herdr-radar.
+
+[ui.toast]
+delivery = "herdr"
+
+[ui.toast.herdr]
+position = "top-right"
+
+[theme]
+name = "vesper"
+auto_switch = false
+
+[keys]
+[[keys.command]]
+key = "prefix+alt+g"
+type = "popup"
+command = "lazygit"
+width = "85%"
+height = "85%"
+
+# Plugins
+[[keys.command]]
+key = "prefix+space"
+type = "plugin_action"
+command = "herdr-bar.open"                  # busca rápida: abas, painéis, agentes
+
+[[keys.command]]
+key = "prefix+d"
+type = "plugin_action"
+command = "persiyanov.reviewr.toggle"       # painel de review do diff
+
+[[keys.command]]
+key = "prefix+a"
+type = "plugin_action"
+command = "hhdebb.herdr-radar.view-flip"    # ordem: ativos <-> recentes
+
+[[keys.command]]
+key = "prefix+comma"
+type = "plugin_action"
+command = "hhdebb.herdr-radar.settings"     # configurações do radar
+
+[experimental]
+pane_history = true
+
+# >>> herdr-radar sidebar block

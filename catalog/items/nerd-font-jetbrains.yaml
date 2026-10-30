@@ -1,0 +1,11 @@
+id: nerd-font-jetbrains
+category: terminal
+name: JetBrainsMono Nerd Font
+description: {en: "Programming font with icons (used by eza, yazi, starship)", pt-BR: "Fonte de programação com ícones (usada por eza, yazi, starship)"}
+platforms: [macos, linux]
+requires: {graphical: true}
+detect:
+  command: '[ -f "$HOME/Library/Fonts/JetBrainsMonoNerdFontMono-Regular.ttf" ] || [ -f "$HOME/.local/share/fonts/JetBrainsMonoNerdFontMono-Regular.ttf" ]'
+install:
+  - backend: font
+    url: https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip

@@ -1,0 +1,7 @@
+FROM debian:12
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      bash ca-certificates curl git gzip jq sudo tar unzip xz-utils && rm -rf /var/lib/apt/lists/*
+RUN useradd -m -s /bin/bash dev && echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev
+USER dev
+WORKDIR /home/dev
+ENV LANG=C.UTF-8

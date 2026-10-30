@@ -1,0 +1,14 @@
+id: helix
+category: editors
+name: "Helix"
+description: {en: "Modal editor with built-in LSP, zero config", pt-BR: "Editor modal com LSP embutido, sem configuração"}
+platforms: [macos, linux]
+detect:
+  command: "hx --version"
+  version_regex: "helix ([\\d.]+)"
+install:
+  - backend: brew
+    package: helix
+    when: {os: macos}
+  - backend: mise
+    package: aqua:helix-editor/helix

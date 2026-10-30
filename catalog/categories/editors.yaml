@@ -1,0 +1,4 @@
+id: editors
+name: {en: "Editors", pt-BR: "Editores"}
+description: {en: "Terminal and graphical editors", pt-BR: "Editores de terminal e gráficos"}
+exclusive: false

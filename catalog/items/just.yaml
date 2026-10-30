@@ -1,0 +1,15 @@
+id: just
+category: data-apis
+name: "just"
+description: {en: "Command runner (modern make)", pt-BR: "Executor de comandos (make moderno)"}
+homepage: https://github.com/casey/just
+platforms: [macos, linux]
+detect:
+  command: "just --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: just
+    when: {os: macos}
+  - backend: mise
+    package: aqua:casey/just

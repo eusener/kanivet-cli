@@ -1,0 +1,20 @@
+id: herdr
+category: terminal
+name: herdr
+description: {en: "Terminal workspace manager for AI coding agents", pt-BR: "Gerenciador de workspaces no terminal para agentes de IA"}
+homepage: https://herdr.dev
+platforms: [macos, linux]
+requires: {graphical: true}
+detect:
+  command: herdr --version
+  version_regex: '([\d]+\.[\d]+\.[\d]+)'
+install:
+  - backend: script
+    url: https://herdr.dev/install.sh
+configs:
+  - id: herdr-config
+    description: {en: "Vesper theme, in-app toasts, plugin shortcuts and lazygit popup", pt-BR: "Tema vesper, notificações no próprio herdr, atalhos dos plugins e popup do lazygit"}
+    default: true
+    files:
+      - template: configs/herdr/config.toml
+        target: "{{.XDG_CONFIG}}/herdr/config.toml"

@@ -1,0 +1,10 @@
+id: laravel
+name: {en: "Laravel / PHP", pt-BR: "Laravel / PHP"}
+description: {en: "PHP via lerd (Linux) or Flock (macOS), Composer, Node and LazyVim for PHP", pt-BR: "PHP via lerd (Linux) ou Flock (macOS), Composer, Node e LazyVim para PHP"}
+items: [starship, zsh-autosuggestions, zsh-syntax-highlighting, direnv, atuin, zoxide, fzf, eza, bat, fd, ripgrep, dust, duf, btop, procs, sd, yazi, lazygit, delta, gh, jq, kitty, herdr, herdr-plugins, nerd-font-jetbrains, herdr-icon-font, php, composer, node, pnpm, lazydocker]
+exclusive: {neovim: lazyvim}
+exclusive_by_os:
+  macos: {php-local: flock}
+  linux: {php-local: lerd}
+extras:
+  lazyvim: [lang.php, lang.json, lang.tailwind, lang.typescript]

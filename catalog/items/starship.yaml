@@ -1,0 +1,22 @@
+id: starship
+category: shell
+name: "starship"
+description: {en: "Fast, customizable prompt", pt-BR: "Prompt rápido e customizável"}
+homepage: https://github.com/starship/starship
+platforms: [macos, linux]
+detect:
+  command: "starship --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: starship
+    when: {os: macos}
+  - backend: mise
+    package: aqua:starship/starship
+shell:
+  init_order: 90
+  init:
+    any: |
+      if [ -z "$STARSHIP_SHELL" ]; then
+        eval "$(starship init {{shell}})"
+      fi

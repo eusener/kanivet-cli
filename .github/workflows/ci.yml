@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test -race ./...
+      - run: go run ./cmd/kanivet-cli catalog lint
+
+  integration:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [ubuntu, debian, fedora, arch, opensuse]
+        profile: [blank, web]
+        include:
+          - distro: ubuntu
+            profile: laravel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: ./test/integration/run.sh ${{ matrix.distro }} ${{ matrix.profile }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  macos-install:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go build -o kanivet-cli ./cmd/kanivet-cli
+      - run: ./kanivet-cli install --profile blank --yes --no-config kitty-config,herdr-config
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: ./kanivet-cli status
+      - if: failure()
+        run: tail -n 40 ~/.local/state/kanivet-cli/runs/*/logs/*.log

@@ -1,0 +1,18 @@
+id: direnv
+category: shell
+name: "direnv"
+description: {en: "Per-directory environment variables (.envrc)", pt-BR: "Variáveis de ambiente por pasta (.envrc)"}
+homepage: https://github.com/direnv/direnv
+platforms: [macos, linux]
+detect:
+  command: "direnv --version"
+  version_regex: "([\\d.]+)"
+install:
+  - backend: brew
+    package: direnv
+    when: {os: macos}
+  - backend: mise
+    package: aqua:direnv/direnv
+shell:
+  init:
+    any: 'eval "$(direnv hook {{shell}})"'

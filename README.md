@@ -23,6 +23,49 @@ python3 setup.py install
 
 No fim, **feche e abra o kitty de novo** e rode `herdr`.
 
+## kanivet-cli (em desenvolvimento)
+
+Este repositório está virando o **kanivet-cli**: um binário único em Go que
+instala e gerencia um ambiente de desenvolvimento focado em terminal, a partir de
+um catálogo declarativo (`catalog/`) e de perfis embutidos. O `setup.py` continua
+funcionando até a v1, que inclui a interface TUI. Design e plano:
+`docs/superpowers/specs/2026-10-29-kanivet-cli-design.md` e
+`docs/superpowers/plans/2026-10-29-kanivet-cli-fase1-motor-cli.md`.
+
+```sh
+go build -o kanivet-cli ./cmd/kanivet-cli
+
+./kanivet-cli profiles                       # laravel, web, ml, backend, blank
+./kanivet-cli status                         # estado de cada item nesta máquina
+./kanivet-cli plan --profile laravel         # o que seria feito, sem alterar nada
+./kanivet-cli install --profile laravel      # mostra o plano, pede confirmação e instala
+./kanivet-cli install lazygit --yes          # itens avulsos, sem perguntar
+./kanivet-cli install --profile web --add rust --remove bun --version node=24
+./kanivet-cli update                         # atualiza o que o kanivet-cli instalou
+./kanivet-cli uninstall bat                  # desinstala e desfaz as configs do item
+./kanivet-cli restore                        # lista execuções com backup
+./kanivet-cli doctor                         # diagnóstico
+./kanivet-cli catalog lint                   # valida o catálogo
+```
+
+Regras principais:
+
+- **Nada muda sem revisão.** O plano mostra cada comando e cada arquivo. Um
+  arquivo que já existe aparece marcado com `(backup)` e é copiado para
+  `~/.local/state/kanivet-cli/backups/<execução>/` antes de ser alterado.
+- **Sem sudo à toa.** No macOS as ferramentas vêm do Homebrew; no Linux, do mise
+  (binários no `~`). Só os itens marcados na seção "Precisa de sudo" pedem a
+  senha, uma vez.
+- **Seleção aditiva.** `install` nunca remove nada; `--remove` só tira o item da
+  seleção. Remover é sempre `uninstall`.
+- **Retomável.** Uma falha não derruba os outros itens. Se a execução for
+  interrompida, rodar `install` de novo oferece retomar de onde parou.
+- **Shell.** Aliases e hooks vão para `~/.config/kanivet-cli/shell/init.{zsh,bash}`,
+  carregados por um único bloco `# >>> kanivet-cli >>>` no fim do rc.
+- **Idioma.** Inglês por padrão; pt-BR quando `LANG`/`LC_ALL` começa com `pt`.
+
+Testes: `go test ./...` e, com Docker, `test/integration/run.sh <ubuntu|debian|fedora|arch|opensuse> [perfil]`.
+
 ## Comandos
 
 | Comando | O que faz |

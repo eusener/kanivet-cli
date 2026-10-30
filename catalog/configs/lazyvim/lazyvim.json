@@ -1,0 +1,5 @@
+{
+  "extras": [{{range $i, $e := .Extras}}{{if $i}}, {{end}}"lazyvim.plugins.extras.{{$e}}"{{end}}],
+  "news": {},
+  "version": 8
+}

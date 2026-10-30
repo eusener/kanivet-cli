@@ -1,0 +1,10 @@
+id: flock
+category: php-local
+name: Flock
+description: Native local Laravel environment
+platforms: [macos, linux]
+provides: [php]
+detect: {command: flock --version}
+install:
+  - backend: script
+    url: https://flockphp.com/install.sh

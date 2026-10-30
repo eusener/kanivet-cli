@@ -1,0 +1,4 @@
+id: neovim
+name: {en: "Neovim distribution", pt-BR: "Distribuição Neovim"}
+description: {en: "A ready-made Neovim configuration (pick one)", pt-BR: "Uma configuração pronta de Neovim (escolha uma)"}
+exclusive: true

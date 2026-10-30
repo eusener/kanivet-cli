@@ -1,0 +1,15 @@
+id: watchexec
+category: data-apis
+name: "watchexec"
+description: {en: "Run commands when files change", pt-BR: "Roda comandos quando arquivos mudam"}
+homepage: https://github.com/watchexec/watchexec
+platforms: [macos, linux]
+detect:
+  command: "watchexec --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: watchexec
+    when: {os: macos}
+  - backend: mise
+    package: aqua:watchexec/watchexec

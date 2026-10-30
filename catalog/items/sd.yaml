@@ -1,0 +1,15 @@
+id: sd
+category: replacements
+name: "sd"
+description: {en: "Intuitive find and replace (sed)", pt-BR: "Buscar e substituir intuitivo (sed)"}
+homepage: https://github.com/chmln/sd
+platforms: [macos, linux]
+detect:
+  command: "sd --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: sd
+    when: {os: macos}
+  - backend: mise
+    package: aqua:chmln/sd

@@ -1,0 +1,15 @@
+id: jq
+category: data-apis
+name: "jq"
+description: {en: "Command-line JSON processor", pt-BR: "Processador de JSON na linha de comando"}
+homepage: https://github.com/jqlang/jq
+platforms: [macos, linux]
+detect:
+  command: "jq --version"
+  version_regex: "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+install:
+  - backend: brew
+    package: jq
+    when: {os: macos}
+  - backend: mise
+    package: aqua:jqlang/jq

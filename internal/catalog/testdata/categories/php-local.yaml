@@ -1,0 +1,4 @@
+id: php-local
+name: Local PHP environment
+description: Local PHP environment
+exclusive: true

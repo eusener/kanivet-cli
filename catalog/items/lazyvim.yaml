@@ -1,0 +1,25 @@
+id: lazyvim
+category: neovim
+name: "LazyVim"
+description: {en: "Neovim setup powered by lazy.nvim, with per-profile language extras", pt-BR: "Neovim pronto com lazy.nvim e extras de linguagem por perfil"}
+platforms: [macos, linux]
+depends_on: [neovim-bin]
+configs:
+  - id: lazyvim-backup
+    description: {en: "Move the current ~/.config/nvim to the backup first", pt-BR: "Move o ~/.config/nvim atual para o backup antes"}
+    default: true
+    files:
+      - target: ~/.config/nvim
+        dir: true
+  - id: lazyvim-extras
+    description: {en: "Language extras for the chosen profile (lazyvim.json)", pt-BR: "Extras de linguagem do perfil escolhido (lazyvim.json)"}
+    default: true
+    files:
+      - template: configs/lazyvim/lazyvim.json
+        target: ~/.config/nvim/lazyvim.json
+detect:
+  command: "grep -qs LazyVim \"$HOME/.config/nvim/lua/config/lazy.lua\""
+install:
+  - backend: git
+    repo: https://github.com/LazyVim/starter
+    dest: ~/.config/nvim
