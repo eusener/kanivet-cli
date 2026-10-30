@@ -73,6 +73,14 @@ func (s *State) Owned(id string) bool {
 	return ok
 }
 
+// Item devolve o registro de um item instalado por nós.
+func (s *State) Item(id string) (InstalledItem, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	it, ok := s.Items[id]
+	return it, ok
+}
+
 // SetItem registra um item instalado por nós.
 func (s *State) SetItem(id string, it InstalledItem) {
 	s.mu.Lock()

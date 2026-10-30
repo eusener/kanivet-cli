@@ -41,7 +41,7 @@ func sortedKeys(m map[string]string) []string {
 }
 
 func (m Model) newList() ItemList {
-	return NewItemList(m.sel, m.th, m.keys, categoryPages[m.page])
+	return NewItemList(m.sel, m.th, m.keys, categoryPages[m.page]).withHead(pageTitle(m.page), m.page+1, len(categoryPages))
 }
 
 func (m Model) updateCategories(km tea.KeyMsg) (tea.Model, tea.Cmd) {

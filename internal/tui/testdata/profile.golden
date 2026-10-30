@@ -1,15 +1,25 @@
-Step 2/5 · Profile
-> Backend / Systems — Rust, Go, .NET, Java, Podman and Kubernetes tools
-  Start from scratch — Only the base: shell, modern CLI tools, git, LazyVim and the terminal
-  Laravel / PHP — PHP via lerd (Linux) or Flock (macOS), Composer, Node and LazyVim for PHP
-  Machine Learning / Data — Python, uv, Ruff, JupyterLab and CUDA when there is an NVIDIA GPU
-  Web (JS/TS) — Node, pnpm and Bun, HTTP and task tools, LazyVim for TypeScript
-────────────────────────────────────────────────────────────────────────────────────────────────────
-Items in this profile:
-starship, zsh-autosuggestions, zsh-syntax-highlighting, direnv, atuin, zoxide, fzf, eza, bat, fd,
-ripgrep, dust, duf, btop, procs, sd, yazi, lazygit, delta, gh, jq, kitty, herdr, herdr plugins,
-JetBrainsMono Nerd Font, herdr agent icons, Rust, Go, .NET, Java, kubectl, k9s, lazydocker, just,
-Podman, LazyVim
+  ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ [KANIVET]  x WELCOME [PROFILE] ITEMS REVIEW INSTALL                                      2/5 │
+  └──────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  PROFILE
+
+  ┌─────────────────────────────────────────────┐  ┌─────────────────────────────────────────────┐
+  │ (•) LARAVEL / PHP                           │  │ ( ) WEB (JS/TS)                             │
+  │ PHP via lerd (Linux) or Flock (macOS),      │  │ Node, pnpm and Bun, HTTP and task tools,    │
+  │ Composer, Node and LazyVim for PHP          │  │ LazyVim for TypeScript                      │
+  │ [33 ITEMS]                                  │  │ [33 ITEMS]                                  │
+  └─────────────────────────────────────────────┘  └─────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────┐  ┌─────────────────────────────────────────────┐
+  │ ( ) MACHINE LEARNING / DATA                 │  │ ( ) BACKEND / SYSTEMS                       │
+  │ Python, uv, Ruff, JupyterLab and CUDA when  │  │ Rust, Go, .NET, Java, Podman and Kubernetes │
+  │ there is an NVIDIA GPU                      │  │ tools                                       │
+  │ [33 ITEMS]                                  │  │ [36 ITEMS]                                  │
+  └─────────────────────────────────────────────┘  └─────────────────────────────────────────────┘
+
+  ( ) START FROM SCRATCH  Only the base: shell, modern CLI tools, git, LazyVim and the terminal
 
 
 
@@ -17,14 +27,4 @@ Podman, LazyVim
 
 
 
-
-
-
-
-
-
-
-
-
-0 to install · 0 configs
-↑/k up • ↓/j down • enter confirm • ? help • q quit
+  [0 TO INSTALL]  [0 CONFIGS]  ↓/J down  ←/H left  →/L right  ENTER confirm  ? help  Q quit

@@ -3,10 +3,15 @@ package tui
 import (
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/charmbracelet/x/ansi"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/eusener/kanivet-cli/internal/detect"
 	"github.com/eusener/kanivet-cli/internal/i18n"
+	"github.com/eusener/kanivet-cli/internal/state"
 )
 
 func st(id string, s detect.Status) detect.ItemStatus {
@@ -22,13 +27,13 @@ func dashModel(t *testing.T, statuses map[string]detect.ItemStatus) Model {
 	return send(m, size(100, 30), detectMsg{statuses: statuses})
 }
 
-// gotoCategory move o foco das categorias até id.
+// gotoCategory troca de aba (tab) até a categoria id.
 func gotoCategory(t *testing.T, m Model, id string) Model {
 	t.Helper()
 	for i, c := range m.s.Cat.Categories {
 		if c.ID == id {
 			for j := 0; j < i; j++ {
-				m = send(m, tea.KeyMsg{Type: tea.KeyDown})
+				m = send(m, tea.KeyMsg{Type: tea.KeyTab})
 			}
 			return m
 		}
@@ -51,7 +56,6 @@ func TestDashboardGolden(t *testing.T) {
 func TestDashboardPendingBar(t *testing.T) {
 	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
 	m = gotoCategory(t, m, "replacements")
-	m = send(m, tea.KeyMsg{Type: tea.KeyTab}) // foco na lista
 	for m.dashList().Current() != "bat" {
 		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
 	}
@@ -64,7 +68,9 @@ func TestDashboardPendingBar(t *testing.T) {
 		t.Fatalf("a busca global deve achar jq, achou %q", m.dashList().Current())
 	}
 	m = send(m, keyRune(" "))
-	if v := m.View(); !strings.Contains(v, "1 to install · 0 to update · 1 to remove") {
+	// M4: contador zerado não aparece no rodapé (140 colunas: as tags cabem completas)
+	m = send(m, size(140, 30))
+	if v := m.View(); !hasAll(v, "1 to install", "1 to remove") || strings.Contains(footOf(v), "TO UPDATE") {
 		t.Fatalf("barra errada:\n%s", v)
 	}
 }
@@ -74,11 +80,11 @@ func TestDashboardUpdateAllMarksOutdated(t *testing.T) {
 		"bat": st("bat", detect.StatusOutdated), "fd": st("fd", detect.StatusOutdated), "sd": st("sd", detect.StatusInstalled),
 	})
 	m = send(m, keyRune("U"))
-	if v := m.View(); !strings.Contains(v, "0 to install · 2 to update · 0 to remove") {
+	if v := m.View(); !hasAll(v, "2 to update") || strings.Contains(footOf(v), "TO INSTALL") || strings.Contains(footOf(v), "TO REMOVE") {
 		t.Fatalf("U deve marcar os 2 desatualizados:\n%s", v)
 	}
 	m = send(m, keyRune("U"))
-	if v := m.View(); !strings.Contains(v, "0 to update") {
+	if v := m.View(); strings.Contains(footOf(v), "TO UPDATE") {
 		t.Fatalf("U de novo desfaz:\n%s", v)
 	}
 }
@@ -86,12 +92,11 @@ func TestDashboardUpdateAllMarksOutdated(t *testing.T) {
 func TestDashboardUpdateKeyMarksCurrentOutdated(t *testing.T) {
 	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusOutdated)})
 	m = gotoCategory(t, m, "replacements")
-	m = send(m, tea.KeyMsg{Type: tea.KeyTab})
 	for m.dashList().Current() != "bat" {
 		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
 	}
 	m = send(m, keyRune("u"))
-	if !strings.Contains(m.View(), "0 to install · 1 to update") {
+	if v := m.View(); !hasAll(v, "1 to update") || strings.Contains(footOf(v), "TO INSTALL") {
 		t.Fatalf("u deve marcar bat:\n%s", m.View())
 	}
 }
@@ -118,10 +123,10 @@ func TestDashboardProfileModalIsAdditive(t *testing.T) {
 		before[id] = m.sel.Marked(id)
 	}
 	m = send(m, keyRune("p"))
-	if !strings.Contains(m.View(), "Web") {
+	if !strings.Contains(m.View(), "WEB (JS/TS)") {
 		t.Fatalf("o modal deve listar os perfis:\n%s", m.View())
 	}
-	for i, p := range m.s.Cat.Profiles {
+	for i, p := range m.profiles() {
 		if p.ID == "web" {
 			m.profCursor = i
 		}
@@ -143,12 +148,13 @@ func TestDashboardProfileModalIsAdditive(t *testing.T) {
 func TestDashboardExternalUntouched(t *testing.T) {
 	m := dashModel(t, map[string]detect.ItemStatus{"eza": st("eza", detect.StatusExternal)})
 	m = gotoCategory(t, m, "replacements")
-	m = send(m, tea.KeyMsg{Type: tea.KeyTab})
 	for m.dashList().Current() != "eza" {
 		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
 	}
 	m = send(m, keyRune(" "))
-	if !m.sel.Marked("eza") || !strings.Contains(m.View(), i18n.T("tui.external_untouched")) {
+	// a nota é quebrada na caixa de detalhe: junta a coluna do detalhe e compara a frase inteira
+	explained := strings.Contains(detailText(m.View()), i18n.T("tui.external_untouched"))
+	if !m.sel.Marked("eza") || !explained {
 		t.Fatalf("externo não desmarca e explica:\n%s", m.View())
 	}
 }
@@ -173,12 +179,207 @@ func TestDashboardUpdatesMsgAppliesStatuses(t *testing.T) {
 	out := map[string]detect.ItemStatus{"bat": st("bat", detect.StatusOutdated)}
 	m = send(m, updatesMsg{statuses: out, gen: m.dash.gen})
 	m = send(m, keyRune("U"))
-	if !strings.Contains(m.View(), "1 to update") {
+	if !hasAll(m.View(), "1 to update") {
 		t.Fatalf("o resultado da verificação deve chegar à seleção:\n%s", m.View())
 	}
 	stale := map[string]detect.ItemStatus{}
 	m2 := send(m, updatesMsg{statuses: stale, gen: m.dash.gen - 1})
 	if len(m2.statuses) == 0 {
 		t.Fatal("resultado de uma geração antiga deve ser ignorado")
+	}
+}
+
+// hasAll diz se v tem cada texto como tag de contador (as tags saem em maiúsculas).
+// footOf devolve a última linha da tela (o rodapé), sem cores.
+func footOf(v string) string {
+	lines := strings.Split(ansi.Strip(v), "\n")
+	return lines[len(lines)-1]
+}
+
+func hasAll(v string, texts ...string) bool {
+	for _, t := range texts {
+		if !strings.Contains(v, strings.ToUpper(t)) {
+			return false
+		}
+	}
+	return true
+}
+
+// detailText junta o texto da última caixa de cada linha (o detalhe), com os espaços
+// e as quebras de linha reduzidos a um espaço.
+func detailText(v string) string {
+	var parts []string
+	for _, ln := range strings.Split(ansi.Strip(v), "\n") {
+		rs := []rune(ln)
+		var at []int
+		for i, r := range rs {
+			if r == '│' || r == '┃' {
+				at = append(at, i)
+			}
+		}
+		if len(at) >= 2 {
+			parts = append(parts, string(rs[at[len(at)-2]+1:at[len(at)-1]]))
+		}
+	}
+	return strings.Join(strings.Fields(strings.Join(parts, " ")), " ")
+}
+
+func tabKey() tea.Msg      { return tea.KeyMsg{Type: tea.KeyTab} }
+func shiftTabKey() tea.Msg { return tea.KeyMsg{Type: tea.KeyShiftTab} }
+
+func TestDashTabsSwitch(t *testing.T) {
+	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
+	n := len(m.s.Cat.Categories)
+	first := m.dashList().ids[0]
+	m = send(m, tabKey())
+	if m.dash.cat != 1 || m.dashList().ids[0] == first {
+		t.Fatalf("tab avança a aba e troca a lista: cat=%d", m.dash.cat)
+	}
+	m = send(m, shiftTabKey())
+	if m.dash.cat != 0 || m.dashList().ids[0] != first {
+		t.Fatalf("shift+tab volta: cat=%d", m.dash.cat)
+	}
+	for i := 0; i < n-1; i++ {
+		m = send(m, tabKey())
+	}
+	if m.dash.cat != n-1 {
+		t.Fatalf("última aba: cat=%d", m.dash.cat)
+	}
+	if m = send(m, tabKey()); m.dash.cat != 0 {
+		t.Fatalf("tab na última volta à primeira: cat=%d", m.dash.cat)
+	}
+	if m = send(m, shiftTabKey()); m.dash.cat != n-1 {
+		t.Fatalf("shift+tab na primeira vai à última: cat=%d", m.dash.cat)
+	}
+	if m.dashList().panel {
+		t.Fatal("tab não deve focar o painel de configs no painel")
+	}
+}
+
+func TestDashTabsScrollKeepsActive(t *testing.T) {
+	th := paperTheme()
+	var names []string
+	for i := 0; i < 14; i++ {
+		names = append(names, "categoria"+string(rune('a'+i)))
+	}
+	for active := range names {
+		line := stripANSI(th.Tabs(names, active, 80))
+		if w := lipgloss.Width(line); w != 80 {
+			t.Errorf("aba %d: largura %d", active, w)
+		}
+		if !strings.Contains(line, strings.ToUpper(names[active])) {
+			t.Errorf("aba %d fora da vista: %q", active, line)
+		}
+		if active > 3 && !strings.HasPrefix(strings.TrimSpace(line), "…") {
+			t.Errorf("aba %d: falta … à esquerda: %q", active, line)
+		}
+		if active < 10 && !strings.HasSuffix(strings.TrimSpace(line), "…") {
+			t.Errorf("aba %d: falta … à direita: %q", active, line)
+		}
+	}
+}
+
+func TestDashShowsVersionAndLatest(t *testing.T) {
+	i18n.SetLang(i18n.PtBR)
+	m := dashModel(t, map[string]detect.ItemStatus{
+		"ripgrep": {ID: "ripgrep", Status: detect.StatusOutdated, Version: "0.9.2", Latest: "0.10.0"},
+		"bat":     st("bat", detect.StatusInstalled),
+	})
+	i18n.SetLang(i18n.PtBR)
+	m.th = paperTheme()
+	m = gotoCategory(t, m, "replacements")
+	v := ansi.Strip(m.View())
+	for _, want := range []string{"0.9.2", "⇡ 0.10.0", "EM DIA"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("view sem %q:\n%s", want, v)
+		}
+	}
+}
+
+func TestDashHeaderCounts(t *testing.T) {
+	m := dashModel(t, map[string]detect.ItemStatus{
+		"bat": st("bat", detect.StatusInstalled), "fd": st("fd", detect.StatusOutdated),
+		"eza": st("eza", detect.StatusExternal),
+	})
+	v := ansi.Strip(m.View())
+	for _, want := range []string{"KANIVET", "2 INSTALLED", "1 UPDATE", "1 EXTERNAL"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("cabeçalho sem %q:\n%s", want, v)
+		}
+	}
+	if strings.Contains(v, "1 UPDATES") { // M2: singular com N=1
+		t.Errorf("plural com N=1:\n%s", v)
+	}
+}
+
+func TestDashInstalledDate(t *testing.T) {
+	i18n.SetLang(i18n.PtBR)
+	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
+	i18n.SetLang(i18n.PtBR)
+	m.s.St.SetItem("bat", state.InstalledItem{At: time.Date(2026, 10, 29, 12, 0, 0, 0, time.Local)})
+	m = gotoCategory(t, m, "replacements")
+	for m.dashList().Current() != "bat" {
+		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
+	}
+	if d := detailText(m.View()); !strings.Contains(d, "PELO KANIVET · 29/10") {
+		t.Fatalf("detalhe sem a data: %q", d)
+	}
+}
+
+func TestDashPaintedProfileModal(t *testing.T) {
+	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
+	m.th = paperTheme()
+	for _, sz := range [][2]int{{100, 30}, {80, 24}} {
+		mm := send(m, size(sz[0], sz[1]))
+		assertPainted(t, mm.View(), sz[0], sz[1])
+		mm = send(mm, keyRune("p"))
+		assertPainted(t, mm.View(), sz[0], sz[1])
+	}
+}
+
+func TestWizardTabTogglesConfigPanel(t *testing.T) {
+	m := send(detected(t, newModel(t, linuxSystemd)), enter(), enter())
+	if m.screen != ScreenCategories {
+		t.Fatalf("esperava as categorias, está em %v", m.screen)
+	}
+	for i := 0; len(m.list.configs()) == 0; i++ {
+		if i > 100 {
+			t.Fatal("nenhum item com configs na primeira página")
+		}
+		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
+	}
+	if m.list.panel {
+		t.Fatal("o painel começa sem foco")
+	}
+	if m = send(m, tabKey()); !m.list.panel {
+		t.Fatal("o primeiro tab deve focar o painel de configs")
+	}
+	if m = send(m, tabKey()); m.list.panel {
+		t.Fatal("o segundo tab deve devolver o foco à lista")
+	}
+}
+
+func TestDashTabGoesToGlobalSearch(t *testing.T) {
+	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
+	m = send(m, keyRune("/"))
+	if !m.dashList().Filtering() {
+		t.Fatal("a busca global deve estar digitando")
+	}
+	cat := m.dash.cat
+	m = send(m, tabKey())
+	if m.dash.cat != cat || m.dash.global == nil || !m.dashList().Filtering() {
+		t.Fatalf("tab na busca não troca de aba: cat=%d->%d", cat, m.dash.cat)
+	}
+}
+
+func TestDashTabIgnoredInProfileModal(t *testing.T) {
+	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
+	m = send(m, keyRune("p"))
+	cat := m.dash.cat
+	for _, k := range []tea.Msg{tabKey(), shiftTabKey()} {
+		m = send(m, k)
+		if m.dash.cat != cat || !m.dash.modal {
+			t.Fatalf("tab com o modal aberto não faz nada: cat=%d modal=%v", m.dash.cat, m.dash.modal)
+		}
 	}
 }

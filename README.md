@@ -98,10 +98,14 @@ pendentes: `enter` retoma e `esc` descarta. Sem TTY, imprime a ajuda.
 | `d` (revisão) | diff do arquivo |
 | `a`, `u`/`U`, `p` (dashboard) | aplicar, atualizar, trocar de perfil |
 | `f` (execução) | voltar a seguir o log |
+| `l`, `r` (resumo) | `l` abre o log do passo sob o cursor; `r` tenta de novo só os itens que falharam |
+| `tab`/`shift+tab` (dashboard) | trocar de aba de categoria (`←`/`→` trocam a versão do item) |
+| `c` (itens) | painel de configs |
 
-O rodapé sempre mostra os atalhos da tela. Mínimo de 80×24; `NO_COLOR` desliga
-as cores. Os ícones usam Nerd Font (instalada pelo item `nerd-font-jetbrains`),
-com fallback ASCII.
+O rodapé sempre mostra os atalhos da tela. Mínimo de 80×24. Em terminal com
+cor, a TUI pinta um fundo creme sobre a tela inteira; com `NO_COLOR` ou em
+terminais de 16 cores ela não pinta fundo e usa o do terminal. Os ícones usam
+Nerd Font (instalada pelo item `nerd-font-jetbrains`), com fallback ASCII.
 
 ## Ferramentas do shell
 

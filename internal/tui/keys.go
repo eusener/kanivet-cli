@@ -7,7 +7,7 @@ import (
 
 // KeyMap reúne os atalhos da TUI. ShortHelp/FullHelp vêm das telas.
 type KeyMap struct {
-	Up, Down, Left, Right, Toggle, Enter, Back, Search, Help, Quit, Apply, Update, UpdateAll, Diff, Profile, Follow, Interrupt, Force key.Binding
+	Up, Down, Left, Right, Toggle, Enter, Back, Search, Help, Quit, Apply, Update, UpdateAll, Diff, Profile, Follow, Interrupt, Force, Log, Retry, NextTab, PrevTab key.Binding
 }
 
 func DefaultKeys() KeyMap {
@@ -32,6 +32,10 @@ func DefaultKeys() KeyMap {
 		Profile:   b([]string{"p"}, "p", "tui.key.profile"),
 		Follow:    b([]string{"f"}, "f", "tui.key.follow"),
 		Force:     b([]string{"F"}, "F", "tui.key.force"),
+		Log:       b([]string{"l"}, "l", "tui.key.log"),
+		Retry:     b([]string{"r"}, "r", "tui.key.retry"),
+		NextTab:   b([]string{"tab"}, "tab", "tui.key.tab"),
+		PrevTab:   b([]string{"shift+tab"}, "shift+tab", "tui.key.tab_prev"),
 		Interrupt: b([]string{"ctrl+c"}, "ctrl+c", "tui.key.interrupt"),
 	}
 }

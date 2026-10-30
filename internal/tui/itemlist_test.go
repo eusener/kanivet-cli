@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/eusener/kanivet-cli/internal/catalog"
 	"github.com/eusener/kanivet-cli/internal/detect"
 	"github.com/eusener/kanivet-cli/internal/i18n"
@@ -198,12 +200,12 @@ func TestScrollKeepsCursorVisible(t *testing.T) {
 	}
 	sel := NewSelection(c, linuxSystemd, nil, ModeWizard)
 	l := NewItemList(sel, NewTheme(nil, false), DefaultKeys(), []string{"c"})
-	v := l.View(100, 10)
+	v := strings.ToLower(l.View(100, 10)) // a linha selecionada vai em maiúsculas
 	if strings.Contains(v, "item39") || strings.Count(v, "\n") > 9 {
 		t.Errorf("renders offscreen rows:\n%s", v)
 	}
 	l = press(l, "G")
-	v = l.View(100, 10)
+	v = strings.ToLower(l.View(100, 10))
 	if !strings.Contains(v, "item39") || strings.Contains(v, "item00") {
 		t.Errorf("last item not visible:\n%s", v)
 	}
@@ -215,7 +217,7 @@ func TestScrollKeepsCursorVisible(t *testing.T) {
 func TestUnknownShownWithHint(t *testing.T) {
 	st := map[string]detect.ItemStatus{"atuin": {ID: "atuin", Status: detect.StatusUnknown}}
 	l, _ := newList(t, st, ModeWizard, "shell")
-	v := l.View(100, 30)
+	v := l.View(200, 30) // largo: a dica não quebra
 	if !strings.Contains(v, "[?] unknown") || !strings.Contains(v, i18n.T("tui.unknown_hint")) {
 		t.Errorf("unknown not explained:\n%s", v)
 	}
@@ -277,4 +279,149 @@ func TestDetailKeepsConfigsAndNoteAt80x24(t *testing.T) {
 	l2, _ := newList(t, nil, ModeWizard, "shell", "replacements", "languages")
 	checkWidth(l2.View(80, 24))
 	checkWidth(press(l2, "/", "e").View(80, 24))
+}
+
+func stripLines(v string) []string { return strings.Split(ansi.Strip(v), "\n") }
+
+func TestItemListTwoBoxesAt80(t *testing.T) {
+	i18n.SetLang(i18n.En)
+	sel := newSel(t, linuxSystemd, nil, ModeWizard)
+	th := paperTheme()
+	l := NewItemList(sel, th, DefaultKeys(), []string{"shell"})
+	v := l.View(80, 18)
+	lines := strings.Split(v, "\n")
+	if len(lines) != 18 {
+		t.Fatalf("height = %d", len(lines))
+	}
+	both := false
+	for i, ln := range stripLines(v) {
+		if w := lipgloss.Width(ln); w > 80 {
+			t.Errorf("line %d width %d > 80: %q", i, w, ln)
+		}
+		if strings.Count(ln, "┏") == 2 {
+			both = true
+		}
+	}
+	if !both {
+		t.Errorf("list and detail boxes should share the top line:\n%s", ansi.Strip(v))
+	}
+	assertPainted(t, th.Canvas(lines, 80, 18), 80, 18)
+}
+
+func TestItemListMinRows(t *testing.T) {
+	for name, th := range map[string]*Theme{"plain": nil, "paper": ptr(paperTheme())} {
+		t.Run(name, func(t *testing.T) { minRows(t, th) })
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
+
+func minRows(t *testing.T, th *Theme) {
+	m := detected(t, newModel(t, linuxSystemd))
+	if th != nil {
+		m.th = *th
+	}
+	m = send(m, enter(), enter())
+	marker := regexp.MustCompile(`^  ▐?[│┃] (\[[x ]\]|\(•\)|\( \)|[✓○●]) `)
+	n := 0
+	for _, ln := range stripLines(m.View()) {
+		if marker.MatchString(ln) {
+			n++
+		}
+	}
+	if n < 6 {
+		t.Errorf("visible items = %d, want >= 6:\n%s", n, ansi.Strip(m.View()))
+	}
+}
+
+func TestItemListPtBRLongFits(t *testing.T) {
+	i18n.SetLang(i18n.PtBR)
+	defer i18n.SetLang(i18n.En)
+	long := strings.Repeat("descrição bem longa ", 10)
+	c := &catalog.Catalog{
+		Categories: []catalog.Category{{ID: "c"}},
+		Items: map[string]*catalog.Item{"x": {
+			ID: "x", Category: "c",
+			Name:        i18n.Text{i18n.PtBR: "Item com nome comprido"},
+			Description: i18n.Text{i18n.PtBR: long},
+			Configs:     []catalog.ConfigSpec{{ID: "k", Description: i18n.Text{i18n.PtBR: long}}},
+		}},
+	}
+	th := paperTheme()
+	sel := NewSelection(c, linuxSystemd, nil, ModeWizard)
+	l := NewItemList(sel, th, DefaultKeys(), []string{"c"})
+	for _, h := range []int{18, 12} {
+		v := l.View(80, h)
+		var want []int
+		for i, ln := range stripLines(v) {
+			if w := lipgloss.Width(ln); w > 80 {
+				t.Errorf("h=%d line %d width %d > 80: %q", h, i, w, ln)
+			}
+			var cols []int
+			x := 0
+			for _, r := range ln {
+				if r == '┃' {
+					cols = append(cols, x)
+				}
+				x += lipgloss.Width(string(r))
+			}
+			if len(cols) == 0 {
+				continue
+			}
+			if want == nil {
+				want = cols
+			}
+			if fmt.Sprint(cols) != fmt.Sprint(want) {
+				t.Errorf("h=%d line %d border cols %v want %v: %q", h, i, cols, want, ln)
+			}
+		}
+		if len(want) != 4 {
+			t.Errorf("h=%d expected 4 vertical borders, got %v", h, want)
+		}
+		assertPainted(t, th.Canvas(strings.Split(v, "\n"), 80, h), 80, h)
+	}
+}
+
+func TestStatusAndMethodTags(t *testing.T) {
+	i18n.SetLang(i18n.En)
+	st := map[string]detect.ItemStatus{
+		"atuin":    {ID: "atuin", Status: detect.StatusInstalled},
+		"fzf":      {ID: "fzf", Status: detect.StatusExternal},
+		"starship": {ID: "starship", Status: detect.StatusUnsupported},
+	}
+	l, sel := newList(t, st, ModeWizard, "shell")
+	for id, want := range map[string]string{"atuin": "[INSTALLED]", "fzf": "[EXTERNAL]", "starship": "[UNAVAILABLE]"} {
+		if got := ansi.Strip(l.statusTag(id)); got != want {
+			t.Errorf("statusTag(%s) = %q want %q", id, got, want)
+		}
+	}
+	if sel.Marked("zoxide") {
+		if got := ansi.Strip(l.statusTag("zoxide")); got != "[NEW]" {
+			t.Errorf("statusTag(zoxide) = %q", got)
+		}
+	}
+	if got := methodTag(sel.c.Items["zoxide"], linuxSystemd); got == "" {
+		t.Error("methodTag empty")
+	}
+}
+
+func TestItemListStackedShortKeepsBottomBorder(t *testing.T) {
+	i18n.SetLang(i18n.En)
+	sel := newSel(t, linuxSystemd, nil, ModeWizard)
+	l := NewItemList(sel, paperTheme(), DefaultKeys(), []string{"shell"})
+	for h := 3; h <= 12; h++ {
+		lines := stripLines(l.View(50, h))
+		if len(lines) != h {
+			t.Fatalf("h=%d: %d linhas", h, len(lines))
+		}
+		last := ""
+		for _, ln := range lines {
+			if strings.Contains(ln, "┗") {
+				last = ln
+			}
+		}
+		if last == "" {
+			t.Errorf("h=%d: sem borda inferior:\n%s", h, strings.Join(lines, "\n"))
+		}
+	}
 }

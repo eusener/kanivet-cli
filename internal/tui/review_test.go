@@ -130,8 +130,8 @@ func TestReviewDiffOpensAndCloses(t *testing.T) {
 	for i := 0; i < 50 && !strings.Contains(m.review.rowKey(m.review.cursor), "fzf-defaults"); i++ {
 		m = send(m, down)
 	}
-	if !strings.Contains(m.View(), "(backup)") {
-		t.Errorf("arquivo existente sem (backup):\n%s", m.View())
+	if !strings.Contains(m.View(), "[BACKUP]") {
+		t.Errorf("arquivo existente sem a tag BACKUP:\n%s", m.View())
 	}
 	m = send(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
 	v := m.View()
@@ -230,14 +230,14 @@ func TestReviewMarkersSurviveLongPaths80Cols(t *testing.T) {
 			m = m.layoutReview()
 			m = send(m, tea.KeyMsg{Type: tea.KeyDown})
 			for _, line := range strings.Split(m.View(), "\n") {
-				if strings.Contains(line, "→") && strings.Contains(line, "…") && !strings.Contains(line, "("+i18n.T("plan.backup")+")") {
-					t.Fatalf("%v: (backup) cortado: %q", lang, line)
+				if strings.Contains(line, "→") && strings.Contains(line, "…") && !strings.Contains(line, "["+strings.ToUpper(i18n.T("plan.backup"))+"]") {
+					t.Fatalf("%v: tag BACKUP cortada: %q", lang, line)
 				}
 			}
 		}
 		out := m.renderRows(m.review)
-		if n := strings.Count(out, "("+i18n.T("plan.backup")+")"); n != 2 {
-			t.Errorf("%v: (backup) x%d, want 2:\n%s", lang, n, out)
+		if n := strings.Count(out, "["+strings.ToUpper(i18n.T("plan.backup"))+"]"); n != 2 {
+			t.Errorf("%v: tag BACKUP x%d, want 2:\n%s", lang, n, out)
 		}
 		if !strings.Contains(out, "("+i18n.T("plan.rc_block")+")") {
 			t.Errorf("%v: marca do rc cortada", lang)
@@ -344,5 +344,145 @@ func TestStalePlanMsgIsDropped(t *testing.T) {
 	m = deliverPlan(t, m, first)
 	if _, ok := m.review.pl.Step("install:bun"); !ok || m.review.loading {
 		t.Fatal("um planMsg velho sobrescreveu a revisão")
+	}
+}
+
+func plainTheme() Theme { return NewTheme(map[string]string{"NO_COLOR": "1"}, false) }
+
+func TestReviewGroupsTagged(t *testing.T) {
+	s := testSession(t)
+	m := reviewWith(t, s, plan.Selection{Add: []string{"fzf"}})
+	m.th = plainTheme()
+	m = send(m, size(120, 40))
+	v := m.View()
+	for _, want := range []string{"[INSTALL]", "[CONFIGURE]"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("view sem a tag %s:\n%s", want, v)
+		}
+	}
+	for _, absent := range []string{"[REMOVE]", "[UPDATE]", "[NEEDS SUDO]"} {
+		if strings.Contains(v, absent) {
+			t.Errorf("view com a tag ausente do plano %s:\n%s", absent, v)
+		}
+	}
+	// totais no título
+	if !strings.Contains(v, "[1 INSTALL]") && !strings.Contains(v, " INSTALL]") {
+		t.Errorf("sem tag de total de instalar:\n%s", v)
+	}
+	// com sudo, a tag do grupo e a de total aparecem
+	m = reviewWith(t, newSession(t, linuxSystemd), plan.Selection{Add: []string{"zsh"}})
+	m.th = plainTheme()
+	m = send(m, size(120, 40))
+	v = m.View()
+	if !strings.Contains(v, "[NEEDS SUDO]") || !strings.Contains(v, " SUDO]") {
+		t.Errorf("sem tags de sudo:\n%s", v)
+	}
+}
+
+func TestReviewTitlePtBR(t *testing.T) {
+	s := newSession(t, linuxSystemd)
+	m := reviewWith(t, s, plan.Selection{Add: []string{"zsh"}})
+	i18n.SetLang(i18n.PtBR)
+	t.Cleanup(func() { i18n.SetLang(i18n.En) })
+	m.th = paperTheme()
+	m = send(m, size(120, 40))
+	m.review.rows = buildRows(m.review.groups)
+	m = m.layoutReview()
+	v := m.View()
+	for _, want := range []string{"REVISE O PLANO", "PRECISA DE SUDO", "INSTALAR"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("view sem %q:\n%s", want, v)
+		}
+	}
+}
+
+func TestReviewPtBRLongFits(t *testing.T) {
+	i18n.SetLang(i18n.PtBR)
+	t.Cleanup(func() { i18n.SetLang(i18n.En) })
+	s := testSession(t)
+	s.P.Home = filepath.Join(t.TempDir(), strings.Repeat("d", 150))
+	for _, f := range []string{".config/fzf/fzfrc", ".zshrc"} {
+		p := filepath.Join(s.P.Home, f)
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte("x\n"), 0o644)
+	}
+	for _, th := range []Theme{plainTheme(), paperTheme()} {
+		m := reviewWith(t, s, plan.Selection{Add: []string{"fzf"}})
+		i18n.SetLang(i18n.PtBR)
+		m.th = th
+		m = send(m, size(80, 24))
+		m.review.rows = buildRows(m.review.groups)
+		seen := 0
+		for i := 0; i < len(m.review.rows); i++ {
+			m = m.layoutReview()
+			for _, line := range strings.Split(m.View(), "\n") {
+				if w := lipgloss.Width(line); w != 80 {
+					t.Fatalf("linha com largura %d: %q", w, line)
+				}
+				if strings.Contains(line, "→") && strings.Contains(line, "…") {
+					seen++
+					if !strings.Contains(line, "BACKUP") {
+						t.Fatalf("tag BACKUP cortada: %q", line)
+					}
+				}
+			}
+			m = send(m, tea.KeyMsg{Type: tea.KeyDown})
+		}
+		if seen == 0 {
+			t.Fatal("nenhum caminho truncado visto")
+		}
+	}
+}
+
+func TestReviewAndDiffPainted(t *testing.T) {
+	s := testSession(t)
+	cfg := filepath.Join(s.P.Home, ".config", "fzf", "fzfrc")
+	os.MkdirAll(filepath.Dir(cfg), 0o755)
+	os.WriteFile(cfg, []byte("--height 10%\n"), 0o644)
+	for _, sz := range [][2]int{{100, 30}, {80, 24}} {
+		m := reviewWith(t, s, plan.Selection{Add: []string{"fzf"}})
+		m.th = paperTheme()
+		m = send(m, size(sz[0], sz[1]))
+		assertPainted(t, m.View(), sz[0], sz[1])
+		for i, r := range m.review.rows {
+			if r.stepID == "config:fzf-defaults" && r.file {
+				m.review.cursor = i
+				break
+			}
+		}
+		m = send(m.layoutReview(), tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+		if !m.review.diffOpen {
+			t.Fatal("diff deveria abrir")
+		}
+		v := m.View()
+		assertPainted(t, v, sz[0], sz[1])
+		for name, c := range map[string]lipgloss.Color{"mint": colMint, "coral": colCoral} {
+			// o fundo vem junto com o primeiro plano no mesmo SGR: procura só os parâmetros
+			if !strings.Contains(v, strings.TrimSuffix(strings.TrimPrefix(m.th.bgSeq(c), "\x1b["), "m")) {
+				t.Errorf("diff sem linhas em fundo %s", name)
+			}
+		}
+	}
+}
+
+func TestReviewDiffPlainKeepsMarkers(t *testing.T) {
+	s := testSession(t)
+	cfg := filepath.Join(s.P.Home, ".config", "fzf", "fzfrc")
+	os.MkdirAll(filepath.Dir(cfg), 0o755)
+	os.WriteFile(cfg, []byte("--height 10%\n"), 0o644)
+	m := reviewWith(t, s, plan.Selection{Add: []string{"fzf"}})
+	m.th = plainTheme()
+	for i, r := range m.review.rows {
+		if r.stepID == "config:fzf-defaults" && r.file {
+			m.review.cursor = i
+		}
+	}
+	m = send(m.layoutReview(), tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	v := m.View()
+	if strings.Contains(v, "\x1b[") {
+		t.Error("diff plain com cor")
+	}
+	if !strings.Contains(v, "+--height 40%") || !strings.Contains(v, "---height 10%") {
+		t.Errorf("marcadores do diff ausentes:\n%s", v)
 	}
 }

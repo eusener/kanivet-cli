@@ -51,6 +51,21 @@ func T(key string, args ...any) string {
 	return msg
 }
 
+// N traduz uma mensagem de contagem: com n == 1 usa a forma do singular (key+".one"),
+// quando existe; senão, a do plural (key). O n é o argumento da mensagem.
+func N(key string, n int) string {
+	if n == 1 {
+		one := key + ".one"
+		if _, ok := messages[Current()][one]; ok {
+			return T(one, n)
+		}
+		if _, ok := messages[En][one]; ok {
+			return T(one, n)
+		}
+	}
+	return T(key, n)
+}
+
 // Text é um texto do catálogo: string simples (inglês) ou mapa por idioma.
 type Text map[Lang]string
 

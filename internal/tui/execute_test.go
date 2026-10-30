@@ -32,7 +32,7 @@ func threeSteps() *plan.Plan {
 }
 
 // okSession usa um FakeRunner que responde sucesso a tudo.
-func okSession(t *testing.T) *app.Session {
+func okSession(t testing.TB) *app.Session {
 	t.Helper()
 	c, err := catalog.Load(os.DirFS("../catalog/testdata"))
 	if err != nil {
@@ -48,7 +48,7 @@ func okSession(t *testing.T) *app.Session {
 }
 
 // executing devolve o modelo na tela de execução sem disparar a goroutine (o cmd é descartado).
-func executing(t *testing.T) (Model, tea.Cmd) {
+func executing(t testing.TB) (Model, tea.Cmd) {
 	t.Helper()
 	i18n.SetLang(i18n.En)
 	m := New(okSession(t), nil, ScreenReview)
@@ -80,7 +80,7 @@ func TestExecutionMarksStepsFromEvents(t *testing.T) {
 	m = send(m, ev("chsh:s1", state.StepRunning), ev("chsh:s1", state.StepDone))
 	m = send(m, ev("chsh:s3", state.StepRunning), eventMsg(executor.Event{StepID: "chsh:s3", Status: state.StepFailed, Note: "boom"}))
 	v := m.View()
-	for _, want := range []string{"[ok] chsh:s1", "[x] chsh:s3", "boom", "2/3"} {
+	for _, want := range []string{"[ok] chsh:s1", "[x] CHSH:S3", "boom", "2/3"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("View sem %q:\n%s", want, v)
 		}
@@ -291,12 +291,12 @@ func TestExecutionSurvivesResize(t *testing.T) {
 	m, _ := executing(t)
 	m = send(m, ev("chsh:s1", state.StepRunning), line("chsh:s1", "working"))
 	m = send(m, size(70, 20))
-	if want := i18n.T("tui.too_small", 70, 20, minWidth, minHeight); m.View() != want {
+	if want := i18n.T("tui.too_small", 70, 20, minWidth, minHeight); !strings.HasPrefix(m.View(), want) || strings.TrimSpace(strings.TrimPrefix(m.View(), want)) != "" {
 		t.Fatalf("View = %q, want too-small", m.View())
 	}
 	m = send(m, line("chsh:s1", strings.Repeat("x", 300)), size(120, 40))
 	v := m.View()
-	if !strings.Contains(v, "chsh:s1") || !strings.Contains(v, "working") {
+	if !strings.Contains(v, "CHSH:S1") || !strings.Contains(v, "working") {
 		t.Fatalf("não voltou à execução:\n%s", v)
 	}
 	for _, l := range strings.Split(v, "\n") {
@@ -398,4 +398,188 @@ func dispatched(cmd tea.Cmd) bool {
 		}
 	}
 	return false
+}
+
+func TestFmtDur(t *testing.T) {
+	for d, want := range map[time.Duration]string{
+		3100 * time.Millisecond:     "3.1s",
+		72 * time.Second:            "1m12s",
+		time.Hour + 2*time.Minute:   "1h02m",
+		12 * time.Second:            "12s",
+		time.Minute + 5*time.Second: "1m05s",
+		0:                           "0.0s",
+	} {
+		if got := fmtDur(d); got != want {
+			t.Errorf("fmtDur(%v) = %q, want %q", d, got, want)
+		}
+	}
+}
+
+func TestStepDurations(t *testing.T) {
+	m, _ := executing(t)
+	t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	now := t0
+	m.exec.now = func() time.Time { return now }
+	m = send(m, ev("chsh:s1", state.StepRunning))
+	now = t0.Add(3100 * time.Millisecond)
+	m = send(m, ev("chsh:s1", state.StepDone))
+	if got := m.exec.took["chsh:s1"]; got != 3100*time.Millisecond {
+		t.Fatalf("took = %v", got)
+	}
+	var row string
+	for _, l := range strings.Split(m.View(), "\n") {
+		if strings.Contains(strings.ToLower(l), "chsh:s1") && !strings.Contains(l, "LOG") {
+			row = l
+		}
+	}
+	if !strings.Contains(row, "3.1s") {
+		t.Fatalf("linha do passo sem a duração: %q\n%s", row, m.View())
+	}
+	// um segundo Running não reinicia o relógio do passo
+	now = t0.Add(10 * time.Second)
+	m = send(m, ev("chsh:s3", state.StepRunning))
+	now = t0.Add(11 * time.Second)
+	m = send(m, ev("chsh:s3", state.StepRunning), ev("chsh:s3", state.StepSkipped))
+	if got := m.exec.took["chsh:s3"]; got != time.Second {
+		t.Fatalf("took s3 = %v", got)
+	}
+}
+
+func TestExecuteScreenLayout(t *testing.T) {
+	m, _ := executing(t)
+	m = send(m, ev("chsh:s1", state.StepRunning), line("chsh:s1", "downloading"))
+	v := m.View()
+	for _, want := range []string{"INSTALLING", "0/3", "CHSH:S1", "CHSH:S1 · LOG", "downloading", "chsh:s2"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("View sem %q:\n%s", want, v)
+		}
+	}
+	if strings.Count(v, "0/3") != 1 {
+		t.Errorf("progresso aparece mais de uma vez:\n%s", v)
+	}
+	m = send(m, ev("chsh:s1", state.StepFailed))
+	if !strings.Contains(m.View(), "FAILED") {
+		t.Errorf("sem a tag FALHOU:\n%s", m.View())
+	}
+}
+
+func TestExecuteLogBoxDark(t *testing.T) {
+	m, _ := executing(t)
+	m.th = paperTheme()
+	m = send(m, ev("chsh:s1", state.StepRunning), line("chsh:s1", "downloading"))
+	v := m.View()
+	dark := m.th.bgSeq(colLogBg)
+	var logRow string
+	for _, l := range strings.Split(v, "\n") {
+		if strings.Contains(l, "downloading") {
+			logRow = l
+		}
+	}
+	if !strings.Contains(logRow, dark) {
+		t.Fatalf("a caixa de log não tem o fundo %q: %q", dark, logRow)
+	}
+	if strings.Contains(strings.Split(v, "\n")[len(strings.Split(v, "\n"))-1], dark) {
+		t.Error("o fundo escuro vazou para o rodapé")
+	}
+}
+
+func TestExecutePainted(t *testing.T) {
+	for _, sz := range [][2]int{{120, 40}, {80, 24}, {60, 20}} {
+		m, _ := executing(t)
+		m.th = paperTheme()
+		m = send(m, size(sz[0], sz[1]))
+		m = send(m, ev("chsh:s1", state.StepRunning), line("chsh:s1", "a very long log line "+strings.Repeat("x", 200)))
+		m = send(m, ev("chsh:s1", state.StepDone), ev("chsh:s3", state.StepRunning), eventMsg(executor.Event{StepID: "chsh:s3", Status: state.StepFailed, Note: strings.Repeat("boom ", 30)}))
+		assertPainted(t, m.View(), sz[0], sz[1])
+	}
+}
+
+func TestExecuteGolden(t *testing.T) {
+	m, _ := executing(t)
+	m.th = NewTheme(map[string]string{"NO_COLOR": "1"}, false)
+	m = send(m, size(80, 24))
+	t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	now := t0
+	m.exec.now = func() time.Time { return now }
+	m.exec.started = t0
+	m = send(m, ev("chsh:s1", state.StepRunning), line("chsh:s1", "step one"))
+	now = t0.Add(3100 * time.Millisecond)
+	m = send(m, ev("chsh:s1", state.StepDone), ev("chsh:s3", state.StepRunning), line("chsh:s3", "mise downloading 62%"))
+	now = t0.Add(72 * time.Second)
+	golden(t, "execute.golden", trimView(m.View()))
+}
+
+// BenchmarkExecuteView mede o View da execução a 120×40 no modo Paper, com o log cheio.
+func BenchmarkExecuteView(b *testing.B) {
+	m, _ := executing(b)
+	m.th = paperTheme()
+	m = send(m, size(120, 40), ev("chsh:s1", state.StepRunning))
+	for i := 0; i < logCap; i++ {
+		m = send(m, line("chsh:s1", fmt.Sprintf("downloading package %d of %d from the mirror", i, logCap)))
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = m.View()
+	}
+}
+
+// I6: o waitEvent entrega de uma vez todos os eventos já disponíveis no canal (um só
+// Update e um só View por lote), e o lote é aplicado como os eventos avulsos.
+func TestWaitEventBatchesAvailableEvents(t *testing.T) {
+	m, _ := executing(t)
+	ch := make(chan executor.Event, 16)
+	m.exec.events = ch
+	ch <- executor.Event{StepID: "chsh:s1", Status: state.StepRunning}
+	for i := 0; i < 9; i++ {
+		ch <- executor.Event{StepID: "chsh:s1", Line: fmt.Sprintf("l%d", i)}
+	}
+	msg := waitEvent(ch)()
+	b, ok := msg.(eventBatchMsg)
+	if !ok || len(b.evs) != 10 || b.closed {
+		t.Fatalf("esperava um lote com os 10 eventos, veio %T %+v", msg, msg)
+	}
+	nm, next := m.Update(msg)
+	m = nm.(Model)
+	if got := m.exec.logs["chsh:s1"].last(9); len(got) != 9 || got[8] != "l8" || m.exec.status["chsh:s1"] != state.StepRunning {
+		t.Fatalf("lote não aplicado: %v %v", got, m.exec.status)
+	}
+	if next == nil {
+		t.Fatal("o lote deve re-agendar a leitura")
+	}
+	// canal fechado no meio do lote: aplica o que veio e passa a esperar o resultado
+	ch <- executor.Event{StepID: "chsh:s1", Status: state.StepDone}
+	close(ch)
+	b, ok = waitEvent(ch)().(eventBatchMsg)
+	if !ok || len(b.evs) != 1 || !b.closed {
+		t.Fatalf("lote final: %+v", b)
+	}
+	done := make(chan runDoneMsg, 1)
+	done <- runDoneMsg{}
+	m.exec.done = done
+	nm, next = m.Update(b)
+	if nm.(Model).exec.status["chsh:s1"] != state.StepDone {
+		t.Fatal("o último evento não foi aplicado")
+	}
+	if _, ok := next().(runDoneMsg); !ok {
+		t.Fatal("depois do canal fechado o cmd deve esperar o runDoneMsg")
+	}
+}
+
+// I6: last(n) devolve as n últimas linhas na ordem, também com o anel já girado.
+func TestLogRingLast(t *testing.T) {
+	r := &logRing{}
+	for i := 0; i < logCap+7; i++ {
+		r.add(fmt.Sprint(i))
+	}
+	got := r.last(3)
+	if strings.Join(got, ",") != fmt.Sprintf("%d,%d,%d", logCap+4, logCap+5, logCap+6) {
+		t.Fatalf("last(3) = %v", got)
+	}
+	if all := r.lines(); len(all) != logCap || all[0] != "7" {
+		t.Fatalf("lines() = %d, primeira %q", len(all), all[0])
+	}
+	if got := (&logRing{buf: []string{"a", "b"}}).last(5); strings.Join(got, ",") != "a,b" {
+		t.Fatalf("last além do tamanho = %v", got)
+	}
 }

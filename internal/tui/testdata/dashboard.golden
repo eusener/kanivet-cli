@@ -1,30 +1,30 @@
-Dashboard
-Profile: —  ·  | checking for updates...
-  Terminal             0/5 │ > [x] bat      [x] 1.0
-  Shell                0/8 │   [ ] btop     [-]
-> Modern replacements  3/9 │   [ ] duf      [ ]
-  Navigation           0/2 │   [ ] dust     [ ]
-  Git                  0/4 │   [x] eza      [e] 1.0
-  Neovim distribution  0/5 │   [ ] fd       [ ]
-  Editors              0/4 │   [ ] procs    [ ]
-  Languages           0/10 │   [x] ripgrep  [^] 1.0
-  Local PHP environmen 0/2 │   [ ] sd       [ ]
-  Python and data      0/4 │
-  Container engine     0/2 │
-  Containers and Kuber 0/3 │
-  Data and APIs        0/7 │
-  Managers             0/2 │
-                           │
-                           │ ───────────────────────────────────────────────────────────────────────
-                           │ bat
-                           │ cat with syntax highlighting and git integration
-                           │ status: [x] installed 1.0
-                           │ method: mise aqua:sharkdp/bat
-                           │
-                           │
-                           │
-                           │
-                           │
-                           │
-0 to install · 0 to update · 0 to remove
-space mark • u update • U update all • p profile • / search • a apply • ? help • q quit
+  ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ [KANIVET]  [PROFILE: —] [2 INSTALLED] [1 UPDATE] [1 EXTERNAL]      | checking for updates... │
+  └──────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+   TERMINAL   SHELL  [MODERN REPLACEMENTS]  NAVIGATION   GIT   NEOVIM DISTRIBUTION   EDITORS  …
+  ┌───────────────────────────────────────────────────┐  ┌───────────────────────────────────────┐
+  │ [x] BAT 1.0                          [UP TO DATE] │  │ BAT                                   │
+  │ [ ] btop                            [UNAVAILABLE] │  │ github.com/sharkdp/bat                │
+  │ [ ] duf                                  [MISE] — │  │                                       │
+  │ [ ] dust                                 [MISE] — │  │ cat with syntax highlighting and git  │
+  │ [x] eza 1.0                            [EXTERNAL] │  │ integration                           │
+  │ [ ] fd                                   [MISE] — │  │                                       │
+  │ [ ] procs                                [MISE] — │  │ STATUS  [x] installed 1.0             │
+  │ [x] ripgrep 1.0                        [^ UPDATE] │  │ METHOD  mise aqua:sharkdp/bat         │
+  │ [ ] sd                                   [MISE] — │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  └───────────────────────────────────────────────────┘  └───────────────────────────────────────┘
+  SPACE mark  U update  S-U update all  P profile  TAB category  / search  A apply  ? help  Q quit

@@ -61,3 +61,38 @@ func TestTMessagesParity(t *testing.T) {
 		}
 	}
 }
+
+func TestNPlural(t *testing.T) {
+	t.Cleanup(func() { SetLang(En) })
+	cases := []struct {
+		lang      Lang
+		key       string
+		one, many string
+	}{
+		{En, "tui.dash.hd_updates", "1 update", "2 updates"},
+		{En, "tui.profile.items", "1 item", "2 items"},
+		{En, "tui.summary.tag.configs", "1 config", "2 configs"},
+		{PtBR, "tui.dash.hd_installed", "1 instalado", "2 instalados"},
+		{PtBR, "tui.dash.hd_updates", "1 atualização", "2 atualizações"},
+		{PtBR, "tui.dash.hd_external", "1 externo", "2 externos"},
+		{PtBR, "tui.summary.tag.installed", "1 instalado", "2 instalados"},
+		{PtBR, "tui.summary.tag.failed", "1 falha", "2 falhas"},
+		{PtBR, "tui.summary.tag.skipped", "1 pulado", "2 pulados"},
+		{PtBR, "tui.summary.tag.conflicts", "1 mantida", "2 mantidas"},
+		{PtBR, "tui.profile.items", "1 item", "2 itens"},
+		{PtBR, "tui.welcome.sudo", "sudo em 1 item", "sudo em 2 itens"},
+	}
+	for _, c := range cases {
+		SetLang(c.lang)
+		if got := N(c.key, 1); got != c.one {
+			t.Errorf("%s %s N=1: %q, want %q", c.lang, c.key, got, c.one)
+		}
+		if got := N(c.key, 2); got != c.many {
+			t.Errorf("%s %s N=2: %q, want %q", c.lang, c.key, got, c.many)
+		}
+	}
+	SetLang(PtBR)
+	if got := N("tui.tag.install", 1); got != "1 a instalar" { // sem forma .one: usa a única
+		t.Errorf("sem .one: %q", got)
+	}
+}

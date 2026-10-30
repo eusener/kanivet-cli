@@ -7,9 +7,11 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/catalog"
 	"github.com/eusener/kanivet-cli/internal/i18n"
+	"github.com/eusener/kanivet-cli/internal/plan"
 	"github.com/eusener/kanivet-cli/internal/platform"
 	"github.com/eusener/kanivet-cli/internal/runner"
 )
@@ -88,10 +90,7 @@ func TestWizardFlowToReview(t *testing.T) {
 	if m.screen != ScreenProfile {
 		t.Fatalf("screen = %v, want profile", m.screen)
 	}
-	// perfis: backend, blank, laravel, ml, web (ordem do catálogo); acha o web.
-	for m.profileID() != "web" {
-		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
-	}
+	m = cursorOn(t, m, "web")
 	m = send(m, enter())
 	if m.screen != ScreenCategories {
 		t.Fatalf("screen = %v, want categories", m.screen)
@@ -109,7 +108,7 @@ func TestWizardFlowToReview(t *testing.T) {
 	if m.screen != ScreenReview {
 		t.Fatalf("screen = %v, want review", m.screen)
 	}
-	if !strings.Contains(m.View(), "Review") {
+	if !strings.Contains(m.View(), "REVIEW THE PLAN") {
 		t.Errorf("view da revisão:\n%s", m.View())
 	}
 }
@@ -166,7 +165,7 @@ func TestCategoriesGolden(t *testing.T) {
 	m := detected(t, newModel(t, linuxSystemd))
 	m = send(m, enter(), enter())
 	v := m.View()
-	if !strings.Contains(v, "Step 3/5 · Terminal and shell (1/5)") {
+	if !strings.Contains(v, "TERMINAL AND SHELL") || !strings.Contains(v, "CATEGORY 1 OF 5") {
 		t.Errorf("título:\n%s", v)
 	}
 	golden(t, "categories.golden", trimView(v))
@@ -210,9 +209,10 @@ func TestFooterCountsAndQuitAgree(t *testing.T) {
 	if n == 0 || c == 0 {
 		t.Fatalf("esperava pendências, n=%d c=%d", n, c)
 	}
-	want := fmt.Sprintf("%d to install · %d configs", n, c)
-	if !strings.Contains(m.View(), want) {
-		t.Errorf("faltou %q em:\n%s", want, m.View())
+	for _, want := range []string{fmt.Sprintf("%d to install", n), fmt.Sprintf("%d configs", c)} {
+		if !strings.Contains(m.View(), strings.ToUpper(want)) {
+			t.Errorf("faltou a tag %q em:\n%s", strings.ToUpper(want), m.View())
+		}
 	}
 	m = send(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
 	if !m.confirmQuit || !strings.Contains(m.View(), "Quit with pending changes") {
@@ -252,13 +252,20 @@ func pickProfile(t *testing.T, m Model, id string) Model {
 	if m.screen != ScreenProfile {
 		t.Fatalf("screen = %v, want profile", m.screen)
 	}
-	for m.profCursor > 0 {
-		m = send(m, tea.KeyMsg{Type: tea.KeyUp})
+	return send(cursorOn(t, m, id), enter())
+}
+
+// cursorOn põe o cursor do perfil em id (a grade não tem ordem linear de setas).
+func cursorOn(t *testing.T, m Model, id string) Model {
+	t.Helper()
+	for i, p := range m.profiles() {
+		if p.ID == id {
+			m.profCursor = i
+			return m
+		}
 	}
-	for m.profileID() != id {
-		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
-	}
-	return send(m, enter())
+	t.Fatalf("perfil %q não existe", id)
+	return m
 }
 
 func TestWizardChangingProfileReplacesSelection(t *testing.T) {
@@ -282,5 +289,135 @@ func TestWizardChangingProfileReplacesSelection(t *testing.T) {
 	m = pickProfile(t, m, "web")
 	if m.sel.Marked("node") {
 		t.Fatal("reentrar no mesmo perfil não pode desfazer a escolha do usuário")
+	}
+}
+
+func TestWelcomeHeadline(t *testing.T) {
+	m := detected(t, newModel(t, linuxSystemd))
+	i18n.SetLang(i18n.PtBR)
+	defer i18n.SetLang(i18n.En)
+	v := m.View()
+	if !strings.Contains(v, "SEU TERMINAL DE DEV") || !strings.Contains(v, "MONTADO EM MINUTOS") {
+		t.Errorf("faltou o título grande:\n%s", v)
+	}
+	if strings.Contains(v, "SUDO EM") {
+		t.Errorf("base sem sudo não leva a tag:\n%s", v)
+	}
+}
+
+func TestWelcomeSudoTagFromCommonBase(t *testing.T) {
+	m := detected(t, newModel(t, linuxSystemd))
+	if m.sudoCount() != 0 {
+		t.Fatalf("base blank do catálogo não deveria pedir sudo no Linux, sudoCount = %d", m.sudoCount())
+	}
+	// dois itens da base passam a pedir sudo: um pelo item, outro por um método
+	m.s.Cat.Items["bat"].NeedsSudo = true
+	for i := range m.s.Cat.Items["fd"].Install {
+		m.s.Cat.Items["fd"].Install[i].NeedsSudo = true
+	}
+	// item fora da base não conta
+	m.s.Cat.Items["node"].NeedsSudo = true
+	if got := m.sudoCount(); got != 2 {
+		t.Fatalf("sudoCount = %d, want 2", got)
+	}
+	i18n.SetLang(i18n.PtBR)
+	defer i18n.SetLang(i18n.En)
+	if v := m.View(); !strings.Contains(v, "SUDO EM 2 ITENS") {
+		t.Errorf("faltou a tag de sudo:\n%s", v)
+	}
+}
+
+func TestProfileGridNavigation(t *testing.T) {
+	m := detected(t, newModel(t, linuxSystemd))
+	m = send(m, enter())
+	m = cursorOn(t, m, "laravel")
+	right := tea.KeyMsg{Type: tea.KeyRight}
+	left := tea.KeyMsg{Type: tea.KeyLeft}
+	down := tea.KeyMsg{Type: tea.KeyDown}
+	up := tea.KeyMsg{Type: tea.KeyUp}
+	if m = send(m, right); m.profileID() != "web" {
+		t.Fatalf("→ de laravel: %s", m.profileID())
+	}
+	if m = send(m, left); m.profileID() != "laravel" {
+		t.Fatalf("← de web: %s", m.profileID())
+	}
+	if m = send(m, down); m.profileID() != "ml" {
+		t.Fatalf("↓ de laravel: %s", m.profileID())
+	}
+	if m = send(m, down); m.profileID() != "blank" {
+		t.Fatalf("↓↓ de laravel: %s", m.profileID())
+	}
+	if m = send(m, left, right); m.profileID() != "blank" {
+		t.Fatalf("← → em blank saíram: %s", m.profileID())
+	}
+	if m = send(m, down); m.profileID() != "blank" {
+		t.Fatalf("↓ em blank saiu: %s", m.profileID())
+	}
+	if m = send(m, up); m.profileID() == "blank" {
+		t.Fatal("↑ em blank deveria voltar à grade")
+	}
+}
+
+func TestProfileCardCounts(t *testing.T) {
+	m := detected(t, newModel(t, linuxSystemd))
+	m = send(m, enter())
+	v := m.View()
+	for _, pr := range m.profiles() {
+		if pr.ID == "blank" {
+			continue
+		}
+		n := len(app.SelectedFor(m.s.Cat, m.s.P, plan.Selection{Profile: pr.ID}))
+		if want := fmt.Sprintf("%d ITEMS", n); !strings.Contains(v, want) {
+			t.Errorf("perfil %s: faltou %q em:\n%s", pr.ID, want, v)
+		}
+		if got := m.profileItemCount(pr.ID); got != n {
+			t.Errorf("profileItemCount(%s) = %d, want %d", pr.ID, got, n)
+		}
+	}
+}
+
+func TestProfileColor(t *testing.T) {
+	for id, want := range map[string]lipgloss.Color{"laravel": colSun, "web": colPeach, "ml": colMint, "backend": colCoral, "blank": ""} {
+		if got := profileColor(id); got != want {
+			t.Errorf("profileColor(%s) = %q, want %q", id, got, want)
+		}
+	}
+}
+
+func TestWelcomeAndProfilePainted(t *testing.T) {
+	for _, h := range []int{24, 30} {
+		m := detected(t, newModel(t, linuxSystemd))
+		m.th = paperTheme()
+		m = send(m, size(100, h))
+		assertPainted(t, m.View(), 100, h)
+		m = send(m, enter())
+		assertPainted(t, m.View(), 100, h)
+		m = send(m, tea.KeyMsg{Type: tea.KeyDown}, tea.KeyMsg{Type: tea.KeyDown})
+		assertPainted(t, m.View(), 100, h)
+	}
+	m := detected(t, newModel(t, linuxSystemd))
+	m.th = paperTheme()
+	m = send(m, size(80, 24))
+	assertPainted(t, m.View(), 80, 24)
+	m = send(m, enter())
+	assertPainted(t, m.View(), 80, 24)
+}
+
+// T3: no cartão selecionado (sky) a tag de contagem mantém a cor do perfil.
+func TestSelectedProfileCardKeepsColor(t *testing.T) {
+	m := send(detected(t, newModel(t, linuxSystemd)), enter())
+	m = withTheme(m, paperTheme())
+	for _, pr := range m.profiles() {
+		c := profileColor(pr.ID)
+		if c == "" {
+			continue
+		}
+		tag := m.th.Tag(i18n.N("tui.profile.items", m.profileItemCount(pr.ID)), c)
+		for _, sel := range []bool{false, true} {
+			card := m.profileCard(pr, sel, 38, 1)
+			if !strings.Contains(card, tag) {
+				t.Errorf("%s (selecionado=%v): tag sem a cor do perfil %s", pr.ID, sel, c)
+			}
+		}
 	}
 }

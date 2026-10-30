@@ -5,6 +5,7 @@ package tui
 import (
 	"slices"
 	"sort"
+	"time"
 
 	"github.com/eusener/kanivet-cli/internal/backend"
 	"github.com/eusener/kanivet-cli/internal/catalog"
@@ -34,6 +35,7 @@ type Selection struct {
 	cfgDef    map[string]bool
 	updates   map[string]bool
 	updateAll bool
+	at        func(id string) (time.Time, bool) // quando o kanivet instalou o item (painel)
 }
 
 func NewSelection(c *catalog.Catalog, p platform.Platform, st map[string]detect.ItemStatus, mode Mode) *Selection {

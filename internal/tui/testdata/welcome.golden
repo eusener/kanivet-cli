@@ -1,22 +1,20 @@
-Step 1/5 · Welcome
-kanivet-cli sets up your dev terminal. Nothing runs before you review the plan.
-
-system:            ubuntu 24.04 · amd64
-shell:             zsh
-package manager:   apt
+  ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ [KANIVET]  [WELCOME] PROFILE ITEMS REVIEW INSTALL                                        1/5 │
+  └──────────────────────────────────────────────────────────────────────────────────────────────┘
 
 
 
+  YOUR DEV TERMINAL,
+  SET UP IN MINUTES.
 
+  Pick a profile, tweak item by item, review the plan.
+  Nothing runs before you review the plan.
 
-
-
-
-
-
-
-
-
+  ┌──────────────────────────────────────────────────┐
+  │ SYSTEM    ubuntu 24.04 · amd64                   │
+  │ SHELL     zsh                                    │
+  │ PACKAGES  apt                                    │
+  └──────────────────────────────────────────────────┘
 
 
 
@@ -26,5 +24,7 @@ package manager:   apt
 
 
 
-0 to install · 0 configs
-enter confirm • ? help • q quit
+
+
+
+   ENTER  START ->   [0 TO INSTALL]  [0 CONFIGS]  ? help  Q quit
