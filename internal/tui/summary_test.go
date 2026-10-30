@@ -543,7 +543,7 @@ func TestRetryChshSwitchesShell(t *testing.T) {
 // da seleção, que podem divergir do plano.
 func TestReviewFooterHasNoCounters(t *testing.T) {
 	m := reviewFor(t, linuxSystemd)
-	if tags := m.counterTags(); tags != nil {
+	if tags := m.counterTags(0); tags != nil {
 		t.Fatalf("counterTags na revisão = %q", tags)
 	}
 	m = retryModel(t)

@@ -68,7 +68,8 @@ func TestDashboardPendingBar(t *testing.T) {
 		t.Fatalf("a busca global deve achar jq, achou %q", m.dashList().Current())
 	}
 	m = send(m, keyRune(" "))
-	// M4: contador zerado não aparece no rodapé
+	// M4: contador zerado não aparece no rodapé (140 colunas: as tags cabem completas)
+	m = send(m, size(140, 30))
 	if v := m.View(); !hasAll(v, "1 to install", "1 to remove") || strings.Contains(footOf(v), "TO UPDATE") {
 		t.Fatalf("barra errada:\n%s", v)
 	}

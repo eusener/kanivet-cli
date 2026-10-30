@@ -417,7 +417,6 @@ func (m Model) footer() string {
 	if hasPrimary {
 		head = append(head, m.th.Button(k, label))
 	}
-	head = append(head, m.counterTags()...)
 	type hint struct {
 		text string
 		rank int // 0 nunca cai; sem largura, cai primeiro o de rank maior
@@ -429,26 +428,46 @@ func (m Model) footer() string {
 		}
 		hints = append(hints, hint{m.th.Help.Render(m.keyCap(b.Help().Key) + " " + b.Help().Desc), m.hintRank(b.Help().Key)})
 	}
+	// os contadores encolhem antes de qualquer atalho: completos, depois uma tag só e,
+	// por fim, nenhuma
+	tagLevel := 0
 	join := func() string {
 		parts := append([]string{}, head...)
+		parts = append(parts, m.counterTags(tagLevel)...)
 		for _, h := range hints {
 			parts = append(parts, h.text)
 		}
 		return strings.Join(parts, "  ")
 	}
-	// sem largura, descarta os atalhos menos importantes (o primeiro do rank mais alto);
-	// ajuda e sair ficam
-	for lipgloss.Width(join()) > m.contentWidth() {
+	over := func() bool { return lipgloss.Width(join()) > m.contentWidth() }
+	// descarta o atalho de rank mais alto (acima de minRank); false quando não há mais
+	dropOne := func(minRank int) bool {
 		drop := -1
 		for i, h := range hints {
-			if h.rank > 0 && (drop < 0 || h.rank > hints[drop].rank) {
+			if h.rank > minRank && (drop < 0 || h.rank > hints[drop].rank) {
 				drop = i
 			}
 		}
 		if drop < 0 {
-			break
+			return false
 		}
 		hints = append(hints[:drop], hints[drop+1:]...)
+		return true
+	}
+	// primeiro caem os extras (versão, configs), depois o contador encolhe
+	for over() && dropOne(3) {
+	}
+	for tagLevel < 1 && over() {
+		tagLevel++
+	}
+	// com a tag compacta, caem primeiro os atalhos extras (rank 2 ou mais); só depois
+	// os contadores somem e, por fim, os atalhos principais (ajuda e sair ficam)
+	for over() && dropOne(1) {
+	}
+	if over() {
+		tagLevel = 2
+		for over() && dropOne(0) {
+		}
 	}
 	return ansi.Truncate(join(), m.contentWidth(), "")
 }
@@ -468,7 +487,12 @@ func (m Model) hintRank(k string) int {
 	switch k {
 	case "tab", "u", "p", "/":
 		return 1
-	case "a", "space":
+	case "a":
+		if i, u, r := m.sel.Pending(); m.sel != nil && i+u+r > 0 {
+			return 0 // única ação de gravar do painel: sem botão, não pode sumir
+		}
+		return 2
+	case "space":
 		return 2
 	case "U":
 		return 3
@@ -476,8 +500,9 @@ func (m Model) hintRank(k string) int {
 	return 4
 }
 
-// counterTags devolve os contadores da tela como tags para o rodapé.
-func (m Model) counterTags() []string {
+// counterTags devolve os contadores da tela como tags para o rodapé. No painel,
+// level 1 junta tudo numa tag só e level 2 não mostra nenhuma.
+func (m Model) counterTags(level int) []string {
 	switch {
 	case m.screen == ScreenExecute:
 		return nil // o progresso fica no título da tela
@@ -488,6 +513,12 @@ func (m Model) counterTags() []string {
 	case m.screen == ScreenDashboard:
 		// contadores zerados não ocupam o rodapé: o espaço vai para os atalhos
 		i, u, r := m.sel.Pending()
+		switch {
+		case level >= 2:
+			return nil
+		case level == 1 && i+u+r > 0 && b2i(i > 0)+b2i(u > 0)+b2i(r > 0) > 1:
+			return []string{m.th.Tag(i18n.N("tui.tag.pending", i+u+r), colSky)}
+		}
 		var out []string
 		for _, c := range []struct {
 			key string
@@ -624,4 +655,11 @@ func (m Model) overlay(body string, title string) []string {
 		rows = append(rows[:maxRows-1], "…")
 	}
 	return m.centerBox(strings.Join(rows, "\n"), title, dw, h, 0, false)
+}
+
+func b2i(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }

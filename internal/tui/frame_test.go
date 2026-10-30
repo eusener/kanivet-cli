@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eusener/kanivet-cli/internal/detect"
@@ -223,7 +224,8 @@ func TestDashFooterKeepsMainKeys80(t *testing.T) {
 	}
 	m = send(m, keyRune(" "))
 	lines = strings.Split(ansi.Strip(m.View()), "\n")
-	if foot = lines[len(lines)-1]; !strings.Contains(foot, "1 TO REMOVE") || !strings.Contains(foot, "TAB ") {
+	// aos 80 colunas o contador cede lugar a aplicar e aos atalhos principais
+	if foot = lines[len(lines)-1]; !strings.Contains(foot, "A apply") || !strings.Contains(foot, "TAB ") {
 		t.Errorf("rodapé com pendência: %q", foot)
 	}
 }
@@ -241,6 +243,87 @@ func TestWelcomeNoRepeatedTitle(t *testing.T) {
 			if n := strings.Count(v, title); n != 1 {
 				t.Errorf("[%v %v] %q aparece %d vezes (só a trilha):\n%s", lang, sz, title, n, v)
 			}
+		}
+	}
+}
+
+// pendingDash abre o dashboard em tema Paper com i itens a instalar, u a atualizar e
+// r a remover, no tamanho w x h.
+func pendingDash(t *testing.T, lang i18n.Lang, i, u, r, w, h int) Model {
+	t.Helper()
+	m := dashModel(t, nil)
+	i18n.SetLang(lang)
+	var ids []string
+	excl := map[string]bool{}
+	for _, c := range m.s.Cat.Categories {
+		excl[c.ID] = c.Exclusive
+	}
+	for id, it := range m.s.Cat.Items {
+		if !excl[it.Category] {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	if len(ids) < i+u+r {
+		t.Fatalf("catálogo com poucos itens: %d", len(ids))
+	}
+	sts := map[string]detect.ItemStatus{}
+	for n, id := range ids[:i+u+r] {
+		switch {
+		case n < i:
+			sts[id] = st(id, detect.StatusAbsent)
+		case n < i+u:
+			sts[id] = st(id, detect.StatusOutdated)
+		default:
+			sts[id] = st(id, detect.StatusInstalled)
+		}
+	}
+	m = send(m, detectMsg{statuses: sts})
+	for n, id := range ids[:i+u+r] {
+		switch {
+		case n < i:
+			m.sel.Toggle(id)
+		case n < i+u:
+			m.sel.MarkUpdate(id)
+		default:
+			m.sel.Toggle(id)
+		}
+	}
+	m.th = paperTheme()
+	m = send(m, size(w, h))
+	if gi, gu, gr := m.sel.Pending(); gi != i || gu != u || gr != r {
+		t.Fatalf("pendências %d/%d/%d, esperado %d/%d/%d", gi, gu, gr, i, u, r)
+	}
+	return m
+}
+
+// Com mudanças pendentes, aplicar nunca cai do rodapé: os contadores encolhem e, se
+// ainda faltar espaço, saem antes dos atalhos.
+func TestDashFooterKeepsApplyWithPending(t *testing.T) {
+	cases := []struct{ i, u, r, w, h int }{
+		{1, 1, 1, 80, 24}, {1, 1, 1, 100, 30}, {12, 3, 7, 80, 24}, {12, 3, 7, 100, 30},
+	}
+	for _, lang := range []i18n.Lang{i18n.En, i18n.PtBR} {
+		for _, c := range cases {
+			name := fmt.Sprintf("%v/%d-%d-%d@%dx%d", lang, c.i, c.u, c.r, c.w, c.h)
+			t.Run(name, func(t *testing.T) {
+				m := pendingDash(t, lang, c.i, c.u, c.r, c.w, c.h)
+				v := m.View()
+				assertPainted(t, v, c.w, c.h)
+				foot := footOf(v)
+				if got := lipgloss.Width(foot); got != c.w {
+					t.Errorf("rodapé com %d colunas, esperado %d: %q", got, c.w, foot)
+				}
+				keys := []string{"A ", "? ", "Q "}
+				if c.w >= 80 {
+					keys = append(keys, "TAB ")
+				}
+				for _, want := range keys {
+					if !strings.Contains(foot, want) {
+						t.Errorf("rodapé sem %q: %q", want, foot)
+					}
+				}
+			})
 		}
 	}
 }
