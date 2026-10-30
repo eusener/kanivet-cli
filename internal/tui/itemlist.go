@@ -311,7 +311,10 @@ func (l ItemList) boxes(width, h int) []string {
 		}
 		return out
 	}
-	r := max(h-2*o, 2)
+	if h < 2*o+2 { // sem altura para as duas caixas: só a lista, sem cortar a borda
+		return strings.Split(l.listBox(width, max(h-o, 1)), "\n")
+	}
+	r := h - 2*o
 	lr := max(r*6/10, 1)
 	dr := max(r-lr, 1)
 	return append(strings.Split(l.listBox(width, lr), "\n"), strings.Split(l.detailBox(width, dr), "\n")...)
@@ -387,9 +390,16 @@ func (l ItemList) statusTag(id string) string {
 	x := l.sel.status(id)
 	switch x.Status {
 	case detect.StatusInstalled, detect.StatusProvided:
+		if l.sel.mode == ModeDashboard {
+			return l.th.Tag(i18n.T("tui.stag.uptodate"), colMint)
+		}
 		return l.th.Tag(i18n.T("tui.stag.installed"), colMint)
 	case detect.StatusOutdated:
-		return l.th.Tag(pick(l.th.Nerd, "⇡ ", "^ ")+i18n.T("tui.stag.update"), colSun)
+		next := i18n.T("tui.stag.update")
+		if l.sel.mode == ModeDashboard && x.Latest != "" {
+			next = x.Latest
+		}
+		return l.th.Tag(pick(l.th.Nerd, "⇡ ", "^ ")+next, colSun)
 	case detect.StatusExternal, detect.StatusExternalOutdated:
 		return l.th.Tag(i18n.T("tui.stag.external"), colPeach)
 	case detect.StatusUnsupported:
@@ -404,6 +414,9 @@ func (l ItemList) statusTag(id string) string {
 		}
 		if l.sel.Marked(id) {
 			return l.th.Tag(i18n.T("tui.stag.new"), colSun)
+		}
+		if l.sel.mode == ModeDashboard {
+			return l.ink(colInkMuted).Render("—")
 		}
 	}
 	return ""
@@ -529,6 +542,11 @@ func (l ItemList) detail(tw, rows int) []string {
 		st += " (" + x.Reason + ")"
 	}
 	b = append(b, "", label("tui.detail.status")+st)
+	if l.sel.mode == ModeDashboard && l.sel.at != nil {
+		if at, ok := l.sel.at(id); ok && !at.IsZero() {
+			b = append(b, muted.Render(strings.ToUpper(i18n.T("tui.detail.by_kanivet"))+" · "+at.Local().Format("02/01")))
+		}
+	}
 	if x.Status == detect.StatusUnknown {
 		b = append(b, l.ink(colInk).Bold(true).Render(i18n.T("tui.unknown_hint")))
 	}

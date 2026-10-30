@@ -1,21 +1,21 @@
 ┌──────────────────────────────────────────────────────┐  ┌────────────────────────────────────────┐
-│ [x] atuin 18.3.0                         [INSTALLED] │  │ DIRENV                                 │
+│ [x] atuin 18.3.0                        [UP TO DATE] │  │ DIRENV                                 │
 │ [x] DIRENV 2.32.0                         [^ UPDATE] │  │ github.com/direnv/direnv               │
 │ [x] fzf 0.56.3                            [EXTERNAL] │  │                                        │
 │ [ ] starship                           [UNAVAILABLE] │  │ Per-directory environment variables    │
-│ [ ] zoxide                                    [MISE] │  │ (.envrc)                               │
-│ [ ] zsh                                     [SYSTEM] │  │                                        │
-│ [ ] zsh-autosuggestions                        [GIT] │  │ STATUS  [^] outdated 2.32.0            │
-│ [ ] zsh-syntax-highlighting                    [GIT] │  │ METHOD  mise aqua:direnv/direnv        │
-│ [ ] bat                                       [MISE] │  │                                        │
-│ [ ] btop                                      [MISE] │  │                                        │
-│ [ ] duf                                       [MISE] │  │                                        │
-│ [ ] dust                                      [MISE] │  │                                        │
-│ [ ] eza                                       [MISE] │  │                                        │
-│ [ ] fd                                        [MISE] │  │                                        │
-│ [ ] procs                                     [MISE] │  │                                        │
-│ [ ] ripgrep                                   [MISE] │  │                                        │
-│ [ ] sd                                        [MISE] │  │                                        │
+│ [ ] zoxide                                  [MISE] — │  │ (.envrc)                               │
+│ [ ] zsh                                   [SYSTEM] — │  │                                        │
+│ [ ] zsh-autosuggestions                      [GIT] — │  │ STATUS  [^] outdated 2.32.0            │
+│ [ ] zsh-syntax-highlighting                  [GIT] — │  │ METHOD  mise aqua:direnv/direnv        │
+│ [ ] bat                                     [MISE] — │  │                                        │
+│ [ ] btop                                    [MISE] — │  │                                        │
+│ [ ] duf                                     [MISE] — │  │                                        │
+│ [ ] dust                                    [MISE] — │  │                                        │
+│ [ ] eza                                     [MISE] — │  │                                        │
+│ [ ] fd                                      [MISE] — │  │                                        │
+│ [ ] procs                                   [MISE] — │  │                                        │
+│ [ ] ripgrep                                 [MISE] — │  │                                        │
+│ [ ] sd                                      [MISE] — │  │                                        │
 │                                                      │  │                                        │
 │                                                      │  │                                        │
 │                                                      │  │                                        │

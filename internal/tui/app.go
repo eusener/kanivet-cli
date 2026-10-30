@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -118,6 +119,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.sel = NewSelection(m.s.Cat, m.s.P, msg.statuses, mode)
 		if mode == ModeDashboard {
+			m.sel.at = func(id string) (time.Time, bool) {
+				it, ok := m.s.St.Item(id)
+				return it.At, ok
+			}
 			return m.initDashboard()
 		}
 		return m, nil
@@ -260,7 +265,7 @@ func (m Model) View() string {
 	}
 	bh := m.bodyHeight()
 	// nas telas de itens e de revisão o título (com as tags) é a primeira linha do próprio corpo
-	ownTitle := (m.screen == ScreenCategories || m.screen == ScreenReview || m.screen == ScreenExecute || (m.screen == ScreenSummary && m.sum.panel == panelNone)) && !m.showHelp
+	ownTitle := (m.screen == ScreenCategories || m.screen == ScreenReview || m.screen == ScreenExecute || (m.screen == ScreenSummary && m.sum.panel == panelNone) || m.screen == ScreenDashboard) && !m.showHelp
 	if ownTitle {
 		bh += 1 + m.respiro()/2
 	}
@@ -316,12 +321,12 @@ func (m Model) trailStep() (step int, done bool) {
 	return 4, true
 }
 
-// header desenha a caixa de marca: tag KANIVET, trilha e N/5 (ou FIM) à direita.
-// O painel (Task 8) ainda mostra só o nome da tela no lugar da trilha.
+// header desenha a caixa de marca: tag KANIVET, trilha e N/5 (ou FIM) à direita. No
+// painel, o perfil e os totais ocupam o lugar da trilha.
 func (m Model) header() []string {
 	var mid, right string
 	if m.screen == ScreenDashboard {
-		mid = m.th.Title.Render(strings.ToUpper(i18n.T("tui.step.dashboard")))
+		mid, right = m.dashHeader(), m.dashStatus()
 	} else {
 		step, done := m.trailStep()
 		mid = m.th.Trail(step, done)
@@ -338,6 +343,9 @@ func (m Model) header() []string {
 	left := m.th.Tag("KANIVET", colSun) + "  " + mid
 	if fill := inner - lipgloss.Width(left) - lipgloss.Width(right); fill > 0 {
 		left += strings.Repeat(" ", fill)
+	}
+	if m.screen == ScreenDashboard && lipgloss.Width(left)+lipgloss.Width(right)+2 > inner {
+		right = "" // sem espaço, o status da verificação cai
 	}
 	// se faltar largura, corta a trilha e preserva o N/5
 	row := ansi.Truncate(left, max(inner-lipgloss.Width(right), 0), "") + right

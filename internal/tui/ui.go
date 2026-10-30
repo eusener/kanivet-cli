@@ -160,22 +160,64 @@ func (t Theme) Trail(step int, done bool) string {
 	return strings.Join(parts, sep)
 }
 
-// Tabs desenha abas numa linha de largura width; a ativa vai em sun.
+// Tabs desenha abas numa linha de largura width; a ativa vai em sun. Quando não cabem
+// todas, rolam mantendo a ativa visível, com "…" nas pontas que ficaram de fora.
 func (t Theme) Tabs(names []string, active, width int) string {
-	var parts []string
-	for i, n := range names {
+	n := len(names)
+	if n == 0 {
+		return t.S().Render(strings.Repeat(" ", max(width, 0)))
+	}
+	active = min(max(active, 0), n-1)
+	cell := func(i int) string {
 		if i == active {
-			parts = append(parts, t.Tag(n, colSun))
-			continue
+			return t.Tag(names[i], colSun)
 		}
-		parts = append(parts, t.Subtle.Render(" "+strings.ToUpper(n)+" "))
+		return t.Subtle.Render(" " + strings.ToUpper(names[i]) + " ")
 	}
-	line := strings.Join(parts, t.S().Render(" "))
+	cells := make([]string, n)
+	for i := range cells {
+		cells[i] = cell(i)
+	}
+	// largura da janela [lo,hi], com a reserva de "… " / " …" nas pontas cortadas
+	span := func(lo, hi int) int {
+		w := hi - lo // separadores
+		for i := lo; i <= hi; i++ {
+			w += lipgloss.Width(cells[i])
+		}
+		if lo > 0 {
+			w += 2
+		}
+		if hi < n-1 {
+			w += 2
+		}
+		return w
+	}
+	lo, hi := active, active
+	for grew := true; grew; {
+		grew = false
+		if hi < n-1 && span(lo, hi+1) <= width {
+			hi++
+			grew = true
+		}
+		if lo > 0 && span(lo-1, hi) <= width {
+			lo--
+			grew = true
+		}
+	}
+	sp := t.S().Render(" ")
+	var line string
+	if lo > 0 {
+		line += t.Subtle.Render("…") + sp
+	}
+	line += strings.Join(cells[lo:hi+1], sp)
+	if hi < n-1 {
+		line += sp + t.Subtle.Render("…")
+	}
 	if lipgloss.Width(line) > width {
-		line = ansi.Truncate(line, width, "")
+		line = ansi.Truncate(line, width, "…")
 	}
-	if n := width - lipgloss.Width(line); n > 0 {
-		line += t.S().Render(strings.Repeat(" ", n))
+	if k := width - lipgloss.Width(line); k > 0 {
+		line += t.S().Render(strings.Repeat(" ", k))
 	}
 	return line
 }

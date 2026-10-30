@@ -1,13 +1,17 @@
 package tui
 
 import (
-	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/charmbracelet/x/ansi"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/eusener/kanivet-cli/internal/detect"
 	"github.com/eusener/kanivet-cli/internal/i18n"
+	"github.com/eusener/kanivet-cli/internal/state"
 )
 
 func st(id string, s detect.Status) detect.ItemStatus {
@@ -23,13 +27,13 @@ func dashModel(t *testing.T, statuses map[string]detect.ItemStatus) Model {
 	return send(m, size(100, 30), detectMsg{statuses: statuses})
 }
 
-// gotoCategory move o foco das categorias até id.
+// gotoCategory troca de aba (tab) até a categoria id.
 func gotoCategory(t *testing.T, m Model, id string) Model {
 	t.Helper()
 	for i, c := range m.s.Cat.Categories {
 		if c.ID == id {
 			for j := 0; j < i; j++ {
-				m = send(m, tea.KeyMsg{Type: tea.KeyDown})
+				m = send(m, tea.KeyMsg{Type: tea.KeyTab})
 			}
 			return m
 		}
@@ -52,7 +56,6 @@ func TestDashboardGolden(t *testing.T) {
 func TestDashboardPendingBar(t *testing.T) {
 	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
 	m = gotoCategory(t, m, "replacements")
-	m = send(m, tea.KeyMsg{Type: tea.KeyTab}) // foco na lista
 	for m.dashList().Current() != "bat" {
 		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
 	}
@@ -87,7 +90,6 @@ func TestDashboardUpdateAllMarksOutdated(t *testing.T) {
 func TestDashboardUpdateKeyMarksCurrentOutdated(t *testing.T) {
 	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusOutdated)})
 	m = gotoCategory(t, m, "replacements")
-	m = send(m, tea.KeyMsg{Type: tea.KeyTab})
 	for m.dashList().Current() != "bat" {
 		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
 	}
@@ -144,7 +146,6 @@ func TestDashboardProfileModalIsAdditive(t *testing.T) {
 func TestDashboardExternalUntouched(t *testing.T) {
 	m := dashModel(t, map[string]detect.ItemStatus{"eza": st("eza", detect.StatusExternal)})
 	m = gotoCategory(t, m, "replacements")
-	m = send(m, tea.KeyMsg{Type: tea.KeyTab})
 	for m.dashList().Current() != "eza" {
 		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
 	}
@@ -213,4 +214,114 @@ func detailText(v string) string {
 		}
 	}
 	return strings.Join(strings.Fields(strings.Join(parts, " ")), " ")
+}
+
+func tabKey() tea.Msg      { return tea.KeyMsg{Type: tea.KeyTab} }
+func shiftTabKey() tea.Msg { return tea.KeyMsg{Type: tea.KeyShiftTab} }
+
+func TestDashTabsSwitch(t *testing.T) {
+	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
+	n := len(m.s.Cat.Categories)
+	first := m.dashList().ids[0]
+	m = send(m, tabKey())
+	if m.dash.cat != 1 || m.dashList().ids[0] == first {
+		t.Fatalf("tab avança a aba e troca a lista: cat=%d", m.dash.cat)
+	}
+	m = send(m, shiftTabKey())
+	if m.dash.cat != 0 || m.dashList().ids[0] != first {
+		t.Fatalf("shift+tab volta: cat=%d", m.dash.cat)
+	}
+	for i := 0; i < n-1; i++ {
+		m = send(m, tabKey())
+	}
+	if m.dash.cat != n-1 {
+		t.Fatalf("última aba: cat=%d", m.dash.cat)
+	}
+	if m = send(m, tabKey()); m.dash.cat != 0 {
+		t.Fatalf("tab na última volta à primeira: cat=%d", m.dash.cat)
+	}
+	if m = send(m, shiftTabKey()); m.dash.cat != n-1 {
+		t.Fatalf("shift+tab na primeira vai à última: cat=%d", m.dash.cat)
+	}
+	if m.dashList().panel {
+		t.Fatal("tab não deve focar o painel de configs no painel")
+	}
+}
+
+func TestDashTabsScrollKeepsActive(t *testing.T) {
+	th := paperTheme()
+	var names []string
+	for i := 0; i < 14; i++ {
+		names = append(names, "categoria"+string(rune('a'+i)))
+	}
+	for active := range names {
+		line := stripANSI(th.Tabs(names, active, 80))
+		if w := lipgloss.Width(line); w != 80 {
+			t.Errorf("aba %d: largura %d", active, w)
+		}
+		if !strings.Contains(line, strings.ToUpper(names[active])) {
+			t.Errorf("aba %d fora da vista: %q", active, line)
+		}
+		if active > 3 && !strings.HasPrefix(strings.TrimSpace(line), "…") {
+			t.Errorf("aba %d: falta … à esquerda: %q", active, line)
+		}
+		if active < 10 && !strings.HasSuffix(strings.TrimSpace(line), "…") {
+			t.Errorf("aba %d: falta … à direita: %q", active, line)
+		}
+	}
+}
+
+func TestDashShowsVersionAndLatest(t *testing.T) {
+	i18n.SetLang(i18n.PtBR)
+	m := dashModel(t, map[string]detect.ItemStatus{
+		"ripgrep": {ID: "ripgrep", Status: detect.StatusOutdated, Version: "0.9.2", Latest: "0.10.0"},
+		"bat":     st("bat", detect.StatusInstalled),
+	})
+	i18n.SetLang(i18n.PtBR)
+	m.th = paperTheme()
+	m = gotoCategory(t, m, "replacements")
+	v := ansi.Strip(m.View())
+	for _, want := range []string{"0.9.2", "⇡ 0.10.0", "EM DIA"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("view sem %q:\n%s", want, v)
+		}
+	}
+}
+
+func TestDashHeaderCounts(t *testing.T) {
+	m := dashModel(t, map[string]detect.ItemStatus{
+		"bat": st("bat", detect.StatusInstalled), "fd": st("fd", detect.StatusOutdated),
+		"eza": st("eza", detect.StatusExternal),
+	})
+	v := ansi.Strip(m.View())
+	for _, want := range []string{"KANIVET", "2 INSTALLED", "1 UPDATES", "1 EXTERNAL"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("cabeçalho sem %q:\n%s", want, v)
+		}
+	}
+}
+
+func TestDashInstalledDate(t *testing.T) {
+	i18n.SetLang(i18n.PtBR)
+	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
+	i18n.SetLang(i18n.PtBR)
+	m.s.St.SetItem("bat", state.InstalledItem{At: time.Date(2026, 10, 29, 12, 0, 0, 0, time.Local)})
+	m = gotoCategory(t, m, "replacements")
+	for m.dashList().Current() != "bat" {
+		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
+	}
+	if d := detailText(m.View()); !strings.Contains(d, "PELO KANIVET · 29/10") {
+		t.Fatalf("detalhe sem a data: %q", d)
+	}
+}
+
+func TestDashPaintedProfileModal(t *testing.T) {
+	m := dashModel(t, map[string]detect.ItemStatus{"bat": st("bat", detect.StatusInstalled)})
+	m.th = paperTheme()
+	for _, sz := range [][2]int{{100, 30}, {80, 24}} {
+		mm := send(m, size(sz[0], sz[1]))
+		assertPainted(t, mm.View(), sz[0], sz[1])
+		mm = send(mm, keyRune("p"))
+		assertPainted(t, mm.View(), sz[0], sz[1])
+	}
 }

@@ -404,3 +404,24 @@ func TestStatusAndMethodTags(t *testing.T) {
 		t.Error("methodTag empty")
 	}
 }
+
+func TestItemListStackedShortKeepsBottomBorder(t *testing.T) {
+	i18n.SetLang(i18n.En)
+	sel := newSel(t, linuxSystemd, nil, ModeWizard)
+	l := NewItemList(sel, paperTheme(), DefaultKeys(), []string{"shell"})
+	for h := 3; h <= 12; h++ {
+		lines := stripLines(l.View(50, h))
+		if len(lines) != h {
+			t.Fatalf("h=%d: %d linhas", h, len(lines))
+		}
+		last := ""
+		for _, ln := range lines {
+			if strings.Contains(ln, "┗") {
+				last = ln
+			}
+		}
+		if last == "" {
+			t.Errorf("h=%d: sem borda inferior:\n%s", h, strings.Join(lines, "\n"))
+		}
+	}
+}

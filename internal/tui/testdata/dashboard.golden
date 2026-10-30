@@ -1,30 +1,30 @@
   ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-  │ [KANIVET]  DASHBOARD                                                                         │
+  │ [KANIVET]  [PROFILE: —] [2 INSTALLED] [1 UPDATES] [1 EXTERNAL]                               │
   └──────────────────────────────────────────────────────────────────────────────────────────────┘
 
 
-  DASHBOARD
-
-  Profile: —  ·  | checking for updates...
-    Terminal             0/5 │ ┌───────────────────────────────────┐  ┌──────────────────────────┐
-    Shell                0/8 │ │ [x] BAT 1.0           [INSTALLED] │  │ BAT                      │
-  > Modern replacements  3/9 │ │ [ ] btop            [UNAVAILABLE] │  │ github.com/sharkdp/bat   │
-    Navigation           0/2 │ │ [ ] duf                    [MISE] │  │                          │
-    Git                  0/4 │ │ [ ] dust                   [MISE] │  │ cat with syntax          │
-    Neovim distribution  0/5 │ │ [x] eza 1.0            [EXTERNAL] │  │ highlighting and git     │
-    Editors              0/4 │ │ [ ] fd                     [MISE] │  │ integration              │
-    Languages           0/10 │ │ [ ] procs                  [MISE] │  │                          │
-    Local PHP environmen 0/2 │ │ [x] ripgrep 1.0        [^ UPDATE] │  │ STATUS  [x] installed    │
-    Python and data      0/4 │ │ [ ] sd                     [MISE] │  │ 1.0                      │
-    Container engine     0/2 │ │                                   │  │ METHOD  mise             │
-    Containers and Kuber 0/3 │ │                                   │  │ aqua:sharkdp/bat         │
-    Data and APIs        0/7 │ │                                   │  │                          │
-    Managers             0/2 │ │                                   │  │                          │
-                             │ │                                   │  │                          │
-                             │ │                                   │  │                          │
-                             │ │                                   │  │                          │
-                             │ │                                   │  │                          │
-                             │ │                                   │  │                          │
-                             │ │                                   │  │                          │
-                             │ └───────────────────────────────────┘  └──────────────────────────┘
-  [0 TO INSTALL]  [0 TO UPDATE]  [0 TO REMOVE]  P profile  / search  A apply  ? help  Q quit
+   TERMINAL   SHELL  [MODERN REPLACEMENTS]  NAVIGATION   GIT   NEOVIM DISTRIBUTION   EDITORS  …
+  ┌───────────────────────────────────────────────────┐  ┌───────────────────────────────────────┐
+  │ [x] BAT 1.0                          [UP TO DATE] │  │ BAT                                   │
+  │ [ ] btop                            [UNAVAILABLE] │  │ github.com/sharkdp/bat                │
+  │ [ ] duf                                  [MISE] — │  │                                       │
+  │ [ ] dust                                 [MISE] — │  │ cat with syntax highlighting and git  │
+  │ [x] eza 1.0                            [EXTERNAL] │  │ integration                           │
+  │ [ ] fd                                   [MISE] — │  │                                       │
+  │ [ ] procs                                [MISE] — │  │ STATUS  [x] installed 1.0             │
+  │ [x] ripgrep 1.0                        [^ UPDATE] │  │ METHOD  mise aqua:sharkdp/bat         │
+  │ [ ] sd                                   [MISE] — │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  └───────────────────────────────────────────────────┘  └───────────────────────────────────────┘
+  [0 TO INSTALL]  [0 TO UPDATE]  [0 TO REMOVE]  TAB category  / search  A apply  ? help  Q quit
