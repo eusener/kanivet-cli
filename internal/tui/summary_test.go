@@ -309,8 +309,8 @@ func TestRetryBuildsSelectionOfFailed(t *testing.T) {
 	if len(sel.Remove)+len(sel.Uninstall) != 0 {
 		t.Fatalf("sem remoções: %+v", sel)
 	}
-	if want := m.sel.ToPlan().Profile; sel.Profile != want || want == "" {
-		t.Fatalf("Profile = %q, quer %q", sel.Profile, want)
+	if sel.Profile != "" {
+		t.Fatalf("Profile = %q: o perfil expandiria itens que não falharam", sel.Profile)
 	}
 }
 
@@ -454,4 +454,44 @@ func TestSummaryPainted(t *testing.T) {
 		}
 	}
 	i18n.SetLang(i18n.En)
+}
+
+// O plano do retry, montado como a revisão faz, só tem os itens que falharam (e o shell compartilhado).
+func TestRetryPlanOnlyFailedItems(t *testing.T) {
+	m := retryModel(t)
+	m.s = testSession(t) // detecção diz "ausente": os itens entram no plano
+	m.sel = NewSelection(m.s.Cat, m.s.P, nil, ModeWizard)
+	m.sel.ApplyProfile("laravel")
+	m.sel.Toggle("fzf") // desmarca fzf: o perfil o traz, o usuário o tirou
+	if m.sel.Marked("fzf") {
+		t.Fatal("fzf deveria estar desmarcado")
+	}
+	sel, ok := m.retrySelection()
+	if !ok {
+		t.Fatal("sem retry")
+	}
+	pl, _, err := m.s.Plan(context.Background(), sel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed := map[string]bool{"node": true, "lerd": true, "mise": true} // mise: dependência de node
+	for _, st := range pl.Steps {
+		if st.ID == "config:fzf-defaults" {
+			t.Fatalf("config do fzf desmarcado no plano do retry: %+v", st)
+		}
+		if st.ItemID != "" && !failed[st.ItemID] {
+			t.Errorf("passo %s de item fora dos que falharam (e suas dependências)", st.ID)
+		}
+		if st.ItemID == "" && st.ID != plan.ShellStepID {
+			t.Errorf("passo inesperado %s", st.ID)
+		}
+	}
+	if len(pl.Steps) == 0 {
+		t.Fatalf("plano vazio: sel=%+v", sel)
+	}
+	// o perfil continua registrado na revisão
+	nm := send(m, keyRune("r"))
+	if nm.review.profile != m.sel.ToPlan().Profile || nm.review.profile == "" {
+		t.Fatalf("review.profile = %q", nm.review.profile)
+	}
 }

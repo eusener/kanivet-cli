@@ -135,7 +135,6 @@ func (m Model) retrySelection() (plan.Selection, bool) {
 		return out, false
 	}
 	cur := m.sel.ToPlan()
-	out.Profile, out.Versions, out.Configs = cur.Profile, cur.Versions, cur.Configs
 	seen := map[string]bool{}
 	for _, id := range m.runRep.Failed {
 		st, ok := m.stepItem(id)
@@ -150,6 +149,25 @@ func (m Model) retrySelection() (plan.Selection, bool) {
 			out.Update = append(out.Update, st.ItemID)
 		} else {
 			out.Add = append(out.Add, st.ItemID)
+		}
+	}
+	// só o que é dos itens que falham: o perfil expandiria itens que não falharam (e os padrões exclusivos)
+	for id := range seen {
+		if v, ok := cur.Versions[id]; ok {
+			if out.Versions == nil {
+				out.Versions = map[string]string{}
+			}
+			out.Versions[id] = v
+		}
+		if it := m.s.Cat.Items[id]; it != nil {
+			for _, cfg := range it.Configs {
+				if v, ok := cur.Configs[cfg.ID]; ok {
+					if out.Configs == nil {
+						out.Configs = map[string]bool{}
+					}
+					out.Configs[cfg.ID] = v
+				}
+			}
 		}
 	}
 	return out, len(out.Add)+len(out.Update) > 0
@@ -525,7 +543,9 @@ func (m Model) updateSummary(km tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case key.Matches(km, m.keys.Retry):
 		if sel, ok := m.retrySelection(); ok {
-			return m.beginReviewWith(ScreenSummary, sel)
+			nm, cmd := m.beginReviewWith(ScreenSummary, sel)
+			nm.review.profile = m.sel.ToPlan().Profile // o perfil segue como metadado do run, fora do plano
+			return nm, cmd
 		}
 	case key.Matches(km, m.keys.Enter):
 		if onRow && row.failed {
