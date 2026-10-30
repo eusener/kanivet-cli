@@ -8,10 +8,12 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/eusener/kanivet-cli/internal/backend"
 	"github.com/eusener/kanivet-cli/internal/catalog"
 	"github.com/eusener/kanivet-cli/internal/detect"
 	"github.com/eusener/kanivet-cli/internal/i18n"
+	"github.com/eusener/kanivet-cli/internal/platform"
 )
 
 // Atalhos próprios da lista (os genéricos vêm do KeyMap).
@@ -41,6 +43,8 @@ type ItemList struct {
 	typing bool
 	note   string
 	vs     *viewState
+	head   *listHead // título da categoria (só no wizard)
+	gap    int       // linhas de respiro entre o título e as caixas
 }
 
 // NewItemList lista os itens das categorias, na ordem dada (itens por id dentro de cada uma).
@@ -225,33 +229,127 @@ func (l ItemList) configs() []catalog.ConfigSpec {
 	return nil
 }
 
-// View desenha a lista em cima e o detalhe (~40% da altura) embaixo.
+// listHead guarda o cabeçalho da categoria (só o wizard desenha).
+type listHead struct {
+	title       string
+	page, pages int // page é de 1 a pages
+}
+
+// withHead liga a linha de título da categoria acima das caixas.
+func (l ItemList) withHead(title string, page, pages int) ItemList {
+	l.head = &listHead{title: title, page: page, pages: pages}
+	return l
+}
+
+// sideBySide é a largura mínima para lista e detalhe lado a lado; abaixo dela o detalhe
+// vai para baixo da lista.
+const sideBySide = 64
+
+// boxOverhead é o que cada caixa gasta além das linhas de conteúdo: bordas e, no modo
+// Paper, a linha da sombra.
+func (l ItemList) boxOverhead() int {
+	if l.th.Paper {
+		return 3
+	}
+	return 2
+}
+
+// boxInner é a largura útil (de borda a borda) de uma caixa de largura total w.
+func (l ItemList) boxInner(w int) int {
+	n := w - 2
+	if l.th.Paper {
+		n--
+	}
+	return max(n, 1)
+}
+
+// ink devolve um estilo sem o fundo creme (para texto dentro de caixas).
+func (l ItemList) ink(c lipgloss.Color) lipgloss.Style {
+	s := l.th.R.NewStyle()
+	if l.th.Color {
+		s = s.Foreground(c)
+	}
+	return s
+}
+
+// View desenha o título da categoria (no wizard) e duas caixas: lista e detalhe.
 func (l ItemList) View(width, height int) string {
-	detailH := height * 4 / 10
-	listH := height - detailH - 1 // 1 = separador
-	if l.typing || l.filter.Value() != "" {
-		listH--
-	}
-	if listH < 1 {
-		listH = 1
-	}
 	var out []string
-	if l.typing || l.filter.Value() != "" {
-		out = append(out, l.filter.View())
+	rows := height
+	if l.head != nil {
+		out = append(out, l.heading(width))
+		rows--
+		// o respiro é o primeiro corte; a lista precisa de ao menos 6 linhas
+		if rows-l.gap >= l.boxOverhead()+6 {
+			for i := 0; i < l.gap; i++ {
+				out = append(out, "")
+				rows--
+			}
+		}
 	}
-	out = append(out, l.listRows(width, listH)...)
-	out = append(out, l.th.Border.Render(strings.Repeat("─", width)))
-	out = append(out, l.detail(width, detailH)...)
+	out = append(out, l.boxes(width, rows)...)
 	for len(out) < height {
 		out = append(out, "")
 	}
 	return strings.Join(out[:height], "\n")
 }
 
-func (l ItemList) listRows(width, rows int) []string {
+// heading é "TÍTULO   CATEGORIA N DE M · X DE Y MARCADOS"; sem espaço, o subtítulo cai.
+func (l ItemList) heading(width int) string {
+	title := strings.ToUpper(l.head.title)
+	marked := 0
+	for _, id := range l.ids {
+		if l.sel.Marked(id) {
+			marked++
+		}
+	}
+	sub := strings.ToUpper(i18n.T("tui.list.sub", l.head.page, l.head.pages, marked, len(l.ids)))
+	if lipgloss.Width(title)+3+lipgloss.Width(sub) > width {
+		return l.th.Title.Render(ansi.Truncate(title, width, "…"))
+	}
+	return l.th.Title.Render(title) + l.th.S().Render("   ") + l.th.Subtle.Render(sub)
+}
+
+func (l ItemList) boxes(width, h int) []string {
+	o := l.boxOverhead()
+	if width >= sideBySide {
+		r := max(h-o, 1)
+		lw := width * 56 / 100
+		dw := width - 2 - lw
+		left := strings.Split(l.listBox(lw, r), "\n")
+		right := strings.Split(l.detailBox(dw, r), "\n")
+		gap := l.th.S().Render("  ")
+		out := make([]string, len(left))
+		for i := range left {
+			out[i] = left[i] + gap
+			if i < len(right) {
+				out[i] += right[i]
+			}
+		}
+		return out
+	}
+	r := max(h-2*o, 2)
+	lr := max(r*6/10, 1)
+	dr := max(r-lr, 1)
+	return append(strings.Split(l.listBox(width, lr), "\n"), strings.Split(l.detailBox(width, dr), "\n")...)
+}
+
+func (l ItemList) listBox(w, rows int) string {
+	cw := l.boxInner(w)
+	var body []string
+	if l.typing || l.filter.Value() != "" {
+		body = append(body, padTo(" "+ansi.Truncate(l.filter.View(), cw-2, "…"), cw))
+		rows--
+	}
+	body = append(body, l.listRows(cw, max(rows, 1))...)
+	return l.th.Box(strings.Join(body, "\n"), w, BoxOpts{Flush: true})
+}
+
+func (l ItemList) listRows(cw, rows int) []string {
 	v := l.visible()
 	if len(v) == 0 {
-		return pad([]string{l.th.Subtle.Render(i18n.T("tui.list.empty"))}, rows)
+		empty := " " + ansi.Truncate(l.ink(colInkMuted).Render(i18n.T("tui.list.empty")), cw-2, "…")
+		return pad([]string{padTo(empty, cw)}, rows)
 	}
 	cur := l.cursor
 	off := l.vs.offset
@@ -268,19 +366,67 @@ func (l ItemList) listRows(width, rows int) []string {
 		off = 0
 	}
 	l.vs.offset = off
-	nameW := 0
-	for _, id := range v {
-		nameW = max(nameW, lipgloss.Width(l.sel.c.Items[id].Name.Get()))
-	}
 	end := min(off+rows, len(v))
 	out := make([]string, 0, rows)
 	for i := off; i < end; i++ {
-		out = append(out, l.row(v[i], i == cur, nameW, width))
+		out = append(out, l.row(v[i], i == cur, cw))
 	}
 	return pad(out, rows)
 }
 
-func (l ItemList) row(id string, current bool, nameW, width int) string {
+// methodTag devolve o nome do backend escolhido para o item ("" quando não há).
+func methodTag(it *catalog.Item, p platform.Platform) string {
+	if it == nil {
+		return ""
+	}
+	m, _, err := backend.Choose(it, p)
+	if err != nil {
+		return ""
+	}
+	return m.Backend
+}
+
+// needsSudo diz se instalar o item pede sudo (o item ou o método escolhido).
+func (l ItemList) needsSudo(it *catalog.Item) bool {
+	if it.NeedsSudo {
+		return true
+	}
+	m, _, err := backend.Choose(it, l.sel.p)
+	return err == nil && m.NeedsSudo
+}
+
+// statusTag devolve a tag de estado do item ("" quando não há nada a dizer).
+func (l ItemList) statusTag(id string) string {
+	it := l.sel.c.Items[id]
+	if it == nil {
+		return ""
+	}
+	x := l.sel.status(id)
+	switch x.Status {
+	case detect.StatusInstalled, detect.StatusProvided:
+		return l.th.Tag(i18n.T("tui.stag.installed"), colMint)
+	case detect.StatusOutdated:
+		return l.th.Tag(pick(l.th.Nerd, "⇡ ", "^ ")+i18n.T("tui.stag.update"), colSun)
+	case detect.StatusExternal, detect.StatusExternalOutdated:
+		return l.th.Tag(i18n.T("tui.stag.external"), colPeach)
+	case detect.StatusUnsupported:
+		txt := strings.ToUpper(i18n.T("tui.stag.unavailable"))
+		if !l.th.Paper {
+			txt = "[" + txt + "]"
+		}
+		return l.ink(colInkMuted).Render(txt)
+	case detect.StatusAbsent:
+		if l.needsSudo(it) {
+			return l.th.Tag(i18n.T("tui.stag.sudo"), colSun)
+		}
+		if l.sel.Marked(id) {
+			return l.th.Tag(i18n.T("tui.stag.new"), colSun)
+		}
+	}
+	return ""
+}
+
+func (l ItemList) row(id string, current bool, cw int) string {
 	it := l.sel.c.Items[id]
 	x := l.sel.status(id)
 	radio := false
@@ -289,31 +435,45 @@ func (l ItemList) row(id string, current bool, nameW, width int) string {
 			radio = true
 		}
 	}
-	ver := x.Version
-	if ver == "" && !present(x.Status) {
-		ver = l.sel.Version(id)
-	}
 	name := it.Name.Get()
 	if name == "" {
 		name = id
 	}
-	name += strings.Repeat(" ", max(0, nameW-lipgloss.Width(name)))
-	prefix := "  "
 	if current {
-		prefix = "> "
+		name = strings.ToUpper(name)
 	}
-	line := prefix + l.th.Check(l.sel.Marked(id), radio) + " " + name + "  " + l.th.StatusIcon(x.Status)
-	if ver != "" {
-		line += " " + ver
+	if l.sel.mode == ModeDashboard && x.Version != "" {
+		name += " " + x.Version
 	}
-	line = lipgloss.NewStyle().MaxWidth(width).Render(line)
+	var tags []string
+	if !present(x.Status) && x.Status != detect.StatusUnsupported {
+		if m := methodTag(it, l.sel.p); m != "" {
+			tags = append(tags, l.th.Tag(m, colPeach))
+		}
+	}
+	if t := l.statusTag(id); t != "" {
+		tags = append(tags, t)
+	}
+	tagStr := strings.Join(tags, l.th.S().Render(" "))
+	tagsW := lipgloss.Width(tagStr)
+
+	base := l.th.R.NewStyle()
 	if ok, _ := l.sel.Selectable(id); !ok {
-		return l.th.Subtle.Render(line)
+		base = l.ink(colInkMuted)
 	}
 	if current {
-		return l.th.Selected.Render(line)
+		base = l.th.Selected
 	}
-	return line
+	mark := l.th.Check(l.sel.Marked(id), radio)
+	fixed := 1 + lipgloss.Width(mark) + 1
+	avail := cw - fixed - 1
+	if tagsW > 0 {
+		avail -= tagsW + 1
+	}
+	left := ansi.Truncate(name, max(avail, 0), "…")
+	fill := max(cw-fixed-lipgloss.Width(left)-1-tagsW, 0)
+	line := base.Render(" "+mark+" "+left) + base.Render(strings.Repeat(" ", fill)) + tagStr + base.Render(" ")
+	return padTo(line, cw)
 }
 
 func statusText(s detect.Status) string {
@@ -336,17 +496,47 @@ func statusText(s detect.Status) string {
 	return i18n.T("tui.status.unknown")
 }
 
-func (l ItemList) detail(width, rows int) []string {
+func (l ItemList) detailBox(w, rows int) string {
+	cw := l.boxInner(w)
+	lines := l.detail(max(cw-2, 1), rows)
+	for i, ln := range lines {
+		lines[i] = padTo(" "+ln, cw)
+	}
+	return l.th.Box(strings.Join(lines, "\n"), w, BoxOpts{Flush: true})
+}
+
+// wrapAll quebra cada linha em tw colunas, sem deixar nada passar da largura.
+func wrapAll(ls []string, tw int) []string {
+	var out []string
+	for _, s := range ls {
+		if s == "" {
+			out = append(out, "")
+			continue
+		}
+		out = append(out, strings.Split(ansi.Wrap(s, tw, ""), "\n")...)
+	}
+	return out
+}
+
+func (l ItemList) detail(tw, rows int) []string {
 	it := l.item()
 	if it == nil || rows < 1 {
 		return pad(nil, rows)
 	}
 	id := it.ID
 	x := l.sel.status(id)
-	var b []string
-	b = append(b, l.th.Title.Render(it.Name.Get()))
+	muted := l.ink(colInkMuted)
+	label := func(k string) string { return muted.Render(strings.ToUpper(i18n.T(k))) + "  " }
+	name := it.Name.Get()
+	if name == "" {
+		name = id
+	}
+	b := []string{l.ink(colInkStrong).Bold(true).Render(ansi.Truncate(strings.ToUpper(name), tw, "…"))}
+	if hp := strings.TrimPrefix(strings.TrimPrefix(it.Homepage, "https://"), "http://"); hp != "" {
+		b = append(b, ansi.Truncate(muted.Render(hp), tw, "…"))
+	}
 	if d := it.Description.Get(); d != "" {
-		b = append(b, d)
+		b = append(b, "", d)
 	}
 	st := l.th.StatusIcon(x.Status) + " " + statusText(x.Status)
 	if x.Version != "" {
@@ -355,12 +545,12 @@ func (l ItemList) detail(width, rows int) []string {
 	if x.Reason != "" {
 		st += " (" + x.Reason + ")"
 	}
-	b = append(b, i18n.T("tui.detail.status")+": "+st)
+	b = append(b, "", label("tui.detail.status")+st)
 	if x.Status == detect.StatusUnknown {
-		b = append(b, l.th.Warn.Render(i18n.T("tui.unknown_hint")))
+		b = append(b, l.ink(colInk).Bold(true).Render(i18n.T("tui.unknown_hint")))
 	}
 	if m, _, err := backend.Choose(it, l.sel.p); err == nil {
-		s := i18n.T("tui.detail.method") + ": " + m.Backend
+		s := label("tui.detail.method") + m.Backend
 		if m.Package != "" {
 			s += " " + m.Package
 		}
@@ -373,13 +563,7 @@ func (l ItemList) detail(width, rows int) []string {
 		b = append(b, n)
 	}
 	if len(l.sel.lines(id)) > 1 {
-		b = append(b, i18n.T("tui.detail.version")+": ‹ "+l.sel.Version(id)+" ›")
-	}
-	wrap := func(ls []string) []string {
-		if len(ls) == 0 {
-			return nil
-		}
-		return strings.Split(lipgloss.NewStyle().Width(width).Render(strings.Join(ls, "\n")), "\n")
+		b = append(b, label("tui.detail.version")+"‹ "+l.sel.Version(id)+" ›")
 	}
 	var cfg []string
 	active := 0 // primeira linha (já quebrada) da config sob o cursor
@@ -389,14 +573,14 @@ func (l ItemList) detail(width, rows int) []string {
 			mark = "> "
 		}
 		if i == l.cfgIdx {
-			active = len(wrap(cfg))
+			active = len(wrapAll(cfg, tw))
 		}
 		cfg = append(cfg, mark+l.th.Check(l.sel.ConfigOn(cf.ID), false)+" "+cf.Description.Get())
 	}
-	head, cfgL := wrap(b), wrap(cfg)
+	head, cfgL := wrapAll(b, tw), wrapAll(cfg, tw)
 	var note []string
 	if l.note != "" {
-		note = wrap([]string{l.th.Warn.Render(l.note)})
+		note = wrapAll([]string{l.ink(colInk).Bold(true).Render(l.note)}, tw)
 	}
 	// Prioridade: nota de recusa e configs ficam visíveis; o cabeçalho é cortado primeiro.
 	avail := max(rows-len(note), 1)
@@ -411,8 +595,25 @@ func (l ItemList) detail(width, rows int) []string {
 		cfgL = nil
 	}
 	room := max(avail-len(cfgL), 0)
+	// primeiro some o respiro entre os blocos; depois o resto é cortado com "…"
+	for len(head) > room {
+		blank := -1
+		for i := len(head) - 1; i > 0; i-- {
+			if head[i] == "" {
+				blank = i
+				break
+			}
+		}
+		if blank < 0 {
+			break
+		}
+		head = append(head[:blank], head[blank+1:]...)
+	}
 	if len(head) > room {
 		head = head[:room]
+		if room > 0 {
+			head[room-1] = ansi.Truncate(head[room-1], max(tw-1, 0), "") + "…"
+		}
 	}
 	lines := append(append(head, cfgL...), note...)
 	if len(lines) > rows {

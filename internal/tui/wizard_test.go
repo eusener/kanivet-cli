@@ -165,7 +165,7 @@ func TestCategoriesGolden(t *testing.T) {
 	m := detected(t, newModel(t, linuxSystemd))
 	m = send(m, enter(), enter())
 	v := m.View()
-	if !strings.Contains(v, "TERMINAL AND SHELL · 1/5") {
+	if !strings.Contains(v, "TERMINAL AND SHELL") {
 		t.Errorf("título:\n%s", v)
 	}
 	golden(t, "categories.golden", trimView(v))

@@ -15,6 +15,9 @@ type BoxOpts struct {
 	Fill     lipgloss.Color // interior; padrão colCard
 	Fg       lipgloss.Color // texto; padrão colInk
 	NoShadow bool
+	// Flush tira o recuo lateral: o corpo ocupa a largura toda entre as bordas, para
+	// que linhas selecionadas vão de borda a borda.
+	Flush bool
 }
 
 var resetRe = regexp.MustCompile(`\x1b\[(?:0?|49)m`)
@@ -70,6 +73,9 @@ func (t Theme) Box(body string, width int, o BoxOpts) string {
 		edge = edge.Foreground(colInk)
 	}
 	inner := t.R.NewStyle().Width(bw-2).Padding(0, 1)
+	if o.Flush {
+		inner = t.R.NewStyle().Width(bw - 2)
+	}
 	if t.Paper {
 		inner = inner.Background(fill).Foreground(fg)
 	}

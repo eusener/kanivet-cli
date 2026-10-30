@@ -148,7 +148,12 @@ func TestDashboardExternalUntouched(t *testing.T) {
 		m = send(m, tea.KeyMsg{Type: tea.KeyDown})
 	}
 	m = send(m, keyRune(" "))
-	if !m.sel.Marked("eza") || !strings.Contains(m.View(), i18n.T("tui.external_untouched")) {
+	// a nota é quebrada na caixa de detalhe: confere palavra por palavra
+	explained := true
+	for _, w := range strings.Fields(i18n.T("tui.external_untouched")) {
+		explained = explained && strings.Contains(m.View(), w)
+	}
+	if !m.sel.Marked("eza") || !explained {
 		t.Fatalf("externo não desmarca e explica:\n%s", m.View())
 	}
 }

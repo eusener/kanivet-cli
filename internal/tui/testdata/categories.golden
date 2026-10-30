@@ -3,28 +3,28 @@
   └──────────────────────────────────────────────────────────────────────────────────────────────┘
 
 
-  TERMINAL AND SHELL · 1/5
+  TERMINAL AND SHELL   CATEGORY 1 OF 5 · 12 OF 13 MARKED
 
-  > [x] herdr                    [ ]
-    [x] herdr agent icons        [ ]
-    [x] herdr plugins            [ ]
-    [x] kitty                    [ ]
-    [x] JetBrainsMono Nerd Font  [ ]
-    [x] atuin                    [ ]
-    [x] direnv                   [ ]
-    [x] fzf                      [ ]
-    [x] starship                 [ ]
-    [x] zoxide                   [ ]
-    [ ] zsh                      [ ]
-    [x] zsh-autosuggestions      [ ]
-    [x] zsh-syntax-highlighting  [ ]
-  ────────────────────────────────────────────────────────────────────────────────────────────────
-  herdr
-  Terminal workspace manager for AI coding agents
-  status: [ ] not installed
-  method: script
-    [x] Vesper theme, in-app toasts, plugin shortcuts and lazygit popup
-
-
-
+  ┌───────────────────────────────────────────────────┐  ┌───────────────────────────────────────┐
+  │ [x] HERDR                          [SCRIPT] [NEW] │  │ HERDR                                 │
+  │ [x] herdr agent icons              [SCRIPT] [NEW] │  │ herdr.dev                             │
+  │ [x] herdr plugins            [HERDR-PLUGIN] [NEW] │  │                                       │
+  │ [x] kitty                          [SCRIPT] [NEW] │  │ Terminal workspace manager for AI     │
+  │ [x] JetBrainsMono Nerd Font          [FONT] [NEW] │  │ coding agents                         │
+  │ [x] atuin                            [MISE] [NEW] │  │                                       │
+  │ [x] direnv                           [MISE] [NEW] │  │ STATUS  [ ] not installed             │
+  │ [x] fzf                              [MISE] [NEW] │  │ METHOD  script                        │
+  │ [x] starship                         [MISE] [NEW] │  │   [x] Vesper theme, in-app toasts,    │
+  │ [x] zoxide                           [MISE] [NEW] │  │ plugin shortcuts and lazygit popup    │
+  │ [ ] zsh                                  [SYSTEM] │  │                                       │
+  │ [x] zsh-autosuggestions               [GIT] [NEW] │  │                                       │
+  │ [x] zsh-syntax-highlighting           [GIT] [NEW] │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  │                                                   │  │                                       │
+  └───────────────────────────────────────────────────┘  └───────────────────────────────────────┘
   [33 TO INSTALL]  [6 CONFIGS]  ←/H left  / search  ENTER confirm  ESC back  ? help  Q quit

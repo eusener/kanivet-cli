@@ -263,6 +263,11 @@ func (m Model) View() string {
 	if m.screen == ScreenExecute {
 		bh-- // a última linha é a barra de progresso
 	}
+	// na tela de itens o título da categoria é a primeira linha da própria lista
+	ownTitle := m.screen == ScreenCategories && !m.showHelp
+	if ownTitle {
+		bh += 1 + m.respiro()/2
+	}
 	body := m.bodyLines(bh)
 	for len(body) < bh {
 		body = append(body, "")
@@ -270,8 +275,10 @@ func (m Model) View() string {
 	lines := m.header()
 	gap := make([]string, m.respiro()/2)
 	lines = append(lines, gap...)
-	lines = append(lines, m.th.Title.Render(m.upperTitle()))
-	lines = append(lines, gap...)
+	if !ownTitle {
+		lines = append(lines, m.th.Title.Render(m.upperTitle()))
+		lines = append(lines, gap...)
+	}
 	lines = append(lines, body[:bh]...)
 	if m.screen == ScreenExecute { // a barra de progresso fecha o corpo; o texto vai ao rodapé
 		lines = append(lines, m.progressBar())
@@ -498,7 +505,9 @@ func (m Model) bodyLines(height int) []string {
 	case ScreenProfile:
 		return m.profileLines(height)
 	case ScreenCategories:
-		return strings.Split(m.list.View(m.contentWidth(), height), "\n")
+		l := m.list
+		l.gap = m.respiro() / 2
+		return strings.Split(l.View(m.contentWidth(), height), "\n")
 	case ScreenReview:
 		return m.reviewLines(height)
 	case ScreenExecute:
