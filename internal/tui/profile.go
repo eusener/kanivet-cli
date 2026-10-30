@@ -180,8 +180,8 @@ func (m Model) profileCard(pr catalog.Profile, selected bool, w, descLines int) 
 		desc = append(desc, "")
 	}
 	body = append(body, desc...)
-	tagBg := profileColor(pr.ID)
-	if selected || tagBg == "" {
+	tagBg := profileColor(pr.ID) // também no cartão selecionado (sky): a cor identifica o perfil
+	if tagBg == "" {
 		tagBg = colCard
 	}
 	body = append(body, m.th.Tag(i18n.N("tui.profile.items", m.profileItemCount(pr.ID)), tagBg))

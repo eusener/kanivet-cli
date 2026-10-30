@@ -402,3 +402,22 @@ func TestWelcomeAndProfilePainted(t *testing.T) {
 	m = send(m, enter())
 	assertPainted(t, m.View(), 80, 24)
 }
+
+// T3: no cartão selecionado (sky) a tag de contagem mantém a cor do perfil.
+func TestSelectedProfileCardKeepsColor(t *testing.T) {
+	m := send(detected(t, newModel(t, linuxSystemd)), enter())
+	m = withTheme(m, paperTheme())
+	for _, pr := range m.profiles() {
+		c := profileColor(pr.ID)
+		if c == "" {
+			continue
+		}
+		tag := m.th.Tag(i18n.N("tui.profile.items", m.profileItemCount(pr.ID)), c)
+		for _, sel := range []bool{false, true} {
+			card := m.profileCard(pr, sel, 38, 1)
+			if !strings.Contains(card, tag) {
+				t.Errorf("%s (selecionado=%v): tag sem a cor do perfil %s", pr.ID, sel, c)
+			}
+		}
+	}
+}
