@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -10,9 +11,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/progress"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/eusener/kanivet-cli/internal/app"
 	"github.com/eusener/kanivet-cli/internal/executor"
@@ -20,7 +20,6 @@ import (
 	"github.com/eusener/kanivet-cli/internal/plan"
 	"github.com/eusener/kanivet-cli/internal/runner"
 	"github.com/eusener/kanivet-cli/internal/state"
-	"github.com/muesli/termenv"
 )
 
 // logCap é quantas linhas de log cada passo guarda em memória (o log completo fica no journal).
@@ -145,7 +144,10 @@ type execState struct {
 	finished int
 
 	started time.Time
-	elapsed time.Duration // congelado quando o run termina
+	elapsed time.Duration    // congelado quando o run termina
+	now     func() time.Time // relógio; o teste o substitui
+	began   map[string]time.Time
+	took    map[string]time.Duration
 
 	events  <-chan executor.Event
 	done    <-chan runDoneMsg
@@ -155,7 +157,6 @@ type execState struct {
 	interrupted bool
 	queue       []interactiveReq // pedidos interativos esperando a vez
 	busy        bool             // um ExecProcess em curso
-	bar         progress.Model
 }
 
 func (e execState) selected() string {
@@ -193,7 +194,8 @@ func (m Model) startRun() (Model, tea.Cmd) {
 
 	e := execState{
 		index: map[string]int{}, status: map[string]state.StepStatus{}, notes: map[string]string{},
-		logs: map[string]*logRing{}, follow: true, started: time.Now(),
+		logs: map[string]*logRing{}, follow: true, started: time.Now(), now: time.Now,
+		began: map[string]time.Time{}, took: map[string]time.Duration{},
 		events: events, done: done, cancel: cancel, running: true,
 	}
 	for _, layer := range m.plan.Order() {
@@ -202,11 +204,6 @@ func (m Model) startRun() (Model, tea.Cmd) {
 			e.steps = append(e.steps, st)
 		}
 	}
-	opts := []progress.Option{progress.WithoutPercentage(), progress.WithDefaultGradient()}
-	if !m.th.Color {
-		opts = append(opts, progress.WithColorProfile(termenv.Ascii))
-	}
-	e.bar = progress.New(opts...)
 	m.exec = e
 	m.screen = ScreenExecute
 
@@ -238,6 +235,9 @@ func (m Model) onEvent(ev eventMsg) (Model, tea.Cmd) {
 	if ev.Status != "" {
 		wasTerminal := e.terminal(ev.StepID)
 		e.status[ev.StepID] = ev.Status
+		if _, ok := e.began[ev.StepID]; !ok && ev.Status == state.StepRunning {
+			e.began[ev.StepID] = e.now()
+		}
 		switch {
 		case ev.Note != "":
 			e.notes[ev.StepID] = ev.Note
@@ -249,6 +249,9 @@ func (m Model) onEvent(ev eventMsg) (Model, tea.Cmd) {
 		} else if e.terminal(ev.StepID) {
 			if !wasTerminal {
 				e.finished++
+				if t0, ok := e.began[ev.StepID]; ok {
+					e.took[ev.StepID] = e.now().Sub(t0)
+				}
 			}
 			if e.current == ev.StepID {
 				e.current = ""
@@ -269,7 +272,7 @@ func (m Model) onEvent(ev eventMsg) (Model, tea.Cmd) {
 
 func (m Model) onRunDone(msg runDoneMsg) (Model, tea.Cmd) {
 	m.exec.running = false
-	m.exec.elapsed = time.Since(m.exec.started)
+	m.exec.elapsed = m.exec.now().Sub(m.exec.started)
 	m.runRep, m.runJ, m.runErr = msg.rep, msg.j, msg.err
 	m.sum = summaryState{}
 	if m.exec.interrupted {
@@ -379,114 +382,220 @@ func interactiveCallback(reply chan<- runner.Result) tea.ExecCallback {
 	}
 }
 
-func (m Model) stepIcon(id string) string {
+// fmtDur formata uma duração curta: 3.1s, 12s, 1m12s, 1h02m.
+func fmtDur(d time.Duration) string {
+	switch {
+	case d < 10*time.Second:
+		return fmt.Sprintf("%.1fs", d.Seconds())
+	case d < time.Minute:
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	case d < time.Hour:
+		return fmt.Sprintf("%dm%02ds", int(d.Minutes()), int(d.Seconds())%60)
+	}
+	return fmt.Sprintf("%dh%02dm", int(d.Hours()), int(d.Minutes())%60)
+}
+
+// elapsedNow é o tempo decorrido do run (congelado quando ele termina).
+func (e execState) elapsedNow() time.Duration {
+	if e.running && e.now != nil {
+		return e.now().Sub(e.started)
+	}
+	return e.elapsed
+}
+
+// stepGlyph é o ícone do passo; plain=true devolve texto sem estilo (para linhas já estilizadas).
+func (m Model) stepGlyph(id string, sel bool) string {
 	e := m.exec
-	switch e.status[id] {
-	case state.StepRunning:
-		if e.interrupted || !e.running {
-			return m.th.Warn.Render(m.th.StepIcon(state.StepRunning))
-		}
-		return m.th.Accent.Render(m.spin.View())
+	st := e.status[id]
+	g := m.th.StepIcon(st)
+	if st == state.StepRunning && e.running && !e.interrupted {
+		g = m.spin.View()
+	}
+	if sel {
+		return g
+	}
+	c := colInkMuted
+	switch st {
 	case state.StepDone:
-		return m.th.OK.Render(m.th.StepIcon(state.StepDone))
+		c = colOK
 	case state.StepFailed:
-		return m.th.Danger.Render(m.th.StepIcon(state.StepFailed))
-	case state.StepSkipped:
-		return m.th.Subtle.Render(m.th.StepIcon(state.StepSkipped))
+		c = colErr
+	case state.StepRunning:
+		c = colInkStrong
 	}
-	return m.th.Subtle.Render(m.th.StepIcon(state.StepPending))
+	return m.th.Ink(c).Render(g)
 }
 
-// fit corta s em w colunas e completa com espaços.
-func fit(s string, w int) string {
-	s = ansi.Truncate(s, w, "…")
-	if n := ansi.StringWidth(s); n < w {
-		s += strings.Repeat(" ", w-n)
-	}
-	return s
-}
-
-// executeLines desenha a lista de passos à esquerda e o log do passo escolhido à direita.
-func (m Model) executeLines(height int) []string {
+// progressBar desenha a barra de uma linha: preenchida em sky na proporção feitos/total.
+func (m Model) progressBar(w int) string {
 	e := m.exec
-	head := m.th.Subtle.Render(i18n.T("tui.execute.running"))
-	if e.interrupted {
-		head = m.th.Warn.Render(i18n.T("tui.execute.interrupted"))
-	}
-	rows := height - 1
-	if rows < 1 {
-		return []string{head}
-	}
-	lw := m.contentWidth() / 3
-	if lw < 24 {
-		lw = 24
-	}
-	if lw > 44 {
-		lw = 44
-	}
-	rw := m.contentWidth() - lw - 3
-	if rw < 1 {
-		rw = 1
-	}
-
-	top := 0
-	if len(e.steps) > rows {
-		top = e.cursor - rows/2
-		if top > len(e.steps)-rows {
-			top = len(e.steps) - rows
-		}
-		if top < 0 {
-			top = 0
-		}
-	}
-	left := make([]string, 0, rows)
-	for i := top; i < len(e.steps) && len(left) < rows; i++ {
-		st := e.steps[i]
-		prefix, label := "  ", st.ID
-		if i == e.cursor {
-			prefix, label = "> ", m.th.Selected.Render(st.ID)
-		}
-		text := prefix + m.stepIcon(st.ID) + " " + label
-		if n := e.notes[st.ID]; n != "" {
-			text += " " + m.th.Subtle.Render(n)
-		}
-		left = append(left, fit(text, lw))
-	}
-
-	sel := e.selected()
-	logs := e.logs[sel].last(rows - 1)
-	for i, l := range logs {
-		logs[i] = ansi.Truncate(l, rw, "…")
-	}
-	vp := viewport.New(rw, rows-1)
-	vp.SetContent(strings.Join(logs, "\n"))
-	vp.GotoBottom()
-	right := append([]string{m.th.Title.Render(ansi.Truncate(i18n.T("tui.execute.log", sel), rw, "…"))}, strings.Split(vp.View(), "\n")...)
-
-	out := []string{head}
-	sep := m.th.Border.Render("│")
-	for i := 0; i < rows; i++ {
-		l, r := strings.Repeat(" ", lw), ""
-		if i < len(left) {
-			l = left[i]
-		}
-		if i < len(right) {
-			r = right[i]
-		}
-		out = append(out, l+" "+sep+" "+r)
-	}
-	return out
-}
-
-// progressLine é a barra do rodapé: concluídos/total e o tempo decorrido.
-// progressBar desenha só a barra de progresso (o texto vai ao rodapé, em tag).
-func (m Model) progressBar() string {
-	e := m.exec
+	w = max(w, 4)
 	ratio := 0.0
 	if total := len(e.steps); total > 0 {
 		ratio = float64(e.finished) / float64(total)
 	}
-	bar := e.bar
-	bar.Width = max(m.contentWidth(), 10)
-	return ansi.Truncate(bar.ViewAs(ratio), m.contentWidth(), "")
+	if !m.th.Paper {
+		n := int(ratio*float64(w-2) + 0.5)
+		return "[" + strings.Repeat(pick(m.th.Nerd, "█", "#"), n) + strings.Repeat(pick(m.th.Nerd, "░", "-"), w-2-n) + "]"
+	}
+	n := int(ratio*float64(w) + 0.5)
+	on := m.th.R.NewStyle().Background(colSky).Render(strings.Repeat(" ", n))
+	off := m.th.R.NewStyle().Background(colCard).Render(strings.Repeat(" ", w-n))
+	return on + off
+}
+
+// executeHeading é a linha de título: INSTALANDO, a barra e feitos/total · tempo.
+func (m Model) executeHeading() string {
+	e := m.exec
+	cw := m.contentWidth()
+	title := m.th.Title.Render(strings.ToUpper(i18n.T("tui.execute.title")))
+	sp := m.th.S().Render("  ")
+	prog := m.th.S().Render(i18n.T("tui.execute.progress", e.finished, len(e.steps), fmtDur(e.elapsedNow())))
+	barW := min(cw-lipgloss.Width(title)-lipgloss.Width(prog)-2*lipgloss.Width(sp), 30)
+	if barW < 6 {
+		return ansi.Truncate(title+sp+prog, cw, "…")
+	}
+	return title + sp + m.progressBar(barW) + sp + prog
+}
+
+// stepRow desenha uma linha da caixa de passos com a duração à direita.
+func (m Model) stepRow(id string, sel bool, w int) string {
+	e := m.exec
+	name := id
+	if sel {
+		name = strings.ToUpper(name)
+	}
+	base := m.th.R.NewStyle()
+	if sel {
+		base = m.th.Selected
+	}
+	muted := m.th.Ink(colInkMuted)
+	if sel {
+		muted = base
+	}
+	right := ""
+	if d, ok := e.took[id]; ok {
+		right = fmtDur(d)
+	}
+	tag := ""
+	if e.status[id] == state.StepFailed {
+		tag = " " + m.th.Tag(i18n.T("tui.execute.failed"), colCoral)
+	}
+	lead := base.Render(" ") + m.stepGlyph(id, sel) + base.Render(" ")
+	rw := 0
+	if right != "" {
+		rw = lipgloss.Width(right) + 2 // espaço antes e depois da duração
+	}
+	room := max(w-lipgloss.Width(lead)-lipgloss.Width(tag)-rw-1, 0)
+	text := name
+	if n := e.notes[id]; n != "" {
+		text += " " + n
+	}
+	text = ansi.Truncate(text, room, "…")
+	head := ansi.Truncate(name, room, "…")
+	if lipgloss.Width(text) > lipgloss.Width(head) {
+		text = base.Render(head) + muted.Render(ansi.Cut(text, lipgloss.Width(head), lipgloss.Width(text)))
+	} else {
+		text = base.Render(text)
+	}
+	line := lead + text + tag
+	pad := max(w-lipgloss.Width(line)-rw, 0)
+	line += base.Render(strings.Repeat(" ", pad))
+	if right != "" {
+		line += base.Render(" ") + muted.Render(right) + base.Render(" ")
+	}
+	return padTo(line, w)
+}
+
+// pendingLine é "· próximos · a · b · +N" com os passos que ainda não começaram.
+func (m Model) pendingLine(ids []string, w int) string {
+	muted := m.th.Ink(colInkMuted)
+	line := "· " + i18n.T("tui.execute.next")
+	for i, id := range ids {
+		rest := len(ids) - i - 1
+		cand := line + " · " + id
+		tail := ""
+		if rest > 0 {
+			tail = fmt.Sprintf(" · +%d", rest)
+		}
+		if lipgloss.Width(" "+cand+tail) > w {
+			return padTo(muted.Render(ansi.Truncate(" "+line+fmt.Sprintf(" · +%d", len(ids)-i), w, "…")), w)
+		}
+		line = cand
+	}
+	return padTo(muted.Render(" "+line), w)
+}
+
+// executeLines desenha título, caixa de passos e caixa de log (a única escura).
+func (m Model) executeLines(height int) []string {
+	e := m.exec
+	cw := m.contentWidth()
+	lines := []string{m.executeHeading()}
+	for i := 0; i < m.respiro()/2; i++ {
+		lines = append(lines, "")
+	}
+	if e.interrupted {
+		lines = append(lines, m.th.Warn.Render(ansi.Truncate(i18n.T("tui.execute.interrupted"), cw, "…")))
+	}
+	oh := m.th.BoxOverhead()
+	avail := height - len(lines) - 2*oh
+	if len(e.steps) == 0 || avail < 2 {
+		return lines
+	}
+	logRows := max(avail/3, 2)
+	stepRows := max(avail-logRows, 1)
+	if want := len(e.steps) + 1; stepRows > want { // lista curta: o que sobra vai ao log
+		logRows += stepRows - want
+		stepRows = want
+	}
+	in := m.th.BoxInner(cw)
+
+	// passos: os que já começaram, mais o escolhido; os que faltam viram a linha "próximos"
+	var shown, pending []string
+	cur := -1
+	sel := e.selected()
+	for _, st := range e.steps {
+		if e.status[st.ID] == "" || e.status[st.ID] == state.StepPending {
+			if st.ID != sel {
+				pending = append(pending, st.ID)
+				continue
+			}
+		}
+		if st.ID == sel {
+			cur = len(shown)
+		}
+		shown = append(shown, st.ID)
+	}
+	room := stepRows
+	if len(pending) > 0 {
+		room--
+	}
+	room = max(room, 1)
+	top := 0
+	if len(shown) > room {
+		top = min(max(cur-room/2, 0), len(shown)-room)
+	}
+	var rows []string
+	for i := top; i < len(shown) && len(rows) < room; i++ {
+		rows = append(rows, m.stepRow(shown[i], i == cur, in))
+	}
+	if len(pending) > 0 && len(rows) < stepRows {
+		rows = append(rows, m.pendingLine(pending, in))
+	}
+	for len(rows) < stepRows {
+		rows = append(rows, strings.Repeat(" ", in))
+	}
+	lines = append(lines, strings.Split(m.th.Box(strings.Join(rows, "\n"), cw, BoxOpts{Flush: true}), "\n")...)
+
+	// log do passo escolhido
+	lw := max(m.th.BoxInner(cw)-2, 1)
+	logLines := []string{m.th.Ink(colSky).Bold(true).Render(ansi.Truncate(strings.ToUpper(i18n.T("tui.execute.log", sel)), lw, "…"))}
+	for _, l := range e.logs[sel].last(logRows - 1) {
+		logLines = append(logLines, ansi.Truncate(l, lw, "…"))
+	}
+	for len(logLines) < logRows {
+		logLines = append(logLines, "")
+	}
+	lines = append(lines, strings.Split(m.th.Box(strings.Join(logLines, "\n"), cw, BoxOpts{Fill: colLogBg, Fg: colLogFg}), "\n")...)
+	return lines
 }

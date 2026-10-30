@@ -80,7 +80,7 @@ func TestExecutionMarksStepsFromEvents(t *testing.T) {
 	m = send(m, ev("chsh:s1", state.StepRunning), ev("chsh:s1", state.StepDone))
 	m = send(m, ev("chsh:s3", state.StepRunning), eventMsg(executor.Event{StepID: "chsh:s3", Status: state.StepFailed, Note: "boom"}))
 	v := m.View()
-	for _, want := range []string{"[ok] chsh:s1", "[x] chsh:s3", "boom", "2/3"} {
+	for _, want := range []string{"[ok] chsh:s1", "[x] CHSH:S3", "boom", "2/3"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("View sem %q:\n%s", want, v)
 		}
@@ -296,7 +296,7 @@ func TestExecutionSurvivesResize(t *testing.T) {
 	}
 	m = send(m, line("chsh:s1", strings.Repeat("x", 300)), size(120, 40))
 	v := m.View()
-	if !strings.Contains(v, "chsh:s1") || !strings.Contains(v, "working") {
+	if !strings.Contains(v, "CHSH:S1") || !strings.Contains(v, "working") {
 		t.Fatalf("não voltou à execução:\n%s", v)
 	}
 	for _, l := range strings.Split(v, "\n") {
@@ -398,4 +398,113 @@ func dispatched(cmd tea.Cmd) bool {
 		}
 	}
 	return false
+}
+
+func TestFmtDur(t *testing.T) {
+	for d, want := range map[time.Duration]string{
+		3100 * time.Millisecond:     "3.1s",
+		72 * time.Second:            "1m12s",
+		time.Hour + 2*time.Minute:   "1h02m",
+		12 * time.Second:            "12s",
+		time.Minute + 5*time.Second: "1m05s",
+		0:                           "0.0s",
+	} {
+		if got := fmtDur(d); got != want {
+			t.Errorf("fmtDur(%v) = %q, want %q", d, got, want)
+		}
+	}
+}
+
+func TestStepDurations(t *testing.T) {
+	m, _ := executing(t)
+	t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	now := t0
+	m.exec.now = func() time.Time { return now }
+	m = send(m, ev("chsh:s1", state.StepRunning))
+	now = t0.Add(3100 * time.Millisecond)
+	m = send(m, ev("chsh:s1", state.StepDone))
+	if got := m.exec.took["chsh:s1"]; got != 3100*time.Millisecond {
+		t.Fatalf("took = %v", got)
+	}
+	var row string
+	for _, l := range strings.Split(m.View(), "\n") {
+		if strings.Contains(strings.ToLower(l), "chsh:s1") && !strings.Contains(l, "LOG") {
+			row = l
+		}
+	}
+	if !strings.Contains(row, "3.1s") {
+		t.Fatalf("linha do passo sem a duração: %q\n%s", row, m.View())
+	}
+	// um segundo Running não reinicia o relógio do passo
+	now = t0.Add(10 * time.Second)
+	m = send(m, ev("chsh:s3", state.StepRunning))
+	now = t0.Add(11 * time.Second)
+	m = send(m, ev("chsh:s3", state.StepRunning), ev("chsh:s3", state.StepSkipped))
+	if got := m.exec.took["chsh:s3"]; got != time.Second {
+		t.Fatalf("took s3 = %v", got)
+	}
+}
+
+func TestExecuteScreenLayout(t *testing.T) {
+	m, _ := executing(t)
+	m = send(m, ev("chsh:s1", state.StepRunning), line("chsh:s1", "downloading"))
+	v := m.View()
+	for _, want := range []string{"INSTALLING", "0/3", "CHSH:S1", "CHSH:S1 · LOG", "downloading", "chsh:s2"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("View sem %q:\n%s", want, v)
+		}
+	}
+	if strings.Count(v, "0/3") != 1 {
+		t.Errorf("progresso aparece mais de uma vez:\n%s", v)
+	}
+	m = send(m, ev("chsh:s1", state.StepFailed))
+	if !strings.Contains(m.View(), "FAILED") {
+		t.Errorf("sem a tag FALHOU:\n%s", m.View())
+	}
+}
+
+func TestExecuteLogBoxDark(t *testing.T) {
+	m, _ := executing(t)
+	m.th = paperTheme()
+	m = send(m, ev("chsh:s1", state.StepRunning), line("chsh:s1", "downloading"))
+	v := m.View()
+	dark := m.th.bgSeq(colLogBg)
+	var logRow string
+	for _, l := range strings.Split(v, "\n") {
+		if strings.Contains(l, "downloading") {
+			logRow = l
+		}
+	}
+	if !strings.Contains(logRow, dark) {
+		t.Fatalf("a caixa de log não tem o fundo %q: %q", dark, logRow)
+	}
+	if strings.Contains(strings.Split(v, "\n")[len(strings.Split(v, "\n"))-1], dark) {
+		t.Error("o fundo escuro vazou para o rodapé")
+	}
+}
+
+func TestExecutePainted(t *testing.T) {
+	for _, sz := range [][2]int{{120, 40}, {80, 24}, {60, 20}} {
+		m, _ := executing(t)
+		m.th = paperTheme()
+		m = send(m, size(sz[0], sz[1]))
+		m = send(m, ev("chsh:s1", state.StepRunning), line("chsh:s1", "a very long log line "+strings.Repeat("x", 200)))
+		m = send(m, ev("chsh:s1", state.StepDone), ev("chsh:s3", state.StepRunning), eventMsg(executor.Event{StepID: "chsh:s3", Status: state.StepFailed, Note: strings.Repeat("boom ", 30)}))
+		assertPainted(t, m.View(), sz[0], sz[1])
+	}
+}
+
+func TestExecuteGolden(t *testing.T) {
+	m, _ := executing(t)
+	m.th = NewTheme(map[string]string{"NO_COLOR": "1"}, false)
+	m = send(m, size(80, 24))
+	t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	now := t0
+	m.exec.now = func() time.Time { return now }
+	m.exec.started = t0
+	m = send(m, ev("chsh:s1", state.StepRunning), line("chsh:s1", "step one"))
+	now = t0.Add(3100 * time.Millisecond)
+	m = send(m, ev("chsh:s1", state.StepDone), ev("chsh:s3", state.StepRunning), line("chsh:s3", "mise downloading 62%"))
+	now = t0.Add(72 * time.Second)
+	golden(t, "execute.golden", trimView(m.View()))
 }

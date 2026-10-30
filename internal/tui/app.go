@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -260,11 +259,8 @@ func (m Model) View() string {
 		return m.th.Canvas(strings.Split(ansi.Wrap(msg, max(m.w, 1), ""), "\n"), m.w, m.h)
 	}
 	bh := m.bodyHeight()
-	if m.screen == ScreenExecute {
-		bh-- // a última linha é a barra de progresso
-	}
 	// nas telas de itens e de revisão o título (com as tags) é a primeira linha do próprio corpo
-	ownTitle := (m.screen == ScreenCategories || m.screen == ScreenReview) && !m.showHelp
+	ownTitle := (m.screen == ScreenCategories || m.screen == ScreenReview || m.screen == ScreenExecute) && !m.showHelp
 	if ownTitle {
 		bh += 1 + m.respiro()/2
 	}
@@ -280,9 +276,6 @@ func (m Model) View() string {
 		lines = append(lines, gap...)
 	}
 	lines = append(lines, body[:bh]...)
-	if m.screen == ScreenExecute { // a barra de progresso fecha o corpo; o texto vai ao rodapé
-		lines = append(lines, m.progressBar())
-	}
 	lines = append(lines, m.footer())
 	var framed []string
 	pad := strings.Repeat(" ", margin)
@@ -436,12 +429,7 @@ func (m Model) footer() string {
 func (m Model) counterTags() []string {
 	switch {
 	case m.screen == ScreenExecute:
-		e := m.exec
-		el := e.elapsed
-		if e.running {
-			el = time.Since(e.started)
-		}
-		return []string{m.th.Tag(i18n.T("tui.execute.progress", e.finished, len(e.steps), el.Round(time.Second).String()), colSky)}
+		return nil // o progresso fica no título da tela
 	case m.screen == ScreenSummary || m.sel == nil:
 		return nil
 	case m.screen == ScreenDashboard:
