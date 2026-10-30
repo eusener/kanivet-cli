@@ -1,0 +1,110 @@
+<style>
+  .scr{font-family:"JetBrains Mono",Menlo,monospace;font-size:13px;line-height:19px;border-radius:6px;padding:14px 18px 18px 22px;width:80ch;box-sizing:content-box;overflow:hidden}
+  .light{--bg:#f4efea;--ink:#383838;--mut:#666;--card:#ffffff;--sky:#97d4ff;--sun:#ffde00;--peach:#ffdcbd;--mint:#b0fff4;--wm:#ffcbc8;--wms:#e23f35;--gs:#068475;background:var(--bg);color:var(--ink)}
+  .dark{--bg:#1c1b1a;--ink:#f4efea;--mut:#a8a29c;--card:#262422;--sky:#97d4ff;--sun:#ffde00;--peach:#ffdcbd;--mint:#b0fff4;--wm:#ffcbc8;--wms:#ff7169;--gs:#16aa98;background:var(--bg);color:var(--ink)}
+  .box{border:2px solid var(--ink);background:var(--card);box-shadow:-1ch 10px 0 0 var(--ink);padding:2px 1ch}
+  .row{display:flex;gap:2ch;align-items:flex-start}
+  .tag{display:inline-block;padding:0 .6ch;color:#111110;text-transform:uppercase;font-size:11.5px;line-height:17px;border:1px solid #383838}
+  .sky{background:var(--sky)}.sun{background:var(--sun)}.peach{background:var(--peach)}.mint{background:var(--mint)}.wm{background:var(--wm)}
+  .sel{background:var(--sky);color:#111110;margin:0 -1ch;padding:0 1ch}
+  .up{text-transform:uppercase;letter-spacing:.04em}
+  .mut{color:var(--mut)}
+  .h{font-size:15px;text-transform:uppercase;letter-spacing:.05em}
+  .line{white-space:pre}
+  .bar{display:inline-block;height:11px;border:2px solid var(--ink);width:30ch;vertical-align:-2px;background:linear-gradient(90deg,var(--sky) 0 47%,transparent 47%)}
+  .ok{color:var(--gs)}.err{color:var(--wms)}
+  .gap{height:12px}
+  .wrap{display:flex;flex-direction:column;gap:26px}
+  .note{font-size:13px;margin:4px 0 0}
+</style>
+
+<h2>Na linha da sua referência: "papel e tinta"</h2>
+<p class="subtitle">Traduzi para o terminal o que define aquele estilo: fundo creme, contornos grossos em grafite, sombras sólidas deslocadas (feitas com blocos █▀ no terminal), cores chapadas de giz de cera nos destaques e títulos em maiúsculas monoespaçadas. A identidade é do kanivet — só a linha visual vem da referência.</p>
+
+<div class="wrap">
+
+<div>
+<h3>Itens por categoria · claro</h3>
+<div class="scr light">
+<div class="box line"><span class="tag sun"> KANIVET </span>  <span class="up mut">perfil ✓</span> ─ <span class="tag sky">itens</span> ─ <span class="up mut">revisão</span> ─ <span class="up mut">instalar</span>                 <span class="up">3/5</span></div>
+<div class="gap"></div><div class="gap"></div>
+<div class="line"><span class="h">Terminal e shell</span>   <span class="mut up">categoria 1 de 5 · 6 de 7 marcados</span></div>
+<div class="gap"></div>
+<div class="row">
+ <div class="box line" style="width:40ch"><div class="sel">✓ HERDR               <span class="tag peach">script</span> <span class="tag sun">novo</span></div>✓ herdr plugins       <span class="tag peach">plugin</span>
+✓ kitty               <span class="tag mint">instalado</span>
+✓ atuin               <span class="tag peach">mise</span>
+○ zsh                 <span class="tag peach">apt</span> <span class="tag sun">sudo</span>
+✓ starship            <span class="tag peach">mise</span>
+✓ zoxide              <span class="tag peach">mise</span></div>
+ <div class="box line" style="width:31ch"><span class="up">herdr</span>
+<span class="mut">herdr.dev</span>
+
+Workspaces no terminal
+para agentes de IA
+
+<span class="mut up">status</span>  não instalado
+<span class="mut up">config</span>  ✓ tema vesper</div>
+</div>
+<div class="gap"></div><div class="gap"></div>
+<div class="line"><span class="tag sky">36 instalar</span> <span class="tag mint">6 configs</span>          <span class="up mut">space</span> marcar  <span class="up mut">enter</span> seguir  <span class="up mut">?</span> ajuda</div>
+</div>
+</div>
+
+<div>
+<h3>Execução · claro</h3>
+<div class="scr light">
+<div class="box line"><span class="tag sun"> KANIVET </span>  <span class="up mut">perfil ✓ ─ itens ✓ ─ revisão ✓</span> ─ <span class="tag sky">instalar</span>              <span class="up">5/5</span></div>
+<div class="gap"></div><div class="gap"></div>
+<div class="line"><span class="h">Instalando</span>   <span class="bar"></span>  18/38 · 1m12s</div>
+<div class="gap"></div>
+<div class="box line" style="width:74ch"><span class="ok">✓</span> mise                                                    3.1s
+<span class="ok">✓</span> starship                                                2.4s
+<span class="err">✗</span> procs               <span class="tag wm">falhou</span>                              0.8s
+<div class="sel">⠼ NEOVIM              <span class="tag peach">mise</span>                                      </div>⠼ lazygit             <span class="tag peach">mise</span>
+<span class="mut">· node · pnpm · bun · +17</span></div>
+<div class="gap"></div><div class="gap"></div>
+<div class="box line" style="width:74ch;background:#2b2a29;color:#e8e2dc"><span style="color:#97d4ff">NEOVIM · LOG</span>
+mise ⇣ neovim@0.11.4   downloading 62%
+mise ✓ extracted</div>
+<div class="gap"></div><div class="gap"></div>
+<div class="line"><span class="up mut">↑↓</span> passo  <span class="up mut">f</span> seguir log  <span class="up mut">ctrl+c</span> interromper</div>
+</div>
+</div>
+
+<div>
+<h3>Itens por categoria · escuro (mesmo estilo, tinta invertida)</h3>
+<div class="scr dark">
+<div class="box line"><span class="tag sun"> KANIVET </span>  <span class="up mut">perfil ✓</span> ─ <span class="tag sky">itens</span> ─ <span class="up mut">revisão</span> ─ <span class="up mut">instalar</span>                 <span class="up">3/5</span></div>
+<div class="gap"></div><div class="gap"></div>
+<div class="line"><span class="h">Terminal e shell</span>   <span class="mut up">categoria 1 de 5 · 6 de 7 marcados</span></div>
+<div class="gap"></div>
+<div class="row">
+ <div class="box line" style="width:40ch"><div class="sel">✓ HERDR               <span class="tag peach">script</span> <span class="tag sun">novo</span></div>✓ herdr plugins       <span class="tag peach">plugin</span>
+✓ kitty               <span class="tag mint">instalado</span>
+✓ atuin               <span class="tag peach">mise</span>
+○ zsh                 <span class="tag peach">apt</span> <span class="tag sun">sudo</span>
+✓ starship            <span class="tag peach">mise</span>
+✓ zoxide              <span class="tag peach">mise</span></div>
+ <div class="box line" style="width:31ch"><span class="up">herdr</span>
+<span class="mut">herdr.dev</span>
+
+Workspaces no terminal
+para agentes de IA
+
+<span class="mut up">status</span>  não instalado
+<span class="mut up">config</span>  ✓ tema vesper</div>
+</div>
+<div class="gap"></div><div class="gap"></div>
+<div class="line"><span class="tag sky">36 instalar</span> <span class="tag mint">6 configs</span>          <span class="up mut">space</span> marcar  <span class="up mut">enter</span> seguir  <span class="up mut">?</span> ajuda</div>
+</div>
+</div>
+
+</div>
+
+<h3 style="margin-top:26px">E o fundo da tela?</h3>
+<div class="options">
+  <div class="option" data-choice="pintar-creme" onclick="toggleSelect(this)"><div class="letter">A</div><div class="content"><h3>Sempre papel creme</h3><p>A TUI pinta a tela toda de creme, mesmo num terminal escuro. Identidade forte e igual em qualquer máquina.</p></div></div>
+  <div class="option" data-choice="adaptativo" onclick="toggleSelect(this)"><div class="letter">B</div><div class="content"><h3>Segue o terminal</h3><p>Creme no terminal claro, tinta invertida no escuro (terceira tela). Mesmo estilo, sem brigar com o tema de quem usa.</p></div></div>
+  <div class="option" data-choice="so-escuro" onclick="toggleSelect(this)"><div class="letter">C</div><div class="content"><h3>Só a versão escura</h3><p>Fundo do próprio terminal, com contornos claros e as mesmas cores chapadas.</p></div></div>
+</div>

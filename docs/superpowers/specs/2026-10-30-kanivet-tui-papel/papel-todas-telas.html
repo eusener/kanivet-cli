@@ -1,0 +1,134 @@
+<style>
+  .scr{font-family:"JetBrains Mono",Menlo,monospace;font-size:12.5px;line-height:18px;border-radius:6px;padding:14px 18px 18px 22px;width:80ch;box-sizing:content-box;overflow:hidden;--bg:#f4efea;--ink:#383838;--mut:#666;--card:#ffffff;--sky:#97d4ff;--sun:#ffde00;--peach:#ffdcbd;--mint:#b0fff4;--wm:#ffcbc8;--wms:#e23f35;--gs:#068475;background:var(--bg);color:var(--ink)}
+  .box{border:2px solid var(--ink);background:var(--card);box-shadow:-1ch 9px 0 0 var(--ink);padding:2px 1ch}
+  .row{display:flex;gap:2ch;align-items:flex-start}
+  .tag{display:inline-block;padding:0 .6ch;color:#111110;text-transform:uppercase;font-size:11px;line-height:16px;border:1px solid #383838}
+  .sky{background:var(--sky)}.sun{background:var(--sun)}.peach{background:var(--peach)}.mint{background:var(--mint)}.wm{background:var(--wm)}
+  .sel{background:var(--sky);color:#111110;margin:0 -1ch;padding:0 1ch}
+  .up{text-transform:uppercase;letter-spacing:.04em}
+  .mut{color:var(--mut)}
+  .h{font-size:15px;text-transform:uppercase;letter-spacing:.05em}
+  .big{font-size:22px;line-height:28px;text-transform:uppercase;letter-spacing:.05em}
+  .line{white-space:pre}
+  .ok{color:var(--gs)}.err{color:var(--wms)}
+  .gap{height:12px}
+  .wrap{display:flex;flex-direction:column;gap:26px}
+  .card{border:2px solid var(--ink);padding:4px 1ch;box-shadow:-1ch 9px 0 0 var(--ink)}
+  .tabs span{display:inline-block;padding:0 1ch;border:2px solid var(--ink);margin-right:-2px;background:var(--card)}
+  .tabs .on{background:var(--sun)}
+</style>
+
+<h2>Papel e tinta, sempre creme: as outras telas</h2>
+<p class="subtitle">Boas-vindas, perfil, revisão, resumo e painel no mesmo estilo (itens e execução estão na página anterior). Me diga no terminal o que está errado ou faltando em qualquer uma.</p>
+
+<div class="wrap">
+
+<div><h3>1 · Boas-vindas</h3>
+<div class="scr">
+<div class="box line"><span class="tag sun"> KANIVET </span>  <span class="tag sky">boas-vindas</span> ─ <span class="up mut">perfil ─ itens ─ revisão ─ instalar</span>          <span class="up">1/5</span></div>
+<div class="gap"></div><div class="gap"></div><div class="gap"></div>
+<div class="big">Seu terminal de dev,</div>
+<div class="big">montado em minutos.</div>
+<div class="gap"></div>
+<div class="line">Escolha um perfil, ajuste item a item, revise o plano.
+<span class="mut">Nada é executado antes da revisão.</span></div>
+<div class="gap"></div><div class="gap"></div>
+<div class="box line" style="width:46ch"><span class="mut up">sistema</span>   ubuntu 24.04 · amd64
+<span class="mut up">shell</span>     zsh
+<span class="mut up">pacotes</span>   apt   <span class="tag sun">sudo em 3 itens</span></div>
+<div class="gap"></div><div class="gap"></div><div class="gap"></div>
+<div class="line"><span class="tag sky"> ENTER  COMEÇAR → </span>       <span class="up mut">?</span> ajuda  <span class="up mut">q</span> sair</div>
+</div></div>
+
+<div><h3>2 · Perfil</h3>
+<div class="scr">
+<div class="box line"><span class="tag sun"> KANIVET </span>  <span class="tag sky">perfil</span> ─ <span class="up mut">itens ─ revisão ─ instalar</span>                      <span class="up">2/5</span></div>
+<div class="gap"></div><div class="gap"></div>
+<div class="h">Escolha um perfil</div>
+<div class="gap"></div>
+<div class="row" style="flex-wrap:wrap;row-gap:16px">
+ <div class="card line sky" style="width:34ch;color:#111110"><b class="up">● Laravel / PHP</b>
+lerd ou Flock, Composer,
+Node, LazyVim p/ PHP
+<span class="tag" style="background:#fff">34 itens</span></div>
+ <div class="card line" style="width:34ch;background:#fff">○ <span class="up">Web (JS/TS)</span>
+Node, pnpm, Bun, HTTP,
+LazyVim p/ TypeScript
+<span class="tag peach">31 itens</span></div>
+ <div class="card line" style="width:34ch;background:#fff">○ <span class="up">ML / Dados</span>
+Python, uv, Ruff, Jupyter,
+CUDA com GPU NVIDIA
+<span class="tag mint">29 itens</span></div>
+ <div class="card line" style="width:34ch;background:#fff">○ <span class="up">Backend / Sistemas</span>
+Rust, Go, .NET, Java,
+Podman, Kubernetes
+<span class="tag wm">35 itens</span></div>
+</div>
+<div class="gap"></div><div class="gap"></div>
+<div class="line">○ <span class="up">Começar do zero</span>  <span class="mut">só a base: shell, CLI, git, LazyVim, terminal</span></div>
+<div class="gap"></div>
+<div class="line"><span class="up mut">↑↓←→</span> mover  <span class="up mut">enter</span> escolher  <span class="up mut">esc</span> voltar  <span class="up mut">?</span> ajuda</div>
+</div></div>
+
+<div><h3>4 · Revisão</h3>
+<div class="scr">
+<div class="box line"><span class="tag sun"> KANIVET </span>  <span class="up mut">perfil ✓ ─ itens ✓</span> ─ <span class="tag sky">revisão</span> ─ <span class="up mut">instalar</span>                <span class="up">4/5</span></div>
+<div class="gap"></div><div class="gap"></div>
+<div class="line"><span class="h">Revise o plano</span>     <span class="tag sky">31 instalar</span> <span class="tag mint">7 configs</span> <span class="tag sun">2 sudo</span></div>
+<div class="gap"></div>
+<div class="box line" style="width:74ch"><span class="tag sun">precisa de sudo</span>
+  + zsh                 <span class="mut">apt install zsh</span>
+  + podman              <span class="mut">apt install podman</span>
+
+<span class="tag sky">instalar</span>
+<div class="sel">  + STARSHIP            mise use -g starship@latest</div>  + atuin               <span class="mut">mise use -g atuin@latest</span>
+  <span class="mut">… +27</span>
+
+<span class="tag mint">configurar</span>
+  ~ ~/.config/kitty/kitty.conf          <span class="tag peach">backup</span>
+  ~ ~/.zshrc                            <span class="tag peach">backup</span></div>
+<div class="gap"></div><div class="gap"></div>
+<div class="line"><span class="tag sky"> ENTER  INSTALAR → </span>    <span class="up mut">d</span> diff  <span class="up mut">esc</span> voltar  <span class="up mut">?</span> ajuda</div>
+</div></div>
+
+<div><h3>6 · Resumo</h3>
+<div class="scr">
+<div class="box line"><span class="tag sun"> KANIVET </span>  <span class="up mut">perfil ✓ ─ itens ✓ ─ revisão ✓ ─ instalar ✓</span>              <span class="up">fim</span></div>
+<div class="gap"></div><div class="gap"></div>
+<div class="big">Pronto em 3m42s</div>
+<div class="gap"></div>
+<div class="line"><span class="tag mint">36 instalados</span> <span class="tag sky">6 configs</span> <span class="tag wm">1 falhou</span></div>
+<div class="gap"></div>
+<div class="box line wm" style="width:74ch;color:#111110"><span class="up">✗ Falhou</span>
+<div class="sel" style="background:#fff">  ✗ PROCS   sem binário para linux/arm64      </div>    <span class="up">l</span> ver log   <span class="up">r</span> tentar de novo</div>
+<div class="gap"></div><div class="gap"></div>
+<div class="box line" style="width:74ch"><span class="up">Próximos passos</span>
+  1  Abra um terminal novo (ou rode exec zsh)
+  2  Reinicie o kitty para carregar a nova fonte
+  3  Backups em ~/.local/state/kanivet-cli/backups/…</div>
+<div class="gap"></div><div class="gap"></div>
+<div class="line"><span class="tag sky"> ENTER  IR PARA O PAINEL → </span>    <span class="up mut">q</span> sair</div>
+</div></div>
+
+<div><h3>7 · Painel</h3>
+<div class="scr">
+<div class="box line"><span class="tag sun"> KANIVET </span>  <span class="up mut">perfil</span> <span class="tag peach">laravel / php</span>    <span class="tag mint">36 instalados</span> <span class="tag sun">4 atualizações</span></div>
+<div class="gap"></div><div class="gap"></div>
+<div class="tabs line"><span class="on up">terminal</span><span class="up">shell</span><span class="up">substitutos</span><span class="up">git</span><span class="up">neovim</span><span class="up">linguagens</span><span class="up">…</span></div>
+<div class="gap"></div>
+<div class="row">
+ <div class="box line" style="width:44ch"><div class="sel">✓ HERDR          0.9.2   <span class="tag sun">⇡ 0.10.0</span></div>✓ herdr plugins  4       <span class="tag mint">em dia</span>
+✓ kitty          0.42.1  <span class="tag mint">em dia</span>
+✓ nerd font      3.4.0   <span class="tag peach">externo</span>
+○ agent icons    —</div>
+ <div class="box line" style="width:27ch"><span class="up">herdr</span>
+<span class="mut">pelo kanivet · 29/10</span>
+
+<span class="mut up">método</span>  script
+<span class="mut up">config</span>  ✓ tema vesper</div>
+</div>
+<div class="gap"></div><div class="gap"></div>
+<div class="line"><span class="up mut">space</span> marcar <span class="up mut">a</span> aplicar <span class="up mut">u</span> atualizar <span class="up mut">U</span> tudo <span class="up mut">p</span> perfil <span class="up mut">tab</span> categoria <span class="up mut">?</span></div>
+</div></div>
+
+</div>
