@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/eusener/kanivet-cli/internal/app"
+	"github.com/eusener/kanivet-cli/internal/buildinfo"
 	"github.com/eusener/kanivet-cli/internal/plan"
 	"github.com/eusener/kanivet-cli/internal/runner"
 	"github.com/eusener/kanivet-cli/internal/state"
@@ -201,5 +203,24 @@ func TestRootWithTTYOpensTUI(t *testing.T) {
 	called = false
 	if code := Run(h.env, nil); code != 0 || called {
 		t.Fatalf("sem TTY a TUI não abre: exit %d called=%v", code, called)
+	}
+}
+
+func TestVersionFlag(t *testing.T) {
+	re := regexp.MustCompile(`^kanivet-cli \S+ \(\S+, \S+\)\n$`)
+	for _, tty := range []bool{true, false} {
+		h := newHarness(t)
+		h.env.IsTTY = tty
+		called := false
+		h.env.RunTUI = func(*app.Session, map[string]string) error { called = true; return nil }
+		if code := h.run("--version"); code != 0 || called {
+			t.Fatalf("tty=%v: exit %d, TUI aberta=%v", tty, code, called)
+		}
+		if got := h.out.String(); !re.MatchString(got) || got != "kanivet-cli "+buildinfo.String()+"\n" {
+			t.Fatalf("tty=%v: saída %q", tty, got)
+		}
+		if _, err := os.Stat(h.env.StateDir); err == nil {
+			t.Fatalf("tty=%v: --version não deveria criar o estado", tty)
+		}
 	}
 }

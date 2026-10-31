@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/eusener/kanivet-cli/internal/app"
+	"github.com/eusener/kanivet-cli/internal/buildinfo"
 	"github.com/eusener/kanivet-cli/internal/catalog"
 	"github.com/eusener/kanivet-cli/internal/i18n"
 	"github.com/eusener/kanivet-cli/internal/platform"
@@ -51,6 +52,7 @@ func NewRoot(e *Env) *cobra.Command {
 		Short:         i18n.T("cli.short"),
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		Version:       buildinfo.String(),
 		// Sem subcomando: TUI quando stdin e stdout são terminais; senão, a ajuda.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !e.IsTTY {
@@ -67,6 +69,8 @@ func NewRoot(e *Env) *cobra.Command {
 			return run(s, e.Getenv)
 		},
 	}
+	// --version é tratado pelo cobra antes do RunE: não abre a TUI nem lê o estado.
+	root.SetVersionTemplate("kanivet-cli {{.Version}}\n")
 	root.SetOut(e.Stdout)
 	root.SetErr(e.Stderr)
 	root.SetIn(e.Stdin)
