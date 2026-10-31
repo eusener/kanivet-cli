@@ -374,3 +374,53 @@ func TestUninstallDirItemUsesFilesNotRm(t *testing.T) {
 		t.Fatalf("uninstall step %+v", s)
 	}
 }
+
+func TestHerdrUpdateRunsFirstWhenPresent(t *testing.T) {
+	c := testCatalog()
+	c.Items["herdr"] = &catalog.Item{ID: "herdr", Category: "cli", Platforms: []platform.OS{platform.Linux},
+		Install: []catalog.Method{{Backend: "script", URL: "https://herdr.dev/install.sh"}}}
+	st := absent(c)
+	st["herdr"] = detect.ItemStatus{ID: "herdr", Status: detect.StatusExternal}
+	p, err := Build(c, linux, st, Selection{Add: []string{"fzf"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := p.Steps[0]
+	if first.ID != HerdrUpdateID || first.Backend != "" || !strings.Contains(first.Cmds[0].Shell, "herdr update ||") {
+		t.Fatalf("primeiro passo = %+v", first)
+	}
+	if !contains(step(t, p, "install:fzf").DependsOn, HerdrUpdateID) {
+		t.Fatal("install:fzf deveria esperar o herdr update")
+	}
+	if got := p.Order()[0]; len(got) != 1 || got[0].ID != HerdrUpdateID {
+		t.Fatalf("primeira camada = %v", got)
+	}
+
+	// Nosso herdr: o update genérico dá lugar ao herdr update, uma vez só e com o backend.
+	st["herdr"] = detect.ItemStatus{ID: "herdr", Status: detect.StatusInstalled}
+	p, _ = Build(c, linux, st, Selection{UpdateAll: true})
+	n := 0
+	for _, s := range p.Steps {
+		if s.ID == HerdrUpdateID {
+			n++
+		}
+	}
+	if n != 1 || p.Steps[0].Backend != "script" || p.Steps[0].Cmds[0].Display != "herdr update" {
+		t.Fatalf("passos = %v, primeiro = %+v", ids(p), p.Steps[0])
+	}
+
+	// Sem herdr, plano vazio ou desinstalando o herdr: nada de update.
+	st["herdr"] = detect.ItemStatus{ID: "herdr", Status: detect.StatusAbsent}
+	p, _ = Build(c, linux, st, Selection{Add: []string{"fzf"}})
+	if _, ok := p.Step(HerdrUpdateID); ok {
+		t.Fatal("herdr ausente não deveria gerar update")
+	}
+	st["herdr"] = detect.ItemStatus{ID: "herdr", Status: detect.StatusInstalled}
+	if p, _ = Build(c, linux, st, Selection{}); len(p.Steps) != 0 {
+		t.Fatalf("plano vazio ganhou passos: %v", ids(p))
+	}
+	p, _ = Build(c, linux, st, Selection{Uninstall: []string{"herdr"}})
+	if _, ok := p.Step(HerdrUpdateID); ok {
+		t.Fatal("desinstalar o herdr não deveria atualizá-lo antes")
+	}
+}

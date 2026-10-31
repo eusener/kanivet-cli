@@ -129,6 +129,7 @@ func Build(c *catalog.Catalog, p platform.Platform, st map[string]detect.ItemSta
 	b.addUpdates()
 	b.addUninstalls()
 	b.addChsh()
+	b.addHerdrUpdate()
 	return b.plan, nil
 }
 
@@ -456,6 +457,48 @@ func (b *builder) addUpdates() {
 			NeedsSudo: anySudo(cmds), Backend: be.Name(), Package: m.Package})
 	}
 }
+
+// HerdrUpdateID é o passo que atualiza o herdr antes de todo o resto.
+const HerdrUpdateID = "update:herdr"
+
+// addHerdrUpdate põe "herdr update" na frente do plano quando o herdr já está na máquina,
+// para que plugins e configs encontrem a versão mais nova. Uma falha (sem rede, por exemplo)
+// não bloqueia os demais passos: o herdr atual continua servindo.
+func (b *builder) addHerdrUpdate() {
+	it := b.c.Items["herdr"]
+	if it == nil || len(b.plan.Steps) == 0 {
+		return
+	}
+	switch b.status("herdr") {
+	case detect.StatusInstalled, detect.StatusOutdated, detect.StatusExternal, detect.StatusExternalOutdated:
+	default:
+		return
+	}
+	st := Step{ID: HerdrUpdateID, ItemID: "herdr", Kind: KindUpdate, Cmds: []runner.Cmd{{
+		Shell:   "herdr update || echo " + shellQuote(i18n.T("note.herdr_update_failed")) + " >&2",
+		Display: "herdr update", Lock: "herdr",
+	}}}
+	// Só registra o herdr como nosso se já era; um herdr instalado por fora continua de fora.
+	if b.owned("herdr") {
+		if m, be, err := backend.Choose(it, b.p); err == nil {
+			st.Backend, st.Package = be.Name(), m.Package
+		}
+	}
+	steps := []Step{st}
+	for _, s := range b.plan.Steps {
+		switch s.ID {
+		case HerdrUpdateID: // o update genérico do herdr (reinstalar pelo script) dá lugar ao herdr update
+			continue
+		case "uninstall:herdr":
+			return
+		}
+		s.DependsOn = append(s.DependsOn, HerdrUpdateID)
+		steps = append(steps, s)
+	}
+	b.plan.Steps = steps
+}
+
+func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
 
 func (b *builder) addUninstalls() {
 	if len(b.sel.Uninstall) == 0 {

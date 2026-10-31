@@ -1,5 +1,9 @@
 # kanivet-cli
 
+<p align="center">
+  <img src="docs/assets/kanivet-cli-logo.png" alt="kanivet-cli — um terminal pronto em qualquer máquina nova" width="720">
+</p>
+
 Instala e gerencia um ambiente de desenvolvimento focado em terminal: shell,
 ferramentas CLI modernas, git, Neovim (LazyVim e outras distribuições),
 linguagens, ambiente PHP local (lerd ou Flock), Python/dados, containers e o
@@ -69,6 +73,9 @@ kanivet-cli catalog lint                   # valida o catálogo
   for escolhido).
 - **Seleção aditiva.** `install` nunca remove nada; `--remove` só tira o item da
   seleção. Remover é sempre `uninstall`.
+- **herdr primeiro.** Se o herdr já está na máquina, toda execução começa com
+  `herdr update`; os outros passos esperam por ele. Se o update falhar (sem
+  rede, por exemplo), a execução segue com o herdr atual.
 - **Retomável.** Uma falha não derruba os outros itens. Se a execução for
   interrompida, rodar `kanivet-cli` ou `install` de novo oferece retomar de onde
   parou.

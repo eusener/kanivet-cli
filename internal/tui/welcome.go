@@ -44,14 +44,8 @@ func (m Model) welcomeLines() []string {
 	cw := m.contentWidth()
 	p := m.s.P
 	row := func(s string) string { return ansi.Truncate(s, cw, "…") }
-	out := []string{"",
-		m.th.Title.Render(strings.ToUpper(i18n.T("tui.welcome.title1"))),
-		m.th.Title.Render(strings.ToUpper(i18n.T("tui.welcome.title2"))),
-		"",
-		row(m.th.S().Render(i18n.T("tui.welcome.intro"))),
-		row(m.th.Subtle.Render(i18n.T("tui.welcome.promise"))),
-		"",
-	}
+	out := append([]string{""}, m.welcomeHead(cw)...)
+	out = append(out, "")
 	if m.detecting {
 		return append(out, m.spin.View()+" "+i18n.T("tui.welcome.detecting"))
 	}
@@ -81,6 +75,50 @@ func (m Model) welcomeLines() []string {
 		for _, s := range w {
 			out = append(out, row(m.th.Warn.Render("! "+s)))
 		}
+	}
+	return out
+}
+
+// logoGap é o espaço entre o símbolo e a manchete.
+const logoGap = 3
+
+// welcomeHead monta a manchete com a introdução, à direita do símbolo e centradas na
+// altura dele; sem símbolo (modo plain), só o texto.
+func (m Model) welcomeHead(cw int) []string {
+	logo := m.th.Logo()
+	lead := 0
+	if len(logo) > 0 {
+		lead = logoWidth + logoGap
+	}
+	tw := max(cw-lead, 1)
+	wrap := func(s string) []string { return strings.Split(ansi.Wrap(s, tw, ""), "\n") }
+	text := []string{
+		m.th.Title.Render(strings.ToUpper(i18n.T("tui.welcome.title1"))),
+		m.th.Title.Render(strings.ToUpper(i18n.T("tui.welcome.title2"))),
+		"",
+	}
+	for _, l := range wrap(i18n.T("tui.welcome.intro")) {
+		text = append(text, m.th.S().Render(l))
+	}
+	for _, l := range wrap(i18n.T("tui.welcome.promise")) {
+		text = append(text, m.th.Subtle.Render(l))
+	}
+	if len(logo) == 0 {
+		return text
+	}
+	top := max((len(logo)-len(text))/2, 0)
+	gap := strings.Repeat(" ", logoGap)
+	blank := strings.Repeat(" ", logoWidth)
+	out := make([]string, max(len(logo), top+len(text)))
+	for i := range out {
+		l := blank
+		if i < len(logo) {
+			l = logo[i]
+		}
+		if k := i - top; k >= 0 && k < len(text) {
+			l += gap + text[k]
+		}
+		out[i] = l
 	}
 	return out
 }

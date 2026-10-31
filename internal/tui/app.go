@@ -333,7 +333,7 @@ func (m Model) header() []string {
 	if m.th.Paper {
 		inner-- // sombra
 	}
-	brand := m.th.Tag("KANIVET", colSun) + "  "
+	brand := m.th.Mark() + m.th.Tag("KANIVET", colSun) + "  "
 	var mid, right string
 	if m.screen == ScreenDashboard {
 		// sem espaço, primeiro cai o status da verificação; depois as tags, inteiras, da direita

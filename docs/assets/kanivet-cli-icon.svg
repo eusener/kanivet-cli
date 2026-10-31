@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" role="img" aria-label="kanivet-cli">
+  <rect x="8" y="20" width="176" height="172" rx="10" fill="#383838"/>
+  <rect x="16" y="12" width="176" height="172" rx="10" fill="#ffffff" stroke="#383838" stroke-width="5"/>
+  <path d="M18.5 46 H189.5 V22 a7.5 7.5 0 0 0 -7.5 -7.5 H26 a7.5 7.5 0 0 0 -7.5 7.5 Z" fill="#ece6df"/>
+  <line x1="16" y1="46" x2="192" y2="46" stroke="#383838" stroke-width="5"/>
+  <rect x="30" y="24" width="11" height="11" rx="2" fill="#ff7169" stroke="#383838" stroke-width="3"/>
+  <rect x="48" y="24" width="11" height="11" rx="2" fill="#ffde00" stroke="#383838" stroke-width="3"/>
+  <rect x="66" y="24" width="11" height="11" rx="2" fill="#16aa98" stroke="#383838" stroke-width="3"/>
+  <polyline points="34,92 54,112 34,132" fill="none" stroke="#16aa98" stroke-width="12" stroke-linecap="square"/>
+  <path d="M70.7 81.4 H82.3 V109 L100.6 81.4 H116 L99 115 L117 150.4 H103.4 L89 122 L82.3 129 V150.4 H70.7 Z" fill="#383838"/>
+  <rect x="128" y="132" width="40" height="18" fill="#ffde00" stroke="#383838" stroke-width="4"/>
+</svg>

@@ -252,7 +252,7 @@ func (r *run) step(ctx context.Context, s plan.Step) {
 		if !r.runCmds(ctx, s, out) {
 			return
 		}
-		if s.Kind == plan.KindUpdate {
+		if s.Kind == plan.KindUpdate && s.Backend != "" { // sem backend: atualização de algo que não é nosso
 			r.own(s)
 		}
 	case plan.KindUninstall:

@@ -151,7 +151,7 @@ func TestHeaderTrailFitsPtBRNerd80(t *testing.T) {
 			if !strings.HasSuffix(h, " "+right) {
 				t.Errorf("%q deveria vir separado por espaço no fim: %q", right, h)
 			}
-			if rest := leftover(h, append([]string{"KANIVET", right}, labels...)...); rest != "" {
+			if rest := leftover(h, append([]string{"❯K▂", "KANIVET", right}, labels...)...); rest != "" {
 				t.Errorf("pedaço de passo cortado %q em %q", rest, h)
 			}
 		})
@@ -197,7 +197,7 @@ func TestDashHeaderDropsWholeTags80(t *testing.T) {
 		t.Errorf("o perfil deve ficar: %q", h)
 	}
 	status := ansi.Strip(m.dashStatus())
-	if rest := leftover(h, append([]string{"KANIVET", status}, tags...)...); rest != "" {
+	if rest := leftover(h, append([]string{"❯K▂", "KANIVET", status}, tags...)...); rest != "" {
 		t.Errorf("tag cortada no meio (%q) em %q", rest, h)
 	}
 }
