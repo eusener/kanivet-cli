@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eusener/kanivet-cli/internal/buildinfo"
 	"github.com/eusener/kanivet-cli/internal/plan"
 	"github.com/eusener/kanivet-cli/internal/platform"
 	"github.com/eusener/kanivet-cli/internal/runner"
@@ -151,6 +152,14 @@ func TestDoctor(t *testing.T) {
 	h := newHarness(t)
 	if code := h.run("doctor"); code != 0 || !strings.Contains(h.out.String(), ".zshrc") {
 		t.Fatalf("exit %d:\n%s", code, h.out)
+	}
+	if first, _, _ := strings.Cut(h.out.String(), "\n"); first != "Version: "+buildinfo.String() {
+		t.Fatalf("primeira linha %q", first)
+	}
+	h.env.Getenv["LANG"] = "pt_BR.UTF-8"
+	h.run("doctor")
+	if first, _, _ := strings.Cut(h.out.String(), "\n"); first != "Versão: "+buildinfo.String() {
+		t.Fatalf("primeira linha em pt-BR %q", first)
 	}
 }
 
