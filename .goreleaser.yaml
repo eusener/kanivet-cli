@@ -1,0 +1,110 @@
+# Release pública do kanivet-cli: binários, .deb, .rpm e checksums.
+# Validar: goreleaser check && goreleaser release --snapshot --clean
+version: 2
+
+project_name: kanivet-cli
+
+builds:
+  - id: kanivet-cli
+    main: ./cmd/kanivet-cli
+    binary: kanivet-cli
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/eusener/kanivet-cli/internal/buildinfo.Version={{ .Version }}
+      - -X github.com/eusener/kanivet-cli/internal/buildinfo.Commit={{ .ShortCommit }}
+      - -X github.com/eusener/kanivet-cli/internal/buildinfo.Date={{ .CommitDate }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+nfpms:
+  - id: packages
+    package_name: kanivet-cli
+    file_name_template: "{{ .ConventionalFileName }}"
+    formats: [deb, rpm]
+    bindir: /usr/bin
+    vendor: Eusener Castilho
+    maintainer: Eusener Castilho <eusener@gmail.com>
+    homepage: https://github.com/eusener/kanivet-cli
+    description: |-
+      Instala e gerencia um ambiente de desenvolvimento focado em terminal:
+      shell, ferramentas CLI, git, Neovim, linguagens e o terminal kitty + herdr.
+    section: utils
+    recommends:
+      - git
+      - curl
+      - ca-certificates
+    contents:
+      - src: README.md
+        dst: /usr/share/doc/kanivet-cli/README.md
+
+changelog:
+  use: git
+  sort: asc
+  filters:
+    exclude:
+      - "^docs"
+      - "^test"
+      - "^chore"
+      - "^Merge"
+  groups:
+    - title: Novidades
+      regexp: '^feat(\(.+\))?!?:'
+      order: 0
+    - title: Correções
+      regexp: '^fix(\(.+\))?!?:'
+      order: 1
+    - title: Outras mudanças
+      order: 999
+
+release:
+  github:
+    owner: eusener
+    name: kanivet-cli
+  # Publicada como rascunho; o workflow tira do rascunho depois dos testes de fumaça.
+  draft: true
+  replace_existing_draft: true
+  prerelease: auto
+  make_latest: false
+  extra_files:
+    - glob: ./install.sh
+  footer: |
+    ## Instalação
+
+    **macOS e Linux** (instala em `~/.local/bin`, sem sudo):
+
+    ```sh
+    curl -fsSL https://raw.githubusercontent.com/eusener/kanivet-cli/master/install.sh | KANIVET_VERSION={{ .Version }} sh
+    ```
+
+    **Ubuntu/Debian**:
+
+    ```sh
+    curl -fsSLO https://github.com/eusener/kanivet-cli/releases/download/{{ .Tag }}/kanivet-cli_{{ .Version }}_amd64.deb
+    sudo apt install ./kanivet-cli_{{ .Version }}_amd64.deb
+    ```
+
+    **Fedora**:
+
+    ```sh
+    sudo dnf install https://github.com/eusener/kanivet-cli/releases/download/{{ .Tag }}/kanivet-cli-{{ .Version }}-1.x86_64.rpm
+    ```
+
+    Em arm64, troque `amd64` por `arm64` no `.deb` e `x86_64` por `aarch64` no `.rpm`.
+    Confira os arquivos com `sha256sum -c --ignore-missing checksums.txt`.
