@@ -1,0 +1,138 @@
+name: Release
+
+# Uma tag vX.Y.Z (ou vX.Y.Z-rc.N) gera a release como rascunho, testa os artefatos em
+# Ubuntu, Fedora e macOS e só então a publica.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Tag no formato vX.Y.Z
+        shell: bash
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] ||
+            { echo "::error::tag $GITHUB_REF_NAME fora do formato vX.Y.Z"; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test -race ./...
+      - run: go run ./cmd/kanivet-cli catalog lint
+
+  goreleaser:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          if-no-files-found: error
+          path: |
+            dist/*.tar.gz
+            dist/*.deb
+            dist/*.rpm
+            dist/checksums.txt
+            dist/metadata.json
+
+  smoke-deb:
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Instala, roda e remove o .deb
+        shell: bash
+        run: |
+          set -euxo pipefail
+          V="${GITHUB_REF_NAME#v}"
+          apt-get update
+          apt-get install -y ./dist/kanivet-cli_*_amd64.deb
+          kanivet-cli --version | tee /dev/stderr | grep -F "kanivet-cli $V "
+          kanivet-cli catalog lint
+          apt-get remove -y kanivet-cli
+          test ! -e /usr/bin/kanivet-cli
+
+  smoke-rpm:
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Instala, roda e remove o .rpm
+        shell: bash
+        run: |
+          set -euxo pipefail
+          V="${GITHUB_REF_NAME#v}"
+          dnf install -y ./dist/kanivet-cli-*.x86_64.rpm
+          kanivet-cli --version | tee /dev/stderr | grep -F "kanivet-cli $V "
+          kanivet-cli catalog lint
+          dnf remove -y kanivet-cli
+          test ! -e /usr/bin/kanivet-cli
+
+  smoke-macos:
+    needs: goreleaser
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: install.sh contra os artefatos da release
+        run: |
+          set -eux
+          V="${GITHUB_REF_NAME#v}"
+          grep -F "\"version\":\"$V\"" dist/metadata.json
+          test/release/install-test.sh dist
+
+  publish:
+    needs: [smoke-deb, smoke-rpm, smoke-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Tira a release do rascunho
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease
+          else
+            gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+          fi

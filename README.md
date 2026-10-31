@@ -15,11 +15,57 @@ Funciona no **macOS** e no **Linux** (Debian/Ubuntu, Fedora, Arch e openSUSE;
 x86_64 e arm64). É um binário único em Go, sem dependências em tempo de
 execução.
 
-## Início rápido
+## Instalação
+
+**macOS e Linux**: o script baixa a release mais recente, confere o SHA-256 e
+instala em `~/.local/bin`, sem sudo:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/eusener/kanivet-cli/master/install.sh | sh
+```
+
+Para fixar uma versão ou trocar o destino:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/eusener/kanivet-cli/master/install.sh | KANIVET_VERSION=0.1.0 KANIVET_INSTALL_DIR=/opt/bin sh
+```
+
+**Ubuntu/Debian**, com o pacote `.deb` da [página de releases](https://github.com/eusener/kanivet-cli/releases)
+(troque `amd64` por `arm64` se for o caso):
+
+```sh
+curl -fsSLO https://github.com/eusener/kanivet-cli/releases/download/v0.1.0/kanivet-cli_0.1.0_amd64.deb
+sudo apt install ./kanivet-cli_0.1.0_amd64.deb
+```
+
+**Fedora**, com o pacote `.rpm` (troque `x86_64` por `aarch64` se for o caso):
+
+```sh
+sudo dnf install https://github.com/eusener/kanivet-cli/releases/download/v0.1.0/kanivet-cli-0.1.0-1.x86_64.rpm
+```
+
+Os pacotes não são assinados. Se o `dnf` recusar por falta de assinatura, use
+`--nogpgcheck`. Os pacotes instalam em `/usr/bin` e, quando removidos, não apagam
+o estado em `~/.local/state/kanivet-cli`. Cada release traz um `checksums.txt`
+para conferir com `sha256sum -c --ignore-missing checksums.txt`.
+
+**macOS pelo navegador**: o binário não é assinado pela Apple, então um
+`.tar.gz` baixado pelo navegador é bloqueado pelo Gatekeeper. Libere com
+`xattr -d com.apple.quarantine ./kanivet-cli`. O script acima não passa por esse
+bloqueio.
+
+`kanivet-cli --version` mostra a versão instalada.
+
+### Compilar do código
 
 ```sh
 go build -o kanivet-cli ./cmd/kanivet-cli   # precisa do Go 1.24+
-./kanivet-cli                               # abre a TUI
+```
+
+## Início rápido
+
+```sh
+kanivet-cli                                 # abre a TUI
 ```
 
 Na primeira vez abre o wizard: boas-vindas, perfil, categorias, revisão,
@@ -187,6 +233,7 @@ internal/
 ├── cli/             # comandos (cobra)
 └── tui/             # interface (Bubble Tea)
 test/integration/    # instalação real em containers
+test/release/        # teste do install.sh contra um dist/ do GoReleaser
 docs/superpowers/    # design e planos
 ```
 
@@ -208,6 +255,30 @@ Teste manual num terminal real (antes de um release):
    retomada;
 4. resize abaixo de 80×24;
 5. `NO_COLOR=1 kanivet-cli`.
+
+Para validar a release sem publicar (o CI roda o mesmo no job `release-check`):
+
+```sh
+goreleaser check
+goreleaser release --snapshot --clean   # gera dist/ sem publicar
+test/release/install-test.sh dist       # testa o install.sh contra o dist/
+```
+
+### Fazer uma release
+
+1. Com tudo em `master` e o CI verde, rode o teste manual acima.
+2. Crie e envie uma tag anotada:
+   `git tag -a v0.1.0 -m "v0.1.0" && git push origin v0.1.0`.
+3. O workflow `Release` (`.github/workflows/release.yml`) roda os testes, cria a
+   release como rascunho, instala o `.deb` no Ubuntu, o `.rpm` no Fedora e o
+   `install.sh` no macOS e, se tudo passar, publica. Tags com sufixo (`v0.2.0-rc.1`)
+   saem como pré-release.
+4. Se algo falhar, a release continua como rascunho. Corrija, apague a tag
+   (`git push --delete origin v0.1.0 && git tag -d v0.1.0`) e o rascunho
+   (`gh release delete v0.1.0`), e crie a tag de novo.
+
+Rollback de uma release já publicada: `gh release edit v0.1.0 --draft=true` tira
+a release do ar. A correção sai numa versão nova (`v0.1.1`), nunca na mesma tag.
 
 ## Problemas comuns
 

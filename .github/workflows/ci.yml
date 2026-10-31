@@ -22,6 +22,26 @@ jobs:
       - run: go test -race ./...
       - run: go run ./cmd/kanivet-cli catalog lint
 
+  release-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: shellcheck -s sh install.sh test/release/install-test.sh
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: check
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --snapshot --clean --skip=publish
+      - run: test/release/install-test.sh dist
+
   integration:
     needs: test
     runs-on: ubuntu-latest

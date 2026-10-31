@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/eusener/kanivet-cli/internal/buildinfo"
 	"github.com/eusener/kanivet-cli/internal/configs"
 	"github.com/eusener/kanivet-cli/internal/i18n"
 	"github.com/eusener/kanivet-cli/internal/runner"
@@ -28,6 +29,7 @@ func doctorCmd(e *Env) *cobra.Command {
 				return e.icon(state.StepFailed)
 			}
 			p := e.P
+			fmt.Fprintf(e.Stdout, "%s: %s\n", i18n.T("doctor.version"), buildinfo.String())
 			fmt.Fprintf(e.Stdout, "%s: %s %s %s %s (%s)\n", i18n.T("doctor.system"), p.OS, p.Arch, p.Distro, p.DistroVersion, p.PkgManager)
 			fmt.Fprintf(e.Stdout, "%s: %s\n", i18n.T("doctor.shell"), p.Shell)
 			sess := e.session()
