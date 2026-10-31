@@ -125,6 +125,16 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Assets do rascunho batem com o checksums.txt
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release download "$GITHUB_REF_NAME" -D assets
+          cd assets
+          sha256sum -c checksums.txt
       - name: Tira a release do rascunho
         shell: bash
         env:
