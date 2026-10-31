@@ -35,6 +35,6 @@
 
 ## 6. Primeira release pública
 
-- [ ] 6.1 Confirmar que o repositório `eusener/kanivet-cli` é público e que os workflows têm permissão de escrita, e verificar que `curl -fsSI https://github.com/eusener/kanivet-cli/releases/latest` responde sem autenticação
+- [x] 6.1 Confirmar que o repositório `eusener/kanivet-cli` é público e que os workflows têm permissão de escrita, e verificar que `curl -fsSI https://github.com/eusener/kanivet-cli/releases/latest` responde sem autenticação
 - [ ] 6.2 Com tudo mergeado e o `release-check` verde, rodar o checklist manual do README e criar e enviar a tag anotada `v0.1.0`, e verificar que o `release.yml` termina com o job `publish` verde
 - [ ] 6.3 Verificar a release publicada de ponta a ponta: `curl -fsSL …/install.sh | sh` num Mac, `apt install ./kanivet-cli_0.1.0_amd64.deb` num Ubuntu 24.04 e `dnf install ./kanivet-cli-0.1.0-1.x86_64.rpm` num Fedora, com `kanivet-cli --version` mostrando `0.1.0` nos três
