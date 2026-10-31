@@ -24,7 +24,7 @@
 
 ## 4. Workflows
 
-- [ ] 4.1 Adicionar ao `.github/workflows/ci.yml` o job `release-check` (`goreleaser check`, snapshot com `--skip=publish` e `shellcheck -s sh install.sh`) e verificar que ele passa num PR
+- [x] 4.1 Adicionar ao `.github/workflows/ci.yml` o job `release-check` (`goreleaser check`, snapshot com `--skip=publish` e `shellcheck -s sh install.sh`) e verificar que ele passa num PR
 - [x] 4.2 Criar `.github/workflows/release.yml` em `push: tags: ['v*.*.*']` com os jobs `test` → `goreleaser` (rascunho + upload do `dist/`) → `smoke` (ubuntu `.deb`, fedora `.rpm`, macos `install.sh` com `KANIVET_BASE_URL` local) → `publish` (`gh release edit --draft=false`, `--latest` só fora de pré-release), com `contents: write` só em `goreleaser` e `publish`, e verificar com `actionlint`
 - [ ] 4.3 Fazer cada job de `smoke` conferir que `kanivet-cli --version` contém a versão da tag, rodar `kanivet-cli catalog lint`, remover o pacote e conferir que `/usr/bin/kanivet-cli` sumiu, e verificar com um ensaio numa tag de pré-release descartável (`v0.1.0-rc.1`) num fork ou no próprio repositório, apagando a release e a tag depois
 
