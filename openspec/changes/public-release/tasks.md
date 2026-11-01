@@ -26,11 +26,11 @@
 
 - [x] 4.1 Adicionar ao `.github/workflows/ci.yml` o job `release-check` (`goreleaser check`, snapshot com `--skip=publish` e `shellcheck -s sh install.sh`) e verificar que ele passa num PR
 - [x] 4.2 Criar `.github/workflows/release.yml` em `push: tags: ['v*.*.*']` com os jobs `test` → `goreleaser` (rascunho + upload do `dist/`) → `smoke` (ubuntu `.deb`, fedora `.rpm`, macos `install.sh` com `KANIVET_BASE_URL` local) → `publish` (`gh release edit --draft=false`, `--latest` só fora de pré-release), com `contents: write` só em `goreleaser` e `publish`, e verificar com `actionlint`
-- [ ] 4.3 Fazer cada job de `smoke` conferir que `kanivet-cli --version` contém a versão da tag, rodar `kanivet-cli catalog lint`, remover o pacote e conferir que `/usr/bin/kanivet-cli` sumiu, e verificar com um ensaio numa tag de pré-release descartável (`v0.1.0-rc.1`) num fork ou no próprio repositório, apagando a release e a tag depois
+- [x] 4.3 Fazer cada job de `smoke` conferir que `kanivet-cli --version` contém a versão da tag, rodar `kanivet-cli catalog lint`, remover o pacote e conferir que `/usr/bin/kanivet-cli` sumiu, e verificar com um ensaio numa tag de pré-release descartável (`v0.1.0-rc.1`) num fork ou no próprio repositório, apagando a release e a tag depois
 
 ## 5. Documentação
 
-- [ ] 5.1 Reescrever o "Início rápido" do `README.md` com a seção "Instalação" (comando do `install.sh`, `apt install ./…deb`, `dnf install ./…rpm`, `KANIVET_VERSION`/`KANIVET_INSTALL_DIR`, `xattr -d com.apple.quarantine` para download pelo navegador, `--nogpgcheck` se o dnf recusar) e manter o `go build` como "Compilar do código", e verificar seguindo os comandos do README contra a release de ensaio da 4.3
+- [x] 5.1 Reescrever o "Início rápido" do `README.md` com a seção "Instalação" (comando do `install.sh`, `apt install ./…deb`, `dnf install ./…rpm`, `KANIVET_VERSION`/`KANIVET_INSTALL_DIR`, `xattr -d com.apple.quarantine` para download pelo navegador, `--nogpgcheck` se o dnf recusar) e manter o `go build` como "Compilar do código", e verificar seguindo os comandos do README contra a release de ensaio da 4.3
 - [x] 5.2 Documentar no README, na seção de testes, como fazer uma release (checklist manual, tag anotada, acompanhar o workflow, rollback) e verificar que os comandos citados existem no `release.yml`
 
 ## 6. Primeira release pública
