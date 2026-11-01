@@ -45,6 +45,7 @@ nfpms:
     vendor: Eusener Castilho
     maintainer: Eusener Castilho <eusener@gmail.com>
     homepage: https://github.com/eusener/kanivet-cli
+    license: MIT
     description: |-
       Instala e gerencia um ambiente de desenvolvimento focado em terminal:
       shell, ferramentas CLI, git, Neovim, linguagens e o terminal kitty + herdr.
@@ -56,6 +57,8 @@ nfpms:
     contents:
       - src: README.md
         dst: /usr/share/doc/kanivet-cli/README.md
+      - src: LICENSE
+        dst: /usr/share/doc/kanivet-cli/copyright
 
 changelog:
   use: git

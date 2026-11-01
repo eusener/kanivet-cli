@@ -167,7 +167,5 @@ tag publicada não é reaproveitada.
 
 ## Open Questions
 
-- Licença: o repositório não tem `LICENSE`. Sem ela, o código é público mas sem
-  permissão de uso. A configuração já inclui `LICENSE*` nos arquivos e o campo
-  `license` do nfpm pode ser preenchido quando a licença for escolhida (MIT ou
-  Apache-2.0 são as mais comuns em CLIs Go). Não muda o pipeline.
+Nenhuma. A licença foi definida como MIT: `LICENSE` na raiz, incluído nos `.tar.gz`,
+em `/usr/share/doc/kanivet-cli/copyright` nos pacotes e no campo `license` do nfpm.
