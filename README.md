@@ -292,3 +292,7 @@ a release do ar. A correção sai numa versão nova (`v0.1.1`), nunca na mesma t
 - **Uma integração do herdr foi pulada**: o agente não foi encontrado no `PATH`.
   Instale o agente e rode `kanivet-cli install herdr-plugins` de novo.
 - **Algo estranho no ambiente**: `kanivet-cli doctor`.
+
+## Licença
+
+[MIT](LICENSE).
