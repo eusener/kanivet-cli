@@ -1,5 +1,11 @@
 FROM opensuse/tumbleweed
-RUN zypper -n install bash ca-certificates curl git gzip jq sudo tar unzip xz && zypper clean -a
+# Espelhos do Tumbleweed às vezes servem metadados defasados durante a troca de
+# snapshot (zypper sai com 104: pacote não encontrado); força refresh e tenta de novo.
+RUN for i in 1 2 3; do \
+      zypper -n --gpg-auto-import-keys ref -f && \
+      zypper -n install bash ca-certificates curl git gzip jq sudo tar unzip xz && break; \
+      [ "$i" = 3 ] && exit 1; sleep 15; \
+    done && zypper clean -a
 # No Tumbleweed as regras ficam em /usr/etc/sudoers.d
 RUN useradd -m -s /bin/bash dev && mkdir -p /usr/etc/sudoers.d && echo 'dev ALL=(ALL) NOPASSWD:ALL' | tee /etc/sudoers.d/dev > /usr/etc/sudoers.d/dev
 USER dev
