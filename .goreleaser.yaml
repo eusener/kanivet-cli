@@ -36,12 +36,16 @@ checksum:
 nfpms:
   - id: packages
     package_name: kanivet-cli
-    file_name_template: "{{ .ConventionalFileName }}"
+    # O GitHub troca "~" por "." no nome dos assets (0.1.0~rc.1 → 0.1.0.rc.1), o que
+    # deixaria o checksums.txt com nomes que não existem. A versão dentro do pacote
+    # continua 0.1.0~rc.1, que o dpkg e o rpm ordenam antes de 0.1.0.
+    file_name_template: '{{ replace .ConventionalFileName "~" "." }}'
     formats: [deb, rpm]
     bindir: /usr/bin
     vendor: Eusener Castilho
     maintainer: Eusener Castilho <eusener@gmail.com>
     homepage: https://github.com/eusener/kanivet-cli
+    license: MIT
     description: |-
       Instala e gerencia um ambiente de desenvolvimento focado em terminal:
       shell, ferramentas CLI, git, Neovim, linguagens e o terminal kitty + herdr.
@@ -53,9 +57,12 @@ nfpms:
     contents:
       - src: README.md
         dst: /usr/share/doc/kanivet-cli/README.md
+      - src: LICENSE
+        dst: /usr/share/doc/kanivet-cli/copyright
 
 changelog:
   use: git
+  abbrev: 7
   sort: asc
   filters:
     exclude:
@@ -96,14 +103,14 @@ release:
     **Ubuntu/Debian**:
 
     ```sh
-    curl -fsSLO https://github.com/eusener/kanivet-cli/releases/download/{{ .Tag }}/kanivet-cli_{{ .Version }}_amd64.deb
-    sudo apt install ./kanivet-cli_{{ .Version }}_amd64.deb
+    curl -fsSLO https://github.com/eusener/kanivet-cli/releases/download/{{ .Tag }}/kanivet-cli_{{ replace .Version "-" "." }}_amd64.deb
+    sudo apt install ./kanivet-cli_{{ replace .Version "-" "." }}_amd64.deb
     ```
 
     **Fedora**:
 
     ```sh
-    sudo dnf install https://github.com/eusener/kanivet-cli/releases/download/{{ .Tag }}/kanivet-cli-{{ .Version }}-1.x86_64.rpm
+    sudo dnf install https://github.com/eusener/kanivet-cli/releases/download/{{ .Tag }}/kanivet-cli-{{ replace .Version "-" "." }}-1.x86_64.rpm
     ```
 
     Em arm64, troque `amd64` por `arm64` no `.deb` e `x86_64` por `aarch64` no `.rpm`.
