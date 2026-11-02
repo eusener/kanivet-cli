@@ -1,0 +1,12 @@
+id: prettier
+category: lsp
+name: "prettier"
+description: {en: "Formatter for TS/JS, CSS, JSON and Markdown", pt-BR: "Formatador de TS/JS, CSS, JSON e Markdown"}
+platforms: [macos, linux]
+depends_on: [node]
+detect:
+  command: "prettier --version"
+  version_regex: "([\\d]+\\.[\\d]+\\.[\\d]+)"
+install:
+  - backend: mise
+    package: npm:prettier

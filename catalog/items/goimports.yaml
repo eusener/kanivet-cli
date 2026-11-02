@@ -1,0 +1,11 @@
+id: goimports
+category: lsp
+name: "goimports"
+description: {en: "Go formatter that also organizes imports", pt-BR: "Formatador Go que também organiza os imports"}
+platforms: [macos, linux]
+depends_on: [go]
+detect:
+  command: "command -v goimports"
+install:
+  - backend: mise
+    package: go:golang.org/x/tools/cmd/goimports

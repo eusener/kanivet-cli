@@ -1,0 +1,11 @@
+id: intelephense
+category: lsp
+name: "intelephense"
+description: {en: "PHP language server", pt-BR: "Servidor de linguagem PHP"}
+platforms: [macos, linux]
+depends_on: [node]
+detect:
+  command: "command -v intelephense"
+install:
+  - backend: mise
+    package: npm:intelephense

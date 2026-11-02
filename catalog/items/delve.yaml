@@ -1,0 +1,12 @@
+id: delve
+category: lsp
+name: "delve"
+description: {en: "Go debugger (dlv), also used by Helix", pt-BR: "Debugger de Go (dlv), usado também pelo Helix"}
+platforms: [macos, linux]
+depends_on: [go]
+detect:
+  command: "dlv version"
+  version_regex: "Version: ([\\d.]+)"
+install:
+  - backend: mise
+    package: go:github.com/go-delve/delve/cmd/dlv

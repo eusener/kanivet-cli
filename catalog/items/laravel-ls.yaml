@@ -1,0 +1,17 @@
+id: laravel-ls
+category: lsp
+name: "laravel-ls"
+description: {en: "Laravel language server: routes, views, config, env and app() bindings", pt-BR: "Servidor de linguagem do Laravel: rotas, views, config, env e bindings do app()"}
+homepage: https://github.com/laravel-ls/laravel-ls
+platforms: [macos, linux]
+notes: {en: "No release for Linux arm64", pt-BR: "Sem release para Linux arm64"}
+detect:
+  command: "laravel-ls --version"
+  version_regex: "([\\d]+\\.[\\d]+\\.[\\d]+)"
+install:
+  - backend: mise
+    package: github:laravel-ls/laravel-ls
+    when: {os: macos}
+  - backend: mise
+    package: github:laravel-ls/laravel-ls
+    when: {os: linux, arch: amd64}

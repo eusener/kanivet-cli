@@ -173,8 +173,23 @@ func TestDashboardApplyProfileKeepsMarkedExclusive(t *testing.T) {
 	}
 	// sem nada marcado na categoria, a exclusiva do perfil entra normalmente
 	s = newSel(t, linuxSystemd, nil, ModeDashboard)
-	s.ApplyProfile("web")
-	if !s.Marked("lazyvim") {
-		t.Fatal("categoria vazia: lazyvim deveria ser marcado")
+	s.ApplyProfile("laravel")
+	if !s.Marked("lerd") {
+		t.Fatal("categoria vazia: lerd deveria ser marcado")
+	}
+}
+
+// Toda categoria do catálogo aparece numa página do wizard (managers entra só como dependência).
+func TestEveryCategoryHasWizardPage(t *testing.T) {
+	onPage := map[string]bool{}
+	for _, page := range categoryPages {
+		for _, cat := range page {
+			onPage[cat] = true
+		}
+	}
+	for _, cat := range emb(t).Categories {
+		if cat.ID != "managers" && !onPage[cat.ID] {
+			t.Errorf("categoria %q fora das páginas do wizard", cat.ID)
+		}
 	}
 }

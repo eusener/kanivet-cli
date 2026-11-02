@@ -1,0 +1,127 @@
+# ─────────────────────── Language servers ───────────────────────
+[language-server.rust-analyzer.config]
+check.command = "clippy"                 # lint com clippy ao salvar
+cargo.features = "all"
+procMacro.enable = true
+inlayHints.bindingModeHints.enable = false
+inlayHints.closingBraceHints.minLines = 10
+inlayHints.closureReturnTypeHints.enable = "with_block"
+inlayHints.lifetimeElisionHints.enable = "skip_trivial"
+
+[language-server.basedpyright]
+command = "basedpyright-langserver"
+args = ["--stdio"]
+
+[language-server.basedpyright.config.basedpyright.analysis]
+typeCheckingMode = "standard"
+autoImportCompletions = true
+inlayHints.variableTypes = true
+inlayHints.functionReturnTypes = true
+inlayHints.callArgumentNames = true
+
+# ─────────────────────────── Linguagens ──────────────────────────
+[[language]]
+name = "rust"
+auto-format = true
+
+[[language]]
+name = "python"
+# basedpyright: tipos/goto/hover · ruff: lint + format
+language-servers = ["basedpyright", "ruff"]
+auto-format = true
+
+# ═════════════════════ PHP / Laravel ═════════════════════
+# intelephense: autocomplete, definição, hover, diagnósticos
+# laravel-ls: rotas, views, config, env e bindings do app()
+[language-server.laravel-ls]
+command = "laravel-ls"
+
+[[language]]
+name = "php"
+language-servers = ["intelephense", "laravel-ls"]
+auto-format = false   # projetos Laravel usam o Pint: `Space p` roda vendor/bin/pint
+
+[[language]]
+name = "blade"
+language-servers = ["laravel-ls", "vscode-html-language-server", "tailwindcss-ls"]
+formatter = { command = "blade-formatter", args = ["--stdin"] }
+auto-format = true
+
+# ═════════════════════════ C# ═════════════════════════
+# csharp-ls 0.20: última versão que instala com o SDK do .NET 9
+[language-server.csharp-ls]
+command = "csharp-ls"
+
+[[language]]
+name = "c-sharp"
+language-servers = ["csharp-ls"]
+auto-format = true
+
+# ═════════════════════════ Go ═════════════════════════
+[language-server.gopls.config]
+gofumpt = true
+staticcheck = true
+usePlaceholders = true
+completeUnimported = true
+hints = { assignVariableTypes = true, compositeLiteralFields = true, constantValues = true, functionTypeParameters = true, parameterNames = true, rangeVariableTypes = true }
+
+[[language]]
+name = "go"
+language-servers = ["gopls"]
+auto-format = true
+formatter = { command = "goimports" }   # format + organize imports
+
+# ═════════════════ TypeScript / JavaScript ═════════════════
+[language-server.eslint]
+command = "vscode-eslint-language-server"
+args = ["--stdio"]
+
+[language-server.eslint.config]
+validate = "on"
+run = "onType"
+format = false
+quiet = false
+nodePath = ""
+onIgnoredFiles = "off"
+rulesCustomizations = []
+experimental = {}
+problems = { shortenToSingleLine = false }
+workingDirectory = { mode = "auto" }
+codeAction = { disableRuleComment = { enable = true, location = "separateLine" }, showDocumentation = { enable = true } }
+
+[language-server.typescript-language-server.config]
+preferences = { importModuleSpecifierPreference = "non-relative" }
+typescript.inlayHints = { includeInlayParameterNameHints = "all", includeInlayFunctionParameterTypeHints = true, includeInlayVariableTypeHints = true, includeInlayPropertyDeclarationTypeHints = true, includeInlayFunctionLikeReturnTypeHints = true, includeInlayEnumMemberValueHints = true }
+javascript.inlayHints = { includeInlayParameterNameHints = "all", includeInlayFunctionParameterTypeHints = true, includeInlayVariableTypeHints = true, includeInlayFunctionLikeReturnTypeHints = true }
+
+[[language]]
+name = "typescript"
+language-servers = ["typescript-language-server", "eslint"]
+formatter = { command = "prettier", args = ["--stdin-filepath", "%{buffer_name}"] }
+auto-format = true
+
+[[language]]
+name = "tsx"
+language-servers = ["typescript-language-server", "eslint", "tailwindcss-ls"]
+formatter = { command = "prettier", args = ["--stdin-filepath", "%{buffer_name}"] }
+auto-format = true
+
+[[language]]
+name = "javascript"
+language-servers = ["typescript-language-server", "eslint"]
+formatter = { command = "prettier", args = ["--stdin-filepath", "%{buffer_name}"] }
+auto-format = true
+
+[[language]]
+name = "jsx"
+language-servers = ["typescript-language-server", "eslint", "tailwindcss-ls"]
+formatter = { command = "prettier", args = ["--stdin-filepath", "%{buffer_name}"] }
+auto-format = true
+
+[[language]]
+name = "html"
+language-servers = ["vscode-html-language-server", "tailwindcss-ls"]
+
+[[language]]
+name = "css"
+language-servers = ["vscode-css-language-server", "tailwindcss-ls"]

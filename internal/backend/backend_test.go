@@ -65,6 +65,12 @@ func TestMise(t *testing.T) {
 	eq(t, "latest", b.Install(catalog.Method{Package: "aqua:junegunn/fzf"}, "", ubuntu), "mise use -g aqua:junegunn/fzf@latest")
 	eq(t, "update", b.Update(m, ubuntu), "mise upgrade node")
 	eq(t, "uninstall", b.Uninstall(m, ubuntu), "mise uninstall --all node", "mise unuse -g node")
+	if env := b.Install(catalog.Method{Package: "go:golang.org/x/tools/gopls"}, "", ubuntu)[0].Env; len(env) != 1 || env[0] != "GOTOOLCHAIN=auto" {
+		t.Fatalf("go: packages need GOTOOLCHAIN=auto, got %v", env)
+	}
+	if env := b.Install(m, "", ubuntu)[0].Env; len(env) != 0 {
+		t.Fatalf("only go: packages get GOTOOLCHAIN, got %v", env)
+	}
 	if b.Install(m, "", ubuntu)[0].Lock != "mise" {
 		t.Fatal("mise lock")
 	}

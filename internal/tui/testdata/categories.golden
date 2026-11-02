@@ -14,7 +14,7 @@
   │ [x] atuin                            [MISE] [NEW] │  │                                       │
   │ [x] direnv                           [MISE] [NEW] │  │ STATUS  [ ] not installed             │
   │ [x] fzf                              [MISE] [NEW] │  │ METHOD  script                        │
-  │ [x] starship                         [MISE] [NEW] │  │   [x] Vesper theme, in-app toasts,    │
+  │ [x] starship                         [MISE] [NEW] │  │   [x] Gruvbox theme, in-app toasts,   │
   │ [x] zoxide                           [MISE] [NEW] │  │ plugin shortcuts and lazygit popup    │
   │ [ ] zsh                                  [SYSTEM] │  │                                       │
   │ [x] zsh-autosuggestions               [GIT] [NEW] │  │                                       │
@@ -27,4 +27,4 @@
   │                                                   │  │                                       │
   │                                                   │  │                                       │
   └───────────────────────────────────────────────────┘  └───────────────────────────────────────┘
-  [33 TO INSTALL]  [6 CONFIGS]  ←/H left  / search  ENTER confirm  ESC back  ? help  Q quit
+  [41 TO INSTALL]  [6 CONFIGS]  ←/H left  / search  ENTER confirm  ESC back  ? help  Q quit

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"strings"
 
 	"github.com/eusener/kanivet-cli/internal/catalog"
 	"github.com/eusener/kanivet-cli/internal/platform"
@@ -23,11 +24,21 @@ func (mise) Install(m catalog.Method, version string, _ platform.Platform) []run
 	if version == "" {
 		version = "latest"
 	}
-	return []runner.Cmd{argv("mise", "mise", "use", "-g", m.Package+"@"+version)}
+	return []runner.Cmd{withGoToolchain(m, argv("mise", "mise", "use", "-g", m.Package+"@"+version))}
 }
 
 func (mise) Update(m catalog.Method, _ platform.Platform) []runner.Cmd {
-	return []runner.Cmd{argv("mise", "mise", "upgrade", m.Package)}
+	return []runner.Cmd{withGoToolchain(m, argv("mise", "mise", "upgrade", m.Package))}
+}
+
+// withGoToolchain deixa o `go install` dos pacotes go: baixar a toolchain que a ferramenta
+// exige (gopls pede Go mais novo que o do catálogo). Distros como o Fedora fixam
+// GOTOOLCHAIN=local no Go do sistema, e aí a instalação falharia.
+func withGoToolchain(m catalog.Method, c runner.Cmd) runner.Cmd {
+	if strings.HasPrefix(m.Package, "go:") {
+		c.Env = append(c.Env, "GOTOOLCHAIN=auto")
+	}
+	return c
 }
 
 func (mise) Uninstall(m catalog.Method, _ platform.Platform) []runner.Cmd {

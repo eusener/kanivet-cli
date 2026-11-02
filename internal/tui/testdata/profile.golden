@@ -8,18 +8,18 @@
   ┌─────────────────────────────────────────────┐  ┌─────────────────────────────────────────────┐
   │ (•) LARAVEL / PHP                           │  │ ( ) WEB (JS/TS)                             │
   │ PHP via lerd (Linux) or Flock (macOS),      │  │ Node, pnpm and Bun, HTTP and task tools,    │
-  │ Composer, Node and LazyVim for PHP          │  │ LazyVim for TypeScript                      │
-  │ [33 ITEMS]                                  │  │ [33 ITEMS]                                  │
+  │ Composer, Node and Helix for PHP            │  │ Helix for TypeScript                        │
+  │ [41 ITEMS]                                  │  │ [38 ITEMS]                                  │
   └─────────────────────────────────────────────┘  └─────────────────────────────────────────────┘
 
   ┌─────────────────────────────────────────────┐  ┌─────────────────────────────────────────────┐
   │ ( ) MACHINE LEARNING / DATA                 │  │ ( ) BACKEND / SYSTEMS                       │
   │ Python, uv, Ruff, JupyterLab and CUDA when  │  │ Rust, Go, .NET, Java, Podman and Kubernetes │
   │ there is an NVIDIA GPU                      │  │ tools                                       │
-  │ [33 ITEMS]                                  │  │ [36 ITEMS]                                  │
+  │ [34 ITEMS]                                  │  │ [41 ITEMS]                                  │
   └─────────────────────────────────────────────┘  └─────────────────────────────────────────────┘
 
-  ( ) START FROM SCRATCH  Only the base: shell, modern CLI tools, git, LazyVim and the terminal
+  ( ) START FROM SCRATCH  Only the base: shell, modern CLI tools, git, Helix and the terminal
 
 
 

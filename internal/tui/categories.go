@@ -12,7 +12,7 @@ import (
 var categoryPages = [][]string{
 	{"terminal", "shell"},
 	{"replacements", "navigation", "git", "data-apis"},
-	{"neovim", "editors"},
+	{"editors", "lsp", "neovim"},
 	{"languages", "php-local", "python-data"},
 	{"container-engine", "containers"},
 }

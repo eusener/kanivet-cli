@@ -5,8 +5,9 @@
 </p>
 
 Instala e gerencia um ambiente de desenvolvimento focado em terminal: shell,
-ferramentas CLI modernas, git, Neovim (LazyVim e outras distribuições),
-linguagens, ambiente PHP local (lerd ou Flock), Python/dados, containers e o
+ferramentas CLI modernas, git, o editor Helix configurado como IDE (com os
+servidores de linguagem de cada perfil), Neovim (LazyVim e outras
+distribuições, opcionais), linguagens, ambiente PHP local (lerd ou Flock), Python/dados, containers e o
 terminal **kitty + herdr**. Tudo vem de um catálogo declarativo (`catalog/`) e de
 perfis embutidos, com uma TUI para escolher o que instalar e uma CLI completa
 para scripts.
@@ -75,15 +76,18 @@ execução e resumo. Nada é instalado antes da tela de revisão.
 
 | Perfil | O que traz |
 |---|---|
-| `blank` | Só a base: shell, ferramentas CLI modernas, git, LazyVim e o terminal |
-| `web` | Node, pnpm e Bun, ferramentas de HTTP e tarefas, LazyVim para TypeScript |
-| `laravel` | PHP via lerd (Linux) ou Flock (macOS), Composer, Node e LazyVim para PHP |
+| `blank` | Só a base: shell, ferramentas CLI modernas, git, Helix e o terminal |
+| `web` | Node, pnpm e Bun, ferramentas de HTTP e tarefas, Helix para TypeScript |
+| `laravel` | PHP via lerd (Linux) ou Flock (macOS), Composer, Node e Helix para PHP |
 | `ml` | Python, uv, Ruff, JupyterLab e CUDA quando há GPU NVIDIA |
 | `backend` | Rust, Go, .NET, Java, Podman e ferramentas de Kubernetes |
 
 Todos incluem a base do `blank`. Depois de escolher o perfil, cada categoria
 pode ser ajustada item a item. Em categorias exclusivas (distribuição do
-Neovim, lerd ou Flock, Docker ou Podman) só um item fica marcado.
+Neovim, lerd ou Flock, Docker ou Podman) só um item fica marcado. Nenhuma
+distribuição do Neovim vem marcada: o editor padrão é o Helix, e o LazyVim (com
+os extras de linguagem do perfil) continua disponível na categoria
+"Distribuição Neovim".
 
 ## CLI
 
@@ -109,7 +113,7 @@ kanivet-cli catalog lint                   # valida o catálogo
   arquivo que já existe aparece marcado com `(backup)` e é copiado para
   `~/.local/state/kanivet-cli/backups/<execução>/` antes de ser alterado;
   `kanivet-cli restore <execução>` desfaz.
-- **Configs opinativas são opcionais.** Cada config (kitty, herdr, LazyVim...)
+- **Configs opinativas são opcionais.** Cada config (kitty, herdr, Helix...)
   pode ser desmarcada na revisão ou no dashboard.
 - **Sem sudo à toa.** No macOS as ferramentas vêm do Homebrew; no Linux, do mise
   (binários no `~`). Só os itens da seção "Precisa de sudo" pedem a senha, uma
@@ -178,17 +182,61 @@ Com os itens instalados, o init do shell ativa:
 ferramentas novas usam flags diferentes e quebrariam scripts. Use `rg`, `fd`,
 `sd`, `dust`, `duf` e `procs` direto.
 
+## Helix
+
+O Helix é o editor padrão de todos os perfis e define `EDITOR` e `VISUAL` como
+`hx`. As configs (opcionais e com backup) deixam ele com cara de IDE: abas no
+topo, statusline completa, diagnósticos e dicas de tipo inline, guias de
+indentação, auto-save e formatação ao salvar. O tema é o `monokai_soda_ide`
+(monokai_soda com a aba ativa e a linha do cursor destacadas).
+
+Atalhos incluídos na config (os nativos do Helix continuam valendo):
+
+| Atalho | Ação |
+|---|---|
+| `ctrl+s` | salvar (também no modo insert) |
+| `ctrl+p` / `ctrl+shift+p` | abrir arquivo / paleta de comandos |
+| `ctrl+shift+f` | buscar no projeto |
+| `ctrl+e` / `ctrl+y` | explorador de arquivos nativo / yazi |
+| `ctrl+b` | lista de buffers |
+| `ctrl+g` | lazygit em tela cheia (recarrega os buffers ao sair) |
+| `H` / `L` | aba anterior / próxima |
+| `ctrl+q` ou `space x` | fechar a aba (`space X` fecha as outras) |
+| `F12` / `shift+F12` | ir para a definição / referências |
+| `F2` | renomear símbolo |
+| `ctrl+.` | code actions |
+| `ctrl+space` | hover (no modo insert, autocomplete) |
+| `F8` / `shift+F8` | próximo / anterior diagnóstico |
+| `alt+↑` / `alt+↓` | mover a linha |
+| `space t` / `space W` | liga/desliga dicas de tipo / quebra de linha |
+| `space p` | roda o Laravel Pint (`vendor/bin/pint`) no arquivo atual |
+
+Os servidores de linguagem ficam na categoria "Servidores de linguagem" e são
+instalados pelo mise (pacotes `npm:`, `go:`, `pipx:`, `dotnet:` e `github:`),
+exceto o rust-analyzer, que é um componente do rustup:
+
+| Perfil | Servidores e formatadores |
+|---|---|
+| `web` | typescript-language-server, ESLint/HTML/CSS/JSON (vscode-langservers), Tailwind, prettier |
+| `laravel` | intelephense, laravel-ls, blade-formatter e os mesmos do `web` |
+| `ml` | basedpyright (o Ruff já vem no perfil) |
+| `backend` | rust-analyzer, gopls, goimports, delve, csharp-ls |
+
+O csharp-ls fica fixo na 0.20.0, a última versão que instala com o SDK do .NET 9.
+O laravel-ls não tem release para Linux arm64 e é pulado nessa plataforma.
+`hx --health <linguagem>` mostra o que o Helix encontrou.
+
 ## kitty + herdr
 
 As configs opinativas do terminal (todas opcionais e com backup):
 
-- **kitty**: JetBrainsMono Nerd Font 14, abas no topo, fundo translúcido com
+- **kitty**: JetBrainsMono Nerd Font 12, abas no topo, fundo translúcido com
   desfoque, tema Afterglow fixo (claro e escuro), e abas/janelas novas no
   diretório atual (`cmd+t`, `cmd+enter`, `cmd+n`; no Linux `ctrl+shift+t`,
   `ctrl+shift+enter`, `ctrl+shift+n`).
-- **herdr**: tema vesper, notificações no próprio herdr, atalhos dos plugins e
-  lazygit em popup. Plugins herdr-bar, herdr-auto-title, herdr-radar e
-  herdr-reviewr, cada um num commit fixo, mais as integrações dos agentes de IA
+- **herdr**: tema gruvbox, notificações no próprio herdr, atalhos dos plugins e
+  lazygit em popup. Plugins herdr-bar, herdr-auto-title, herdr-radar,
+  herdr-reviewr e herdr-sidebar, cada um num commit fixo, mais as integrações dos agentes de IA
   encontrados no `PATH`.
 
 O `prefix` do herdr é `ctrl+b`. Atalhos incluídos na config:
@@ -206,6 +254,7 @@ O `prefix` do herdr é `ctrl+b`. Atalhos incluídos na config:
 | Lazygit em popup | `prefix+alt+g` |
 | Busca rápida (herdr-bar) | `prefix+space` |
 | Painel de review do diff (reviewr) | `prefix+d` |
+| Sidebar estilo VS Code: arquivos, busca e git (herdr-sidebar) | `prefix+f` |
 | Radar: alternar ativos / recentes | `prefix+a` |
 | Radar: configurações | `prefix+,` |
 
