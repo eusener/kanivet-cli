@@ -7,6 +7,7 @@ import (
 
 	"github.com/eusener/kanivet-cli/internal/backend"
 	"github.com/eusener/kanivet-cli/internal/catalog"
+	"github.com/eusener/kanivet-cli/internal/configs"
 	"github.com/eusener/kanivet-cli/internal/detect"
 	"github.com/eusener/kanivet-cli/internal/plan"
 	"github.com/eusener/kanivet-cli/internal/platform"
@@ -45,6 +46,8 @@ var moreItems = []string{
 	"node", "pnpm", "bun", "python", "go", "rust", "dotnet", "java", "php", "composer", "homebrew",
 	"lerd", "flock", "uv", "ruff", "jupyter", "cuda", "podman", "docker", "lazydocker", "k9s", "kubectl",
 	"neovim-bin", "helix", "zed", "vscode", "lazyvim", "astronvim", "nvchad", "kickstart", "neovim-plain",
+	"typescript", "typescript-language-server", "vscode-langservers", "tailwindcss-ls", "prettier", "intelephense",
+	"blade-formatter", "laravel-ls", "gopls", "goimports", "delve", "csharp-ls", "rust-analyzer", "basedpyright",
 }
 
 var (
@@ -179,5 +182,59 @@ func TestEmbeddedLanguageVersions(t *testing.T) {
 		if got := it.Install[0].Versions; len(got) == 0 || got[0] != first {
 			t.Errorf("%s: Versions[0] = %v, want %q", id, got, first)
 		}
+	}
+}
+
+// Helix é o editor padrão: entra em todos os perfis com as configs, e nenhuma distro Neovim vem marcada.
+func TestHelixIsDefaultEditor(t *testing.T) {
+	lsps := map[string][]string{
+		"blank":   nil,
+		"web":     {"typescript", "typescript-language-server", "vscode-langservers", "tailwindcss-ls", "prettier"},
+		"laravel": {"intelephense", "laravel-ls", "blade-formatter", "typescript-language-server", "vscode-langservers", "tailwindcss-ls", "prettier"},
+		"ml":      {"basedpyright"},
+		"backend": {"rust-analyzer", "gopls", "goimports", "delve", "csharp-ls"},
+	}
+	for profile, want := range lsps {
+		pl := planFor(t, linuxSystemd, profile)
+		for _, id := range []string{"install:helix", "config:helix-config", "config:helix-languages"} {
+			if !hasStep(pl, id) {
+				t.Errorf("%s: missing %s in %v", profile, id, stepIDs(pl))
+			}
+		}
+		for _, id := range []string{"lazyvim", "astronvim", "nvchad", "kickstart", "neovim-plain", "neovim-bin"} {
+			if hasStep(pl, "install:"+id) {
+				t.Errorf("%s: %s should not be preselected", profile, id)
+			}
+		}
+		for _, id := range want {
+			if !hasStep(pl, "install:"+id) {
+				t.Errorf("%s: missing install:%s", profile, id)
+			}
+		}
+	}
+}
+
+func TestHelixConfigsRender(t *testing.T) {
+	c := embedded(t)
+	v := configs.VarsFor(linuxSystemd, map[string]string{})
+	for _, cfg := range c.Items["helix"].Configs {
+		for _, f := range cfg.Files {
+			out, err := configs.Render(c.Files, f.Template, v)
+			if err != nil {
+				t.Fatalf("%s: %v", f.Template, err)
+			}
+			if strings.Contains(string(out), "/home/") {
+				t.Errorf("%s: absolute home path in template", f.Template)
+			}
+		}
+	}
+}
+
+func TestLaravelLSUnsupportedOnLinuxARM(t *testing.T) {
+	arm := linuxSystemd
+	arm.Arch = "arm64"
+	pl := planFor(t, arm, "laravel")
+	if hasStep(pl, "install:laravel-ls") || !hasStep(pl, "install:intelephense") {
+		t.Fatalf("steps: %v", stepIDs(pl))
 	}
 }

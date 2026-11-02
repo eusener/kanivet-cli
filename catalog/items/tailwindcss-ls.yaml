@@ -1,0 +1,11 @@
+id: tailwindcss-ls
+category: lsp
+name: "tailwindcss-ls"
+description: {en: "Tailwind CSS class completion and hover", pt-BR: "Autocomplete e hover das classes do Tailwind CSS"}
+platforms: [macos, linux]
+depends_on: [node]
+detect:
+  command: "command -v tailwindcss-language-server"
+install:
+  - backend: mise
+    package: npm:@tailwindcss/language-server

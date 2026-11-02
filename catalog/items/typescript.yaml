@@ -1,0 +1,12 @@
+id: typescript
+category: lsp
+name: "typescript"
+description: {en: "TypeScript compiler (tsc), used by typescript-language-server", pt-BR: "Compilador TypeScript (tsc), usado pelo typescript-language-server"}
+platforms: [macos, linux]
+depends_on: [node]
+detect:
+  command: "tsc --version"
+  version_regex: "Version ([\\d.]+)"
+install:
+  - backend: mise
+    package: npm:typescript

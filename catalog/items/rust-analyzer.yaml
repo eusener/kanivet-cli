@@ -1,0 +1,13 @@
+id: rust-analyzer
+category: lsp
+name: "rust-analyzer"
+description: {en: "Rust language server (rustup component, with rust-src)", pt-BR: "Servidor de linguagem Rust (componente do rustup, com rust-src)"}
+homepage: https://rust-analyzer.github.io
+platforms: [macos, linux]
+depends_on: [rust]
+detect:
+  command: "rust-analyzer --version"
+  version_regex: "rust-analyzer ([\\d.]+)"
+install:
+  - backend: script
+    inline: '. "$HOME/.cargo/env" 2>/dev/null; rustup component add rust-analyzer rust-src'

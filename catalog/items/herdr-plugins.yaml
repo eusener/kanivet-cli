@@ -1,12 +1,12 @@
 id: herdr-plugins
 category: terminal
 name: herdr plugins
-description: {en: "herdr-bar, auto-title, radar and reviewr, plus integrations for the AI agents found", pt-BR: "herdr-bar, auto-title, radar e reviewr, mais as integrações dos agentes de IA encontrados"}
+description: {en: "herdr-bar, auto-title, radar, reviewr and sidebar, plus integrations for the AI agents found", pt-BR: "herdr-bar, auto-title, radar, reviewr e sidebar, mais as integrações dos agentes de IA encontrados"}
 platforms: [macos, linux]
 requires: {graphical: true}
 depends_on: [herdr, go, node]
 detect:
-  command: 'grep -q herdr-bar "$HOME/.config/herdr/plugins.json" 2>/dev/null'
+  command: 'grep -q herdr-bar "$HOME/.config/herdr/plugins.json" 2>/dev/null && grep -q herdr-sidebar "$HOME/.config/herdr/plugins.json" 2>/dev/null'
 install:
   - backend: herdr-plugin
     args:
@@ -14,6 +14,7 @@ install:
       - herdr.auto-title=kryptamine/herdr-auto-title@8a43d5503146d835ca223cd1f408840ee68465dd
       - hhdebb.herdr-radar=hhdebb/herdr-radar@79a81bbddc017a4349713e282b1a01ee360c46de
       - persiyanov.reviewr=persiyanov/herdr-reviewr@a253b1bfe4b34182af3204b7fcc42ccfed1b87d9
+      - herdr-sidebar=alexarthurs/herdr-sidebar/plugins/herdr-sidebar@db78187ea7a965ab7e82ba555a7c932b2bf59919  # v0.15.1
 post_install:
   - |
     for spec in claude:claude codex:codex copilot:copilot droid:droid opencode:opencode cursor:cursor-agent cursor:cursor antigravity-cli:antigravity-cli; do
@@ -23,7 +24,7 @@ post_install:
     herdr server reload-config >/dev/null 2>&1 || true
 configs:
   - id: herdr-radar-config
-    description: {en: "herdr-radar keeps the vesper theme fixed instead of following the system appearance", pt-BR: "herdr-radar mantém o tema vesper fixo, sem seguir o modo claro/escuro do sistema"}
+    description: {en: "herdr-radar keeps the gruvbox theme fixed instead of following the system appearance", pt-BR: "herdr-radar mantém o tema gruvbox fixo, sem seguir o modo claro/escuro do sistema"}
     default: true
     files:
       - template: configs/herdr/plugins/hhdebb.herdr-radar/config.toml

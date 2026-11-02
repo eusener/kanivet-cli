@@ -1,0 +1,12 @@
+id: basedpyright
+category: lsp
+name: "basedpyright"
+description: {en: "Python type checker and language server", pt-BR: "Checagem de tipos e servidor de linguagem Python"}
+platforms: [macos, linux]
+depends_on: [uv]
+detect:
+  command: "basedpyright --version"
+  version_regex: "basedpyright ([\\d.]+)"
+install:
+  - backend: mise
+    package: pipx:basedpyright

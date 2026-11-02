@@ -1,0 +1,12 @@
+id: blade-formatter
+category: lsp
+name: "blade-formatter"
+description: {en: "Formatter for Laravel Blade templates", pt-BR: "Formatador de templates Blade do Laravel"}
+platforms: [macos, linux]
+depends_on: [node]
+detect:
+  command: "blade-formatter --version"
+  version_regex: "([\\d]+\\.[\\d]+\\.[\\d]+)"
+install:
+  - backend: mise
+    package: npm:blade-formatter

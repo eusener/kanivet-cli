@@ -1,0 +1,11 @@
+id: vscode-langservers
+category: lsp
+name: "vscode-langservers"
+description: {en: "HTML, CSS, JSON and ESLint language servers from VS Code", pt-BR: "Servidores de linguagem HTML, CSS, JSON e ESLint do VS Code"}
+platforms: [macos, linux]
+depends_on: [node]
+detect:
+  command: "command -v vscode-html-language-server"
+install:
+  - backend: mise
+    package: npm:vscode-langservers-extracted

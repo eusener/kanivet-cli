@@ -1,0 +1,4 @@
+id: lsp
+name: {en: "Language servers", pt-BR: "Servidores de linguagem"}
+description: {en: "LSPs and formatters used by Helix (and any LSP-aware editor)", pt-BR: "LSPs e formatadores usados pelo Helix (e por qualquer editor com LSP)"}
+exclusive: false

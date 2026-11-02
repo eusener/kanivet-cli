@@ -1,0 +1,15 @@
+id: csharp-ls
+category: lsp
+name: "csharp-ls"
+description: {en: "C# language server", pt-BR: "Servidor de linguagem C#"}
+homepage: https://github.com/razzmatazz/csharp-language-server
+notes: {en: "Pinned to 0.20.0, the last version that installs with the .NET 9 SDK", pt-BR: "Fixo na 0.20.0, a última versão que instala com o SDK do .NET 9"}
+platforms: [macos, linux]
+depends_on: [dotnet]
+detect:
+  command: "csharp-ls --version"
+  version_regex: "([\\d]+\\.[\\d]+\\.[\\d]+)"
+install:
+  - backend: mise
+    package: dotnet:csharp-ls
+    version: "0.20.0"

@@ -1,0 +1,13 @@
+# monokai_soda + ajustes de IDE
+inherits = "monokai_soda"
+
+# Abas (bufferline)
+"ui.bufferline" = { fg = "gray", bg = "black" }                                    # abas inativas: apagadas
+"ui.bufferline.active" = { fg = "black", bg = "orange", modifiers = ["bold"] }   # aba ativa: laranja
+"ui.bufferline.background" = { bg = "black" }                                      # fundo da barra
+
+# Linha do cursor (o tema original não define)
+"ui.cursorline.primary" = { bg = "#262626" }
+
+[palette]
+"black" = "#222222"

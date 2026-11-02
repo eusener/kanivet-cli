@@ -1,7 +1,8 @@
 id: helix
 category: editors
 name: "Helix"
-description: {en: "Modal editor with built-in LSP, zero config", pt-BR: "Editor modal com LSP embutido, sem configuração"}
+description: {en: "Modal editor with built-in LSP, set up like an IDE (default editor)", pt-BR: "Editor modal com LSP embutido, configurado como IDE (editor padrão)"}
+homepage: https://helix-editor.com
 platforms: [macos, linux]
 detect:
   command: "hx --version"
@@ -12,3 +13,23 @@ install:
     when: {os: macos}
   - backend: mise
     package: aqua:helix-editor/helix
+shell:
+  guard: hx
+  env:
+    EDITOR: hx
+    VISUAL: hx
+configs:
+  - id: helix-config
+    description: {en: "IDE layout: tabs, full status line, inline diagnostics and type hints, VS Code-style shortcuts, lazygit (ctrl+g), terminal (ctrl+t) and yazi (ctrl+y)", pt-BR: "Layout de IDE: abas, statusline completa, diagnósticos e tipos inline, atalhos estilo VS Code, lazygit (ctrl+g), terminal (ctrl+t) e yazi (ctrl+y)"}
+    default: true
+    files:
+      - template: configs/helix/config.toml
+        target: "{{.XDG_CONFIG}}/helix/config.toml"
+      - template: configs/helix/themes/monokai_soda_ide.toml
+        target: "{{.XDG_CONFIG}}/helix/themes/monokai_soda_ide.toml"
+  - id: helix-languages
+    description: {en: "Language servers and format-on-save for Rust, Python, PHP/Laravel, Blade, C#, Go and TS/JS", pt-BR: "Servidores de linguagem e formatação ao salvar para Rust, Python, PHP/Laravel, Blade, C#, Go e TS/JS"}
+    default: true
+    files:
+      - template: configs/helix/languages.toml
+        target: "{{.XDG_CONFIG}}/helix/languages.toml"

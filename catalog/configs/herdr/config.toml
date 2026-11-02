@@ -23,7 +23,7 @@ delivery = "herdr"
 position = "top-right"
 
 [theme]
-name = "vesper"
+name = "gruvbox"
 auto_switch = false
 
 [keys]
@@ -46,6 +46,11 @@ type = "plugin_action"
 command = "persiyanov.reviewr.toggle"       # painel de review do diff
 
 [[keys.command]]
+key = "prefix+f"
+type = "plugin_action"
+command = "herdr-sidebar.open-sidebar"      # sidebar: explorador de arquivos + git
+
+[[keys.command]]
 key = "prefix+a"
 type = "plugin_action"
 command = "hhdebb.herdr-radar.view-flip"    # ordem: ativos <-> recentes
@@ -57,5 +62,3 @@ command = "hhdebb.herdr-radar.settings"     # configurações do radar
 
 [experimental]
 pane_history = true
-
-# >>> herdr-radar sidebar block

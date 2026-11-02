@@ -1,0 +1,140 @@
+theme = "monokai_soda_ide"
+
+# ───────────────────────────── Editor ─────────────────────────────
+[editor]
+line-number = "absolute"          # números absolutos, como numa IDE
+cursorline = true                 # destaca a linha atual
+rulers = [100]                    # régua vertical na coluna 100
+bufferline = "always"             # "abas" de buffers no topo
+color-modes = true                # cor do modo na statusline
+mouse = true                      # clique, scroll e seleção com o mouse
+scrolloff = 8
+true-color = true
+undercurl = true                  # sublinhado ondulado nos erros (kitty suporta)
+popup-border = "all"              # bordas em popups/menus (hover, completion)
+completion-trigger-len = 1
+completion-timeout = 5
+completion-replace = true
+idle-timeout = 50
+auto-pairs = true
+auto-format = true
+trim-trailing-whitespace = true
+insert-final-newline = true
+end-of-line-diagnostics = "hint"  # diagnóstico no fim da linha
+gutters = ["diagnostics", "spacer", "line-numbers", "spacer", "diff"]
+
+[editor.auto-save]
+focus-lost = true                 # salva ao trocar de janela
+after-delay.enable = true         # e após um tempo sem digitar
+after-delay.timeout = 3000
+
+[editor.inline-diagnostics]
+cursor-line = "warning"           # mensagem completa na linha do cursor
+other-lines = "disable"
+
+[editor.cursor-shape]
+insert = "bar"
+normal = "block"
+select = "underline"
+
+[editor.indent-guides]
+render = true
+character = "│"
+skip-levels = 1
+
+[editor.soft-wrap]
+enable = false
+
+[editor.whitespace.render]
+tab = "all"
+nbsp = "all"
+nnbsp = "all"
+
+[editor.whitespace.characters]
+tab = "→"
+nbsp = "⍽"
+
+[editor.file-picker]
+hidden = false                    # mostra dotfiles (respeita .gitignore)
+git-ignore = true
+
+[editor.lsp]
+display-inlay-hints = true        # tipos/parâmetros inline
+display-messages = true
+display-progress-messages = true
+auto-signature-help = true
+snippets = true
+
+[editor.statusline]
+left = ["mode", "spinner", "version-control", "file-name", "read-only-indicator", "file-modification-indicator"]
+center = []
+right = ["diagnostics", "workspace-diagnostics", "selections", "register", "position", "position-percentage", "file-encoding", "file-line-ending", "file-type"]
+separator = "│"
+mode.normal = "NORMAL"
+mode.insert = "INSERT"
+mode.select = "SELECT"
+
+# ─────────────────────────── Atalhos ────────────────────────────
+# Estilo VS Code por cima dos atalhos nativos (que continuam valendo).
+[keys.normal]
+C-s = ":write"                                  # salvar
+C-p = "file_picker"                             # abrir arquivo
+C-S-p = "command_palette"                       # paleta de comandos
+C-S-f = "global_search"                         # buscar no projeto
+C-e = "file_explorer"                           # explorador de arquivos (nativo)
+C-b = "buffer_picker"                           # buffers abertos
+F2 = "rename_symbol"
+F12 = "goto_definition"
+S-F12 = "goto_reference"
+"C-." = "code_action"
+C-space = "hover"
+F8 = "goto_next_diag"
+S-F8 = "goto_prev_diag"
+H = "goto_previous_buffer"                      # aba anterior
+L = "goto_next_buffer"                          # próxima aba
+C-q = ":buffer-close"                           # fechar aba
+esc = ["collapse_selection", "keep_primary_selection"]
+
+# Mover linha para cima/baixo (Alt+↑/↓)
+A-up = ["extend_to_line_bounds", "delete_selection", "move_line_up", "paste_before"]
+A-down = ["extend_to_line_bounds", "delete_selection", "paste_after"]
+
+# lazygit em tela cheia; recarrega os buffers ao sair
+C-g = [":write-all", ":new", ":insert-output lazygit", ":buffer-close!", ":redraw", ":reload-all"]
+
+# terminal (shell) em tela cheia; `exit` ou Ctrl+D volta ao Helix e recarrega os buffers
+C-t = [
+  ":write-all",
+  ":new",
+  ':insert-output printf "\x1b[2J\x1b[H" > /dev/tty; $SHELL -i < /dev/tty > /dev/tty 2>&1',
+  ':insert-output echo "\x1b[?1049h\x1b[?2004h" > /dev/tty',
+  ":buffer-close!",
+  ":redraw",
+  ":reload-all",
+]
+
+# yazi como explorador: abre o arquivo escolhido
+C-y = [
+  ':sh rm -f /tmp/helix-yazi-chooser',
+  ':insert-output yazi "%{buffer_name}" --chooser-file=/tmp/helix-yazi-chooser',
+  ':insert-output echo "\x1b[?1049h\x1b[?2004h" > /dev/tty',
+  ':open %sh{cat /tmp/helix-yazi-chooser}',
+  ':redraw',
+]
+
+[keys.normal.space]
+x = ":buffer-close"
+X = ":buffer-close-others"
+q = ":quit-all"
+t = ":toggle lsp.display-inlay-hints"
+W = ":toggle soft-wrap.enable"
+p = [":write", ":sh vendor/bin/pint %{buffer_name}", ":reload"]   # Laravel Pint no arquivo atual
+
+[keys.insert]
+C-s = ["normal_mode", ":write"]
+C-space = "completion"
+A-up = ["normal_mode", "extend_to_line_bounds", "delete_selection", "move_line_up", "paste_before", "insert_mode"]
+A-down = ["normal_mode", "extend_to_line_bounds", "delete_selection", "paste_after", "insert_mode"]
+
+[keys.select]
+C-s = ["normal_mode", ":write"]

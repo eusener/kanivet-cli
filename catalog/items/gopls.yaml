@@ -1,0 +1,12 @@
+id: gopls
+category: lsp
+name: "gopls"
+description: {en: "Go language server", pt-BR: "Servidor de linguagem Go"}
+platforms: [macos, linux]
+depends_on: [go]
+detect:
+  command: "gopls version"
+  version_regex: "gopls v([\\d.]+)"
+install:
+  - backend: mise
+    package: go:golang.org/x/tools/gopls

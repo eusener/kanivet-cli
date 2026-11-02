@@ -1,0 +1,12 @@
+id: typescript-language-server
+category: lsp
+name: "typescript-language-server"
+description: {en: "TypeScript/JavaScript language server", pt-BR: "Servidor de linguagem TypeScript/JavaScript"}
+platforms: [macos, linux]
+depends_on: [node, typescript]
+detect:
+  command: "typescript-language-server --version"
+  version_regex: "([\\d]+\\.[\\d]+\\.[\\d]+)"
+install:
+  - backend: mise
+    package: npm:typescript-language-server
