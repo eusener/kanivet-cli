@@ -62,5 +62,3 @@ command = "hhdebb.herdr-radar.settings"     # configurações do radar
 
 [experimental]
 pane_history = true
-
-# >>> herdr-radar sidebar block

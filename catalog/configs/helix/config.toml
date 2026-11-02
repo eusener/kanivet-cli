@@ -102,6 +102,17 @@ A-down = ["extend_to_line_bounds", "delete_selection", "paste_after"]
 # lazygit em tela cheia; recarrega os buffers ao sair
 C-g = [":write-all", ":new", ":insert-output lazygit", ":buffer-close!", ":redraw", ":reload-all"]
 
+# terminal (shell) em tela cheia; `exit` ou Ctrl+D volta ao Helix e recarrega os buffers
+C-t = [
+  ":write-all",
+  ":new",
+  ':insert-output printf "\x1b[2J\x1b[H" > /dev/tty; $SHELL -i < /dev/tty > /dev/tty 2>&1',
+  ':insert-output echo "\x1b[?1049h\x1b[?2004h" > /dev/tty',
+  ":buffer-close!",
+  ":redraw",
+  ":reload-all",
+]
+
 # yazi como explorador: abre o arquivo escolhido
 C-y = [
   ':sh rm -f /tmp/helix-yazi-chooser',
