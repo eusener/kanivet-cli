@@ -1,7 +1,23 @@
-# kanivet-cli
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/kanivet-logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/kanivet-logo-light.svg">
+    <img alt="kanivet-cli" src="docs/assets/kanivet-logo-light.svg" width="520">
+  </picture>
+</p>
 
 <p align="center">
-  <img src="docs/assets/kanivet-cli-logo.png" alt="kanivet-cli — um terminal pronto em qualquer máquina nova" width="720">
+  <strong>Prepara Linux e macOS para o terminal: um comando, todas as suas ferramentas CLI.</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/eusener/kanivet-cli/releases"><img alt="Release" src="https://img.shields.io/github/v/release/eusener/kanivet-cli?color=f5c400&labelColor=1a1a1a"></a>
+  <a href="LICENSE"><img alt="Licença MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-1aa999?labelColor=1a1a1a"></a>
+  <img alt="macOS e Linux" src="https://img.shields.io/badge/macOS%20%7C%20Linux-x86__64%20%7C%20arm64-555?labelColor=1a1a1a">
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshots/tui-welcome.png" alt="Tela de boas-vindas da TUI do kanivet-cli" width="820">
 </p>
 
 Instala e gerencia um ambiente de desenvolvimento focado em terminal: shell,
@@ -71,6 +87,22 @@ kanivet-cli                                 # abre a TUI
 
 Na primeira vez abre o wizard: boas-vindas, perfil, categorias, revisão,
 execução e resumo. Nada é instalado antes da tela de revisão.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshots/tui-profile.png" alt="Escolha do perfil no wizard"></td>
+    <td width="50%"><img src="docs/assets/screenshots/tui-categories.png" alt="Itens de uma categoria, com o detalhe do item à direita"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Perfil</b>: cada perfil mostra quantos itens traz</sub></td>
+    <td align="center"><sub><b>Itens</b>: marque item a item, com método de instalação e configs</sub></td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="docs/assets/screenshots/tui-review.png" alt="Revisão do plano com cada comando que será executado" width="820"><br>
+  <sub><b>Revisão</b>: o plano lista cada comando e cada arquivo antes de qualquer mudança</sub>
+</p>
 
 ## Perfis
 
@@ -142,6 +174,11 @@ wizard na primeira vez e o dashboard depois que já há itens ou perfil no estad
 Se houver uma execução inacabada, a TUI abre direto na revisão dos passos
 pendentes: `enter` retoma e `esc` descarta. Sem TTY, imprime a ajuda.
 
+<p align="center">
+  <img src="docs/assets/screenshots/tui-dashboard.png" alt="Dashboard com abas de categoria, status de cada item e atualizações disponíveis" width="820"><br>
+  <sub><b>Dashboard</b>: status de cada item, versões, atualizações disponíveis e o que veio de fora do kanivet-cli</sub>
+</p>
+
 | Tecla | Ação |
 |---|---|
 | setas ou `hjkl` | mover |
@@ -200,6 +237,7 @@ Atalhos incluídos na config (os nativos do Helix continuam valendo):
 | `ctrl+e` / `ctrl+y` | explorador de arquivos nativo / yazi |
 | `ctrl+b` | lista de buffers |
 | `ctrl+g` | lazygit em tela cheia (recarrega os buffers ao sair) |
+| `ctrl+t` | terminal (o seu shell) em tela cheia; `exit` ou `ctrl+d` volta ao Helix e recarrega os buffers |
 | `H` / `L` | aba anterior / próxima |
 | `ctrl+q` ou `space x` | fechar a aba (`space X` fecha as outras) |
 | `F12` / `shift+F12` | ir para a definição / referências |
@@ -230,8 +268,8 @@ O laravel-ls não tem release para Linux arm64 e é pulado nessa plataforma.
 
 As configs opinativas do terminal (todas opcionais e com backup):
 
-- **kitty**: JetBrainsMono Nerd Font 12, abas no topo, fundo translúcido com
-  desfoque, tema Afterglow fixo (claro e escuro), e abas/janelas novas no
+- **kitty**: JetBrainsMono Nerd Font 12, abas compactas no topo (estilo
+  `fade`), fundo translúcido (80% de opacidade) com desfoque, tema Afterglow fixo (claro e escuro), e abas/janelas novas no
   diretório atual (`cmd+t`, `cmd+enter`, `cmd+n`; no Linux `ctrl+shift+t`,
   `ctrl+shift+enter`, `ctrl+shift+n`).
 - **herdr**: tema gruvbox, notificações no próprio herdr, atalhos dos plugins e
@@ -284,6 +322,7 @@ internal/
 test/integration/    # instalação real em containers
 test/release/        # teste do install.sh contra um dist/ do GoReleaser
 docs/superpowers/    # design e planos
+docs/assets/         # logo, ícone e prints da TUI
 ```
 
 Para adicionar uma ferramenta, crie `catalog/items/<id>.yaml` (use um item
@@ -341,6 +380,26 @@ a release do ar. A correção sai numa versão nova (`v0.1.1`), nunca na mesma t
 - **Uma integração do herdr foi pulada**: o agente não foi encontrado no `PATH`.
   Instale o agente e rode `kanivet-cli install herdr-plugins` de novo.
 - **Algo estranho no ambiente**: `kanivet-cli doctor`.
+
+## Logo e ícone
+
+<p>
+  <img src="docs/assets/kanivet-icon.svg" alt="Ícone do kanivet-cli" width="96">
+  &nbsp;
+  <img src="docs/assets/kanivet-icon-dark.svg" alt="Ícone do kanivet-cli para fundos escuros" width="96">
+</p>
+
+Os arquivos ficam em `docs/assets/`, em SVG e PNG:
+
+| Arquivo | Uso |
+|---|---|
+| `kanivet-logo-light.svg` / `.png` | logo para fundos claros (tema claro do GitHub) |
+| `kanivet-logo-dark.svg` / `.png` | logo para fundos escuros (tema escuro do GitHub) |
+| `kanivet-icon.svg` / `.png` | ícone: avatar, favicon, ícone do repositório |
+| `kanivet-icon-dark.svg` / `.png` | ícone para fundos escuros |
+
+O topo deste README usa `<picture>` e troca o logo sozinho conforme o tema de
+quem lê (o trecho pronto está em `docs/assets/README-header.md`).
 
 ## Licença
 
