@@ -1,3 +1,6 @@
 .build/
 .superpowers/
 dist/
+
+# macOS
+.DS_Store
