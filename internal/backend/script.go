@@ -18,7 +18,7 @@ func (script) Name() string { return "script" }
 
 func (script) Install(m catalog.Method, _ string, _ platform.Platform) []runner.Cmd {
 	if m.Inline != "" {
-		return []runner.Cmd{{Shell: m.Inline}}
+		return []runner.Cmd{{Shell: m.Inline, Stdin: m.Interactive}}
 	}
 	var b strings.Builder
 	b.WriteString(`T=$(mktemp) && curl -fsSL ` + q(m.URL) + ` -o "$T"`)
@@ -31,7 +31,7 @@ func (script) Install(m catalog.Method, _ string, _ platform.Platform) []runner.
 		b.WriteString(" " + q(a))
 	}
 	b.WriteString(`; rc=$?; rm -f "$T"; exit $rc`)
-	return []runner.Cmd{{Shell: b.String(), Display: "curl " + m.URL + " | bash"}}
+	return []runner.Cmd{{Shell: b.String(), Display: "curl " + m.URL + " | bash", Stdin: m.Interactive}}
 }
 
 func (s script) Update(m catalog.Method, p platform.Platform) []runner.Cmd {

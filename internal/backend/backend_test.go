@@ -207,6 +207,19 @@ func TestMiseLatestParses(t *testing.T) {
 	}
 }
 
+// Instaladores que perguntam via /dev/tty (lerd) precisam do terminal: sem Stdin ficam parados em SIGTTIN.
+func TestScriptInteractive(t *testing.T) {
+	b := get(t, "script")
+	if b.Install(catalog.Method{URL: "https://x.dev/i.sh"}, "", ubuntu)[0].Stdin {
+		t.Fatal("script must not take the terminal by default")
+	}
+	for _, m := range []catalog.Method{{URL: "https://lerd.sh/install.sh", Interactive: true}, {Inline: "x", Interactive: true}} {
+		if !b.Install(m, "", ubuntu)[0].Stdin || !b.Update(m, ubuntu)[0].Stdin {
+			t.Fatalf("interactive script must take the terminal: %+v", m)
+		}
+	}
+}
+
 func TestScriptInline(t *testing.T) {
 	eq(t, "inline", get(t, "script").Install(catalog.Method{Inline: "herdr plugin action invoke x"}, "", ubuntu), "herdr plugin action invoke x")
 }

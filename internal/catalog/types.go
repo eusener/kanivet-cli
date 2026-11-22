@@ -83,6 +83,8 @@ type Method struct {
 	Repo      string   `yaml:"repo"`
 	Ref       string   `yaml:"ref"`
 	Dest      string   `yaml:"dest"`
+	// Interactive cede o terminal ao comando (instaladores que perguntam via /dev/tty, como o do lerd).
+	Interactive bool `yaml:"interactive"`
 }
 
 type When struct {
