@@ -15,3 +15,4 @@ detect:
 install:
   - backend: script
     url: https://lerd.sh/install.sh
+    interactive: true # pergunta o modo de DNS e confirmações via /dev/tty
