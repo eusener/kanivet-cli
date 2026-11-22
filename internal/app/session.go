@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/eusener/kanivet-cli/internal/backend"
 	"github.com/eusener/kanivet-cli/internal/catalog"
 	"github.com/eusener/kanivet-cli/internal/configs"
 	"github.com/eusener/kanivet-cli/internal/detect"
@@ -62,7 +63,37 @@ func (s *Session) Unfinished() (*state.Journal, *plan.Plan, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	return j, pendingSteps(pl, j), nil
+	pl = pendingSteps(pl, j)
+	s.refreshInteractive(pl)
+	return j, pl, nil
+}
+
+// refreshInteractive liga o Stdin dos comandos que o catálogo atual marca como interativos.
+// O plano salvo guarda os comandos como foram gerados: um run iniciado por um binário anterior
+// à marcação (lerd pergunta via /dev/tty) ficaria parado para sempre ao ser retomado.
+func (s *Session) refreshInteractive(pl *plan.Plan) {
+	for i := range pl.Steps {
+		st := &pl.Steps[i]
+		it := s.Cat.Items[st.ItemID]
+		if it == nil || (st.Kind != plan.KindInstall && st.Kind != plan.KindUpdate) {
+			continue
+		}
+		m, be, err := backend.Choose(it, s.P)
+		if err != nil || be.Name() != st.Backend {
+			continue
+		}
+		interactive := map[string]bool{}
+		for _, c := range append(be.Install(m, "", s.P), be.Update(m, s.P)...) {
+			if c.Stdin {
+				interactive[c.String()] = true
+			}
+		}
+		for k := range st.Cmds {
+			if interactive[st.Cmds[k].String()] {
+				st.Cmds[k].Stdin = true
+			}
+		}
+	}
 }
 
 // pendingSteps devolve o plano salvo sem os passos já concluídos.
