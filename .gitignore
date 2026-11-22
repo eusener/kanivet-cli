@@ -4,3 +4,6 @@ dist/
 
 # macOS
 .DS_Store
+
+# binário local (go build)
+/kanivet-cli
