@@ -131,6 +131,32 @@ func TestSessionUnfinishedReturnsPendingOnly(t *testing.T) {
 	}
 }
 
+// Um run salvo antes do lerd ser marcado como interativo precisa ceder o terminal ao ser retomado.
+func TestSessionUnfinishedRefreshesInteractive(t *testing.T) {
+	f := newFixture(t)
+	pl, _, err := f.s.Plan(context.Background(), plan.Selection{Add: []string{"lerd"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := pl.Step("install:lerd"); st.Cmds[0].Stdin {
+		t.Fatal("testdata lerd must start non-interactive")
+	}
+	data, _ := pl.MarshalJSON()
+	j, err := state.NewJournal(f.s.StateDir, f.s.Now(), data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = j.Set("install:lerd", state.StepRunning)
+	f.s.Cat.Items["lerd"].Install[0].Interactive = true // o catálogo do binário novo
+	_, got, err := f.s.Unfinished()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st, ok := got.Step("install:lerd"); !ok || !st.Cmds[0].Stdin {
+		t.Fatalf("resumed lerd must take the terminal: %+v", got.Steps)
+	}
+}
+
 func TestSessionUnfinishedNone(t *testing.T) {
 	f := newFixture(t)
 	if j, p, err := f.s.Unfinished(); err != nil || j != nil || p != nil {
