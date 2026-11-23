@@ -163,8 +163,9 @@ kanivet-cli catalog lint                   # valida o catálogo
   parou.
 - **Shell.** zsh e bash. Aliases e hooks vão para
   `~/.config/kanivet-cli/shell/init.{zsh,bash}`, carregados por um único bloco
-  `# >>> kanivet-cli >>>` no fim do rc. `install --zsh` também troca o shell
-  padrão para o zsh.
+  `# >>> kanivet-cli >>>` no fim do rc. Selecionar o zsh (na TUI, com
+  `install zsh` ou `install --zsh`) troca o shell padrão para ele e instala o
+  starship junto.
 - **Idioma.** Inglês por padrão; pt-BR quando `LANG`/`LC_ALL` começa com `pt`.
 
 ## Interface
