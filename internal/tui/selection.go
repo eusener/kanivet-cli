@@ -156,6 +156,11 @@ func (s *Selection) mark(id string) {
 		}
 	}
 	s.marked[id] = true
+	if id == "zsh" { // o zsh vira o shell padrão e chega com o prompt do starship
+		if ok, _ := s.Selectable("starship"); ok {
+			s.marked["starship"] = true
+		}
+	}
 }
 
 func (s *Selection) Marked(id string) bool { return s.marked[id] }

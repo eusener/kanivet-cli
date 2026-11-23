@@ -28,7 +28,7 @@ func testCatalog() *catalog.Catalog {
 	for _, it := range []*catalog.Item{
 		mk("fzf", "cli"), mk("bat", "cli"), mk("mise", "cli"), mk("go", "languages", "mise"), mk("node", "languages", "mise"),
 		mk("herdr-plugins", "cli", "go"), mk("lerd", "php-local"), mk("flock", "php-local"), mk("php", "languages"),
-		mk("zsh-syntax-highlighting", "cli"), mk("zsh", "cli"), mk("build-tools", "cli"),
+		mk("zsh-syntax-highlighting", "cli"), mk("zsh", "cli"), mk("starship", "cli"), mk("build-tools", "cli"),
 	} {
 		c.Items[it.ID] = it
 	}
@@ -422,5 +422,25 @@ func TestHerdrUpdateRunsFirstWhenPresent(t *testing.T) {
 	p, _ = Build(c, linux, st, Selection{Uninstall: []string{"herdr"}})
 	if _, ok := p.Step(HerdrUpdateID); ok {
 		t.Fatal("desinstalar o herdr não deveria atualizá-lo antes")
+	}
+}
+
+func TestSelectingZshSwitchesShellWithStarship(t *testing.T) {
+	c := testCatalog()
+	bash := linux
+	bash.Shell = "bash"
+	p, err := Build(c, bash, absent(c), Selection{Add: []string{"zsh"}})
+	if err != nil || !has(p, "install:zsh") || !has(p, "install:starship") || !has(p, "chsh:zsh") {
+		t.Fatalf("%v %v", ids(p), err)
+	}
+	// já no zsh: instala o starship, sem chsh
+	p, _ = Build(c, linux, absent(c), Selection{Add: []string{"zsh"}})
+	if !has(p, "install:starship") || has(p, "chsh:zsh") {
+		t.Fatalf("on zsh: %v", ids(p))
+	}
+	// --zsh também traz o starship
+	p, _ = Build(c, bash, absent(c), Selection{SwitchToZsh: true})
+	if !has(p, "install:starship") || !has(p, "chsh:zsh") {
+		t.Fatalf("--zsh: %v", ids(p))
 	}
 }

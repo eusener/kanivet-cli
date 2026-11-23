@@ -3,7 +3,7 @@ package plan
 
 import (
 	"encoding/json"
-
+	"slices"
 	"sort"
 	"strings"
 
@@ -24,7 +24,8 @@ type Selection struct {
 	Configs   map[string]bool   // configID → ligada; ausente = ConfigSpec.Default
 	Update    []string
 	UpdateAll bool
-	// SwitchToZsh instala o zsh e o define como shell padrão (chsh).
+	// SwitchToZsh instala o zsh (com o starship) e o define como shell padrão (chsh).
+	// Selecionar o zsh explicitamente (Add) liga a troca.
 	SwitchToZsh bool
 }
 
@@ -165,8 +166,14 @@ func (b *builder) desired() ([]string, error) {
 		}
 		b.explicit[id] = true
 	}
+	if b.explicit["zsh"] && !slices.Contains(b.sel.Remove, "zsh") {
+		b.sel.SwitchToZsh = true
+	}
 	if b.sel.SwitchToZsh && b.c.Items["zsh"] != nil {
 		base = append(base, "zsh")
+		if b.c.Items["starship"] != nil {
+			base = append(base, "starship")
+		}
 	}
 	explicitCats := map[string]bool{}
 	for id := range b.explicit {

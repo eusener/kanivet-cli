@@ -193,3 +193,11 @@ func TestEveryCategoryHasWizardPage(t *testing.T) {
 		}
 	}
 }
+
+func TestMarkingZshMarksStarship(t *testing.T) {
+	s := newSel(t, linuxSystemd, nil, ModeWizard)
+	s.Toggle("zsh")
+	if !s.Marked("zsh") || !s.Marked("starship") {
+		t.Fatalf("zsh=%v starship=%v", s.Marked("zsh"), s.Marked("starship"))
+	}
+}
