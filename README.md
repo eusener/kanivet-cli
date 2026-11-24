@@ -270,7 +270,7 @@ O laravel-ls não tem release para Linux arm64 e é pulado nessa plataforma.
 As configs opinativas do terminal (todas opcionais e com backup):
 
 - **kitty**: JetBrainsMono Nerd Font 13, abas compactas no topo (estilo
-  `fade`, com botão `+` estreito para abrir abas), fundo translúcido (80% de opacidade) com desfoque, tema Afterglow fixo (claro e escuro), e abas/janelas novas no
+  `fade`, com botão `+` estreito para abrir abas), fundo translúcido (80% de opacidade) com desfoque, tema Afterglow fixo (claro e escuro; no Omarchy, as cores seguem o tema atual do sistema), e abas/janelas novas no
   diretório atual (`cmd+t`, `cmd+enter`, `cmd+n`; no Linux `ctrl+shift+t`,
   `ctrl+shift+enter`, `ctrl+shift+n`).
 - **herdr**: tema gruvbox, notificações no próprio herdr, atalhos dos plugins e

@@ -27,6 +27,21 @@ const (
 type Vars struct {
 	HOME, XDG_CONFIG, XDG_DATA, OS, Arch string
 	Extras                               []string // extras do perfil (ex.: LazyVim)
+	// OmarchyKittyTheme é o kitty.conf do tema atual do Omarchy, quando existe (senão "").
+	OmarchyKittyTheme string
+}
+
+// omarchyKittyTheme devolve o arquivo de cores do kitty que o Omarchy troca a cada tema.
+func omarchyKittyTheme(home string, env map[string]string) string {
+	stateDir := env["XDG_STATE_HOME"]
+	if stateDir == "" {
+		stateDir = filepath.Join(home, ".local", "state")
+	}
+	p := filepath.Join(stateDir, "omarchy", "current", "theme", "kitty.conf")
+	if _, err := os.Stat(p); err != nil {
+		return ""
+	}
+	return p
 }
 
 func VarsFor(p platform.Platform, env map[string]string) Vars {
@@ -37,6 +52,7 @@ func VarsFor(p platform.Platform, env map[string]string) Vars {
 	if v.XDG_DATA == "" {
 		v.XDG_DATA = filepath.Join(p.Home, ".local", "share")
 	}
+	v.OmarchyKittyTheme = omarchyKittyTheme(p.Home, env)
 	return v
 }
 

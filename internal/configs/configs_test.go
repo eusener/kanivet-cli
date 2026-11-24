@@ -1,6 +1,7 @@
 package configs
 
 import (
+	catalogfs "github.com/eusener/kanivet-cli/catalog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -257,5 +258,51 @@ func TestRestoreRunRestoresMovedDirWhole(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(real, "new.lua")); err == nil {
 		t.Fatal("restore must not merge into the original")
+	}
+}
+
+func TestVarsOmarchyKittyTheme(t *testing.T) {
+	home := t.TempDir()
+	if v := VarsFor(platform.Platform{Home: home}, map[string]string{}); v.OmarchyKittyTheme != "" {
+		t.Fatalf("no Omarchy theme must be empty, got %q", v.OmarchyKittyTheme)
+	}
+	theme := filepath.Join(home, ".local", "state", "omarchy", "current", "theme", "kitty.conf")
+	if err := os.MkdirAll(filepath.Dir(theme), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(theme, []byte("background #000000\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if v := VarsFor(platform.Platform{Home: home}, map[string]string{}); v.OmarchyKittyTheme != theme {
+		t.Fatalf("got %q, want %q", v.OmarchyKittyTheme, theme)
+	}
+	state := t.TempDir()
+	if v := VarsFor(platform.Platform{Home: home}, map[string]string{"XDG_STATE_HOME": state}); v.OmarchyKittyTheme != "" {
+		t.Fatal("XDG_STATE_HOME must win")
+	}
+}
+
+// No Omarchy, as configs do kitty incluem o tema atual em vez de fixar cores próprias.
+func TestKittyTemplatesFollowOmarchyTheme(t *testing.T) {
+	const theme = "/s/omarchy/current/theme/kitty.conf"
+	for _, f := range []string{"configs/kitty/kitty.conf", "configs/kitty/theme.auto.conf"} {
+		with, err := Render(catalogfs.FS, f, Vars{OmarchyKittyTheme: theme})
+		if err != nil {
+			t.Fatal(err)
+		}
+		without, err := Render(catalogfs.FS, f, Vars{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(with), "include "+theme+"\n") {
+			t.Errorf("%s: missing Omarchy include:\n%s", f, with)
+		}
+		if strings.Contains(string(without), "include") {
+			t.Errorf("%s: include without Omarchy:\n%s", f, without)
+		}
+	}
+	auto, _ := Render(catalogfs.FS, "configs/kitty/theme.auto.conf", Vars{OmarchyKittyTheme: theme})
+	if strings.Contains(string(auto), "background") {
+		t.Error("theme.auto.conf must not pin colors on Omarchy")
 	}
 }
